@@ -86,7 +86,11 @@ def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
 
         widget.add_roi()
 
+        image_layer = viewer.layers["leaf"]
         crop_layer = viewer.layers["leaf ROI"]
+        assert viewer.layers.selection.active is roi_layer
+        assert roi_layer.mode == "add_rectangle"
+        assert image_layer.visible is False
         assert crop_layer.data.shape == (2, 3)
         np.testing.assert_allclose(crop_layer.translate, [1.0, 1.0])
         np.testing.assert_array_equal(

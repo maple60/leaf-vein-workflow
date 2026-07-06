@@ -254,6 +254,7 @@ class CropWidget(QWidget):
             # 左上座標分だけ translate する。
             existing_crop.translate = (y_slice.start, x_slice.start)
             self._move_layer_to_top(existing_crop)
+            image_layer.visible = False
             self._activate_rectangle_mode(roi_layer)
             self._set_mask_controls_enabled(True)
             self._set_status(
@@ -278,6 +279,7 @@ class CropWidget(QWidget):
 
         # 次回以降はこの crop レイヤーを更新できるよう、対応表に保存する。
         self._roi_to_crop[id(roi_layer)] = crop_layer
+        image_layer.visible = False
         self._activate_rectangle_mode(roi_layer)
         self._set_mask_controls_enabled(True)
         self._set_status(
