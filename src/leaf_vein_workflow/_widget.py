@@ -1,0 +1,313 @@
+"""napari dock widget for the ROI crop MVP.
+
+このファイルは napari の dock widget、つまり画面右側などに表示される
+小さな操作パネルを定義する。画像の切り抜き計算そのものは `crop.py` に
+分け、ここでは napari のレイヤー、ボタン、イベントだけを扱う。
+"""
+
+import numpy as np
+from napari.layers import Image, Shapes
+from napari.utils.notifications import show_info, show_warning
+from qtpy.QtCore import QTimer
+from qtpy.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
+
+from .crop import crop_to_rectangle, rectangle_to_slices
+
+
+# napari の各レイヤーには metadata という辞書を持たせられる。
+# ここでは「このレイヤーはプラグインが作った ROI か crop 結果か」を
+# metadata に記録し、あとで通常の画像レイヤーと区別する。
+ROLE_KEY = "leaf_vein_workflow_role"
+ROLE_ROI_SHAPES = "roi_shapes"
+ROLE_ROI_CROP = "roi_crop"
+SOURCE_IMAGE_KEY = "source_image"
+
+
+class CropWidget(QWidget):
+    """新しく読み込まれた画像に ROI レイヤーを自動で用意する widget。"""
+
+    def __init__(self, napari_viewer):
+        super().__init__()
+        self.viewer = napari_viewer
+
+        # ROI Shapes レイヤーと元画像 Image レイヤーの対応表。
+        # napari のレイヤー名はユーザーが変更できるため、辞書のキーには
+        # レイヤーオブジェクト自身を識別しやすい `id(roi_layer)` を使う。
+        self._roi_to_image: dict[int, Image] = {}
+
+        # ROI Shapes レイヤーと、そこから作った crop Image レイヤーの対応表。
+        # 同じ ROI で Add ROI をもう一度押したとき、新しいレイヤーを増やさず
+        # 既存の crop レイヤーを更新するために使う。
+        self._roi_to_crop: dict[int, Image] = {}
+
+        # Qt の部品を作る。QLabel は状態表示、QPushButton は crop 実行ボタン。
+        self.status_label = QLabel(
+            "Open an image with napari. A rectangle ROI layer will be created "
+            "automatically."
+        )
+        self.status_label.setWordWrap(True)
+        self.add_roi_button = QPushButton("Add ROI")
+
+        # 画像がまだない段階では ROI もないので、最初はボタンを押せない。
+        self.add_roi_button.setEnabled(False)
+
+        # Qt では layout に部品を追加し、その layout を QWidget に設定する。
+        # ここでは上からボタン、説明ラベルの順に縦に並べるだけの簡単な UI。
+        layout = QVBoxLayout()
+        layout.addWidget(self.add_roi_button)
+        layout.addWidget(self.status_label)
+        self.setLayout(layout)
+
+        # Qt の clicked signal と、napari の layer inserted event を接続する。
+        # これにより、ボタンが押されたら add_roi()、新しいレイヤーが追加されたら
+        # _on_layer_inserted() が自動的に呼ばれる。
+        self.add_roi_button.clicked.connect(self.add_roi)
+        self.viewer.layers.events.inserted.connect(self._on_layer_inserted)
+
+        # widget を開く前から画像が viewer に存在している場合にも対応する。
+        # すでにある各レイヤーを、新しく追加された場合と同じ手順で処理する。
+        for layer in list(self.viewer.layers):
+            self._prepare_image_layer(layer)
+
+    def _on_layer_inserted(self, event) -> None:
+        """新しいレイヤーが追加されたときに呼ばれる napari event handler。"""
+        # event.value には、追加されたレイヤーオブジェクトが入っている。
+        self._prepare_image_layer(event.value)
+
+    def _prepare_image_layer(self, layer) -> None:
+        """画像レイヤーに対応する ROI Shapes レイヤーを作る。"""
+        # この widget が対象にするのは napari.layers.Image だけ。
+        # Shapes や Points など、画像以外のレイヤーは何もしない。
+        if not isinstance(layer, Image):
+            return
+
+        # 自分で作った crop 結果も Image レイヤーなので、そのままだと
+        # crop 結果にさらに ROI レイヤーを作ってしまう。metadata で除外する。
+        if layer.metadata.get(ROLE_KEY) == ROLE_ROI_CROP:
+            return
+
+        # すでに ROI レイヤーを作った元画像には、二重に ROI を作らない。
+        if any(source is layer for source in self._roi_to_image.values()):
+            return
+
+        # ROI を描くための Shapes レイヤーを追加する。
+        # ndim=2 は、現在の MVP が 2D 画像だけを対象にしているため。
+        roi_layer = self.viewer.add_shapes(
+            name=self._unique_layer_name(f"{layer.name} ROI rectangle"),
+            ndim=2,
+            edge_color="yellow",
+            face_color=[1, 1, 0, 0.15],
+            edge_width=2,
+        )
+
+        # metadata に、この Shapes レイヤーが本プラグインの ROI であることと、
+        # どの画像名から作られたかを記録する。主な判定には _roi_to_image を使うが、
+        # metadata はレイヤー一覧を見たときの自己説明にもなる。
+        roi_layer.metadata[ROLE_KEY] = ROLE_ROI_SHAPES
+        roi_layer.metadata[SOURCE_IMAGE_KEY] = layer.name
+
+        # ROI レイヤーから元画像レイヤーをたどれるようにする。
+        # ここで保存しておくことで、Add ROI 時に「どの画像を切るか」が分かる。
+        self._roi_to_image[id(roi_layer)] = layer
+
+        # ROI の図形データが変わったときに状態表示を更新する。
+        # lambda の既定引数に roi_layer を入れているのは、後から別の ROI が増えても
+        # この signal が必ず自分自身の ROI レイヤーを参照するようにするため。
+        roi_layer.events.data.connect(
+            lambda event, roi_layer=roi_layer: self._on_roi_data_changed(
+                roi_layer
+            )
+        )
+
+        # ROI レイヤーを選択し、すぐ長方形を描けるモードにする。
+        self._activate_rectangle_mode(roi_layer)
+
+        # napari 側のレイヤー追加直後には、選択状態や mode が内部処理で
+        # 上書きされることがある。そのため Qt のイベントループが一度戻った後に
+        # もう一度だけ長方形描画モードを設定する。
+        QTimer.singleShot(
+            0,
+            lambda roi_layer=roi_layer: self._activate_rectangle_mode(
+                roi_layer
+            )
+            if self._layer_is_present(roi_layer)
+            else None,
+        )
+
+        # 少なくとも 1 つ ROI レイヤーができたので、Add ROI を押せるようにする。
+        self.add_roi_button.setEnabled(True)
+
+        self._set_status(
+            f"Created ROI rectangle layer for {layer.name}. Draw one rectangle."
+        )
+        show_info(f"Draw one rectangle ROI on {layer.name}.")
+
+    def _on_roi_data_changed(self, roi_layer: Shapes) -> None:
+        """ROI が編集されたあと、切り抜き可能な状態かを表示する。"""
+        # この段階では crop は実行しない。ユーザーが長方形を微調整している途中で
+        # 毎回 crop レイヤーを作ると煩雑なので、Add ROI ボタンを押すまで待つ。
+        image_layer = self._roi_to_image.get(id(roi_layer))
+        if image_layer is None:
+            return
+
+        # MVP では ROI は 1 つだけ。0 個や 2 個以上なら、どれを切るべきか
+        # 曖昧になるため、ここでは状態表示だけ更新して終了する。
+        if len(roi_layer.data) != 1:
+            self._set_status("Draw exactly one rectangle, then click Add ROI.")
+            return
+
+        # Shapes レイヤーには rectangle 以外の図形も入りうる。
+        # この widget は長方形 crop 専用なので、rectangle 以外は警告する。
+        shape_type = self._single_shape_type(roi_layer)
+        if shape_type != "rectangle":
+            self._warn("The ROI must be one rectangle.")
+            return
+
+        self._set_status(f"Rectangle ROI ready for {image_layer.name}. Click Add ROI.")
+
+    def add_roi(self) -> None:
+        """選択中の ROI 長方形から crop Image レイヤーを作成または更新する。"""
+        # Add ROI は、現在選択されている ROI レイヤーを対象にする。
+        # 画像レイヤーや通常の Shapes レイヤーが選択されている場合は処理しない。
+        roi_layer = self._active_roi_layer()
+        if roi_layer is None:
+            self._warn("Select an ROI rectangle layer before clicking Add ROI.")
+            return
+
+        # ROI レイヤーから元画像を取得する。対応がない場合は、プラグインが
+        # 管理していない ROI なので安全に止める。
+        image_layer = self._roi_to_image.get(id(roi_layer))
+        if image_layer is None:
+            self._warn("The selected ROI rectangle is not linked to an image.")
+            return
+
+        # 実行時にも ROI 数を確認する。_on_roi_data_changed() は状態表示用なので、
+        # ボタン押下時の本処理でも同じ条件を再確認しておく。
+        if len(roi_layer.data) != 1:
+            self._warn("Draw exactly one rectangle before clicking Add ROI.")
+            return
+
+        # rectangle 以外の Shapes が入っていた場合は、crop 計算に渡す前に止める。
+        shape_type = self._single_shape_type(roi_layer)
+        if shape_type != "rectangle":
+            self._warn("The ROI must be one rectangle.")
+            return
+
+        try:
+            # napari の ROI 座標を、NumPy 配列の切り抜きに使える slice に変換する。
+            # y_slice.start と x_slice.start は、後で crop レイヤーの表示位置にも使う。
+            y_slice, x_slice = rectangle_to_slices(
+                np.asarray(roi_layer.data[0]),
+                np.asarray(image_layer.data).shape,
+            )
+
+            # 実際の画像切り抜きは napari 非依存の helper に任せる。
+            cropped = crop_to_rectangle(
+                np.asarray(image_layer.data),
+                np.asarray(roi_layer.data[0]),
+            )
+        except ValueError as exc:
+            # ROI が空、画像外、未対応 shape などの場合は helper が ValueError を出す。
+            # widget 側ではそれを napari の警告として表示する。
+            self._warn(str(exc))
+            return
+
+        # 同じ ROI から過去に crop レイヤーを作っていれば、そのレイヤーを更新する。
+        # ユーザーが ROI を修正して Add ROI を押すたびにレイヤーが増えるのを避ける。
+        existing_crop = self._roi_to_crop.get(id(roi_layer))
+        if existing_crop is not None and self._layer_is_present(existing_crop):
+            existing_crop.data = cropped
+
+            # crop 画像は小さい配列だが、元画像上の ROI 位置に重ねて見えるように
+            # 左上座標分だけ translate する。
+            existing_crop.translate = (y_slice.start, x_slice.start)
+            self._move_layer_to_top(existing_crop)
+            self._activate_rectangle_mode(roi_layer)
+            self._set_status(f"Updated ROI crop layer from {image_layer.name}.")
+            return
+
+        # 初回は新しい Image レイヤーとして crop 結果を追加する。
+        crop_layer = self.viewer.add_image(
+            cropped,
+            name=self._unique_layer_name(f"{image_layer.name} ROI"),
+
+            # RGB/RGBA 画像の場合は napari に色画像として扱わせる。
+            rgb=cropped.ndim == 3 and cropped.shape[-1] in (3, 4),
+            translate=(y_slice.start, x_slice.start),
+            metadata={
+                ROLE_KEY: ROLE_ROI_CROP,
+                SOURCE_IMAGE_KEY: image_layer.name,
+            },
+        )
+
+        # 次回以降はこの crop レイヤーを更新できるよう、対応表に保存する。
+        self._roi_to_crop[id(roi_layer)] = crop_layer
+        self._activate_rectangle_mode(roi_layer)
+        self._set_status(f"Created ROI crop layer from {image_layer.name}.")
+        show_info(f"Created ROI crop layer from {image_layer.name}.")
+
+    def _active_roi_layer(self) -> Shapes | None:
+        """現在選択されているレイヤーが本プラグインの ROI なら返す。"""
+        layer = self.viewer.layers.selection.active
+        if (
+            isinstance(layer, Shapes)
+            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES
+        ):
+            return layer
+        return None
+
+    def _activate_rectangle_mode(self, roi_layer: Shapes) -> None:
+        """ROI レイヤーを選択し、長方形を追加するモードに切り替える。"""
+        # napari の選択状態をいったん空にしてから ROI レイヤーだけを選択する。
+        # これにより、ユーザーがそのまま画像上で長方形を描ける状態になる。
+        self.viewer.layers.selection.clear()
+        self.viewer.layers.selection.add(roi_layer)
+        self.viewer.layers.selection.active = roi_layer
+        roi_layer.mode = "add_rectangle"
+
+    def _unique_layer_name(self, base_name: str) -> str:
+        """既存レイヤーと衝突しない名前を返す。"""
+        existing = {layer.name for layer in self.viewer.layers}
+        if base_name not in existing:
+            return base_name
+
+        # napari のレイヤー名は重複しないほうが扱いやすいので、
+        # `name 2`, `name 3` のように番号を付ける。
+        index = 2
+        while f"{base_name} {index}" in existing:
+            index += 1
+        return f"{base_name} {index}"
+
+    def _set_status(self, message: str) -> None:
+        self.status_label.setText(message)
+
+    def _warn(self, message: str) -> None:
+        """ステータス表示と napari 通知の両方で警告を出す。"""
+        self._set_status(message)
+        show_warning(message)
+
+    @staticmethod
+    def _single_shape_type(layer: Shapes) -> str | None:
+        """Shapes レイヤーに 1 種類だけ入っている shape_type を返す。"""
+        shape_type = layer.shape_type
+
+        # napari の状態によって、shape_type は文字列の場合と配列状の場合がある。
+        # 文字列ならそのまま返す。
+        if isinstance(shape_type, str):
+            return shape_type
+
+        # 複数図形がある場合は shape_type も複数になるため、MVP では扱わない。
+        if len(shape_type) != 1:
+            return None
+        return str(shape_type[0])
+
+    def _layer_is_present(self, target_layer) -> bool:
+        """対象レイヤーがまだ viewer に存在するかを確認する。"""
+        return any(layer is target_layer for layer in self.viewer.layers)
+
+    def _move_layer_to_top(self, layer) -> None:
+        """指定したレイヤーをレイヤー一覧の一番上へ移動する。"""
+        current_index = self.viewer.layers.index(layer)
+        top_index = len(self.viewer.layers) - 1
+        if current_index != top_index:
+            self.viewer.layers.move(current_index, top_index)

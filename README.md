@@ -7,7 +7,7 @@ napari plugin for leaf vein image workflow development.
 - Open an image with the standard napari image reader.
 - Automatically create a rectangle ROI Shapes layer above the image.
 - Automatically switch that Shapes layer to rectangle drawing mode.
-- Add or update a cropped ROI Image layer after one rectangle is drawn.
+- Add or update a cropped ROI Image layer only after clicking `Add ROI`.
 
 Saving cropped images, multiple ROIs, polygon ROIs, and nD stacks are outside
 the first MVP.
@@ -36,7 +36,9 @@ Plugins > Leaf Vein Workflow > Leaf Vein Workflow
 ```
 
 With the widget open, use napari's normal image loading workflow. The plugin
-creates the ROI drawing layer automatically when an image layer is added.
+creates and activates the ROI drawing layer automatically when an image layer is
+added. Draw one rectangle, then click `Add ROI` in the widget to create the ROI
+crop layer.
 
 Run tests:
 

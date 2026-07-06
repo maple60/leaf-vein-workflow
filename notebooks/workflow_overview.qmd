@@ -1,0 +1,234 @@
+---
+title: "Leaf Vein Workflow の挙動と関数の流れ"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+---
+
+## このノートの目的
+
+このノートは、`leaf-vein-workflow` の現在の MVP 実装について、人間が読んで流れを理解するための説明です。
+
+このプラグインが今やることは、次の 1 点に絞られています。
+
+- napari で画像を開き、長方形 ROI を 1 つ描き、`Add ROI` ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。
+
+まだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、葉脈の自動抽出、VLA の計算です。
+
+## ユーザーから見た流れ
+
+ユーザー操作としては、次の順番になります。
+
+1. napari を起動する。
+2. `Plugins > Leaf Vein Workflow > Leaf Vein Workflow` から widget を開く。
+3. napari 標準の方法で葉画像を開く。
+4. プラグインが自動で ROI 用の Shapes レイヤーを作る。
+5. 画像上に長方形を 1 つ描く。
+6. `Add ROI` ボタンを押す。
+7. 長方形の範囲だけを切り抜いた Image レイヤーが追加される。
+
+重要なのは、長方形を描いただけでは切り抜きレイヤーは作られない点です。切り抜きは必ず `Add ROI` を押した後に実行されます。
+
+## 全体像
+
+実装は、大きく 2 つに分かれています。
+
+| ファイル | 役割 |
+|---|---|
+| `src/leaf_vein_workflow/_widget.py` | napari の画面、レイヤー、ボタン、通知を扱う |
+| `src/leaf_vein_workflow/crop.py` | 画像配列をどこで切るかを計算する |
+
+初心者向けに言うと、`_widget.py` は「画面の係」、`crop.py` は「計算の係」です。
+
+```{mermaid}
+flowchart TD
+  A["ユーザーが napari で画像を開く"] --> B["_prepare_image_layer()"]
+  B --> C["ROI Shapes レイヤーを自動作成"]
+  C --> D["長方形描画モードに切り替え"]
+  D --> E["ユーザーが長方形 ROI を描く"]
+  E --> F["_on_roi_data_changed()"]
+  F --> G["ROI が 1 つの長方形か確認"]
+  G --> H["ユーザーが Add ROI を押す"]
+  H --> I["add_roi()"]
+  I --> J["rectangle_to_slices()"]
+  J --> K["crop_to_rectangle()"]
+  K --> L["切り抜き Image レイヤーを作成または更新"]
+```
+
+## napari への登録
+
+napari は `src/leaf_vein_workflow/napari.yaml` を読んで、このパッケージの widget を見つけます。
+
+このファイルでは、`leaf_vein_workflow._widget:CropWidget` が widget として登録されています。つまり napari のメニューからプラグインを開くと、`CropWidget` クラスが作られます。
+
+## `CropWidget` の初期化
+
+`CropWidget` は、プラグインの本体です。
+
+作られた直後に、主に次の準備をします。
+
+- napari viewer を `self.viewer` に保存する。
+- ROI レイヤーと元画像レイヤーの対応表を作る。
+- ROI レイヤーと crop レイヤーの対応表を作る。
+- `Add ROI` ボタンとステータス表示を作る。
+- `Add ROI` ボタンが押されたら `add_roi()` が動くようにする。
+- 新しいレイヤーが追加されたら `_on_layer_inserted()` が動くようにする。
+- すでに開かれている画像があれば、それにも ROI レイヤーを準備する。
+
+ここでのポイントは、プラグイン起動後に画像を開いた場合だけでなく、すでに画像が開いている状態でプラグインを起動した場合にも対応していることです。
+
+## 画像が追加されたとき
+
+画像レイヤーが追加されると、`_on_layer_inserted()` から `_prepare_image_layer()` が呼ばれます。
+
+`_prepare_image_layer()` は、次の確認をします。
+
+1. 追加されたレイヤーが napari の `Image` レイヤーか。
+2. その画像が、プラグイン自身が作った crop レイヤーではないか。
+3. すでに ROI レイヤーと結びついている画像ではないか。
+
+この確認を通った画像だけに、ROI 用の `Shapes` レイヤーを作ります。
+
+ROI レイヤーには、metadata として次の情報が入ります。
+
+| metadata | 意味 |
+|---|---|
+| `leaf_vein_workflow_role = roi_shapes` | この Shapes レイヤーは ROI 用である |
+| `source_image = 元画像名` | どの画像から作られた ROI か |
+
+さらに、内部の辞書 `_roi_to_image` によって、ROI レイヤーと元画像レイヤーの対応を保存します。
+
+## ROI が編集されたとき
+
+ユーザーが ROI を描いたり編集したりすると、`_on_roi_data_changed()` が呼ばれます。
+
+ここで確認しているのは、主に次の 2 点です。
+
+- ROI が 1 つだけあるか。
+- その ROI が長方形か。
+
+ROI が 0 個、または 2 個以上ある場合は、ステータス表示で「長方形を 1 つだけ描いてください」と案内します。長方形以外の場合は、警告を出します。
+
+ただし、この段階ではまだ画像を切り抜きません。ここでは「準備ができたか」を確認しているだけです。
+
+## `Add ROI` を押したとき
+
+`Add ROI` ボタンを押すと、`add_roi()` が動きます。
+
+`add_roi()` は、まず次の順番でチェックします。
+
+1. 現在選択されているレイヤーが ROI 用 Shapes レイヤーか。
+2. その ROI レイヤーが元画像と結びついているか。
+3. ROI が 1 つだけか。
+4. ROI が長方形か。
+5. ROI が画像と重なっているか。
+
+すべて通った場合だけ、実際の切り抜き処理に進みます。
+
+切り抜き処理では、`rectangle_to_slices()` と `crop_to_rectangle()` の 2 つを使います。
+
+## `rectangle_to_slices()`
+
+`rectangle_to_slices()` は、ROI の頂点座標を NumPy の `slice` に変換する関数です。
+
+たとえば、長方形 ROI の座標がだいたい次の範囲だったとします。
+
+| 座標 | 値 |
+|---|---|
+| y の最小値 | 1.2 |
+| y の最大値 | 3.7 |
+| x の最小値 | 2.1 |
+| x の最大値 | 4.9 |
+
+この場合、関数は次のように整数の範囲へ変換します。
+
+| 軸 | 変換後 |
+|---|---|
+| y | `slice(1, 4)` |
+| x | `slice(2, 5)` |
+
+最小値側は `floor` で下に丸め、最大値側は `ceil` で上に丸めます。これにより、ROI に含まれる画素を取りこぼしにくくしています。
+
+また、ROI が画像の外にはみ出している場合は、画像の範囲内に切り詰めます。完全に画像と重ならない場合は、エラーにします。
+
+対応している画像は、現在の MVP では次の 2 種類です。
+
+- 2D grayscale image
+- 2D RGB/RGBA image
+
+## `crop_to_rectangle()`
+
+`crop_to_rectangle()` は、実際に画像配列を切り抜く関数です。
+
+内部では、まず `rectangle_to_slices()` を呼び出して、切り抜く y 範囲と x 範囲を決めます。その後、画像が 2D なら次のように切ります。
+
+```python
+image_array[y_slice, x_slice]
+```
+
+RGB/RGBA のように最後の軸が色チャンネルの場合は、色チャンネルを残すために次のように切ります。
+
+```python
+image_array[y_slice, x_slice, :]
+```
+
+戻り値は `.copy()` された配列です。これは、元画像の一部を参照するのではなく、切り抜き画像として独立したデータにするためです。
+
+## crop レイヤーの作成と更新
+
+`add_roi()` は、切り抜いた画像を napari の Image レイヤーとして追加します。
+
+新規作成時には、次の情報を指定します。
+
+- レイヤー名は `元画像名 ROI`
+- RGB/RGBA 画像なら `rgb=True`
+- `translate` に ROI の左上位置を入れる
+- metadata に crop レイヤーであることを記録する
+
+`translate` を設定する理由は、切り抜き画像を元画像上の ROI 位置に重ねて表示しやすくするためです。
+
+同じ ROI レイヤーからすでに crop レイヤーが作られている場合は、新しいレイヤーを増やさず、既存レイヤーの `data` と `translate` を更新します。
+
+## エラーや警告になる例
+
+次の場合は、切り抜き処理に進まず、警告またはエラーになります。
+
+| 状況 | 理由 |
+|---|---|
+| ROI レイヤー以外を選択している | どの ROI を使うか分からない |
+| ROI が 0 個 | 切り抜く範囲がない |
+| ROI が 2 個以上 | MVP では 1 個だけ対応 |
+| ROI が長方形ではない | MVP では rectangle のみ対応 |
+| ROI が画像と重ならない | 切り抜ける画素がない |
+| 画像が 2D grayscale または RGB/RGBA ではない | MVP の対応範囲外 |
+
+## テストで確認していること
+
+`tests/test_crop.py` では、napari に依存しない切り抜き計算を確認しています。
+
+- 小数座標が `floor` と `ceil` で正しく slice になること。
+- 画像外にはみ出た ROI が画像範囲に切り詰められること。
+- RGB 画像の色チャンネルが保たれること。
+- 空の ROI や画像外 ROI がエラーになること。
+- 未対応の画像 shape がエラーになること。
+
+`tests/test_widget_import.py` では、Qt backend がある環境で widget を import できることと、画像追加から ROI レイヤー作成、`Add ROI` による crop レイヤー作成までを確認しています。
+
+## 開発時に見る順番
+
+挙動を追うときは、次の順番で読むと理解しやすいです。
+
+1. `README.md` でユーザー操作を確認する。
+2. `src/leaf_vein_workflow/napari.yaml` で widget 登録を確認する。
+3. `src/leaf_vein_workflow/_widget.py` の `CropWidget.__init__()` を見る。
+4. `_prepare_image_layer()` で画像追加時の動きを見る。
+5. `_on_roi_data_changed()` で ROI 編集時の確認を見る。
+6. `add_roi()` でボタン押下時の処理を見る。
+7. `src/leaf_vein_workflow/crop.py` で切り抜き計算を見る。
+
+## まとめ
+
+現在の実装は、葉脈解析そのものではなく、葉脈解析の前段階として「人が画像上で ROI を指定し、その範囲を切り出す」ための最小機能です。
+
+設計上は、napari 依存の GUI 部分と、NumPy ベースの切り抜き計算が分かれています。このため、今後 ROI 管理や保存機能を足す場合は `_widget.py` を中心に、切り抜き仕様を変える場合は `crop.py` を中心に変更すればよい構造になっています。

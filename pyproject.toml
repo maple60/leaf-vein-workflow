@@ -38,4 +38,6 @@ where = ["src"]
 leaf_vein_workflow = ["napari.yaml"]
 
 [tool.pytest.ini_options]
+addopts = ["-p", "no:napari"]
+cache_dir = ".pytest_cache_local"
 pythonpath = ["src"]

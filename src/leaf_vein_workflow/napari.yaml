@@ -1,0 +1,10 @@
+name: leaf-vein-workflow
+display_name: Leaf Vein Workflow
+contributions:
+  commands:
+    - id: leaf-vein-workflow.make_crop_widget
+      title: Make ROI Crop Widget
+      python_name: leaf_vein_workflow._widget:CropWidget
+  widgets:
+    - command: leaf-vein-workflow.make_crop_widget
+      display_name: Leaf Vein Workflow
