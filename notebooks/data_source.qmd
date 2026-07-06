@@ -1,0 +1,22 @@
+---
+title: "サンプルデータセット"
+---
+
+- [Leaf venation networks of Bornean trees: images and hand‐traced segmentations - Blonder - 2019 - Ecology - Wiley Online Library](https://esajournals-onlinelibrary-wiley-com.kyoto-u.idm.oclc.org/doi/full/10.1002/ecy.2844)
+    - [Leaf venation networks of Bornean trees: images and hand-traced segmentations - ORA - Oxford University Research Archive](https://ora.ox.ac.uk/objects/uuid:de65fc07-4b8f-4277-a6c4-82836afbdeb3)
+
+## まとめ
+
+| データ                                                              | 使いどころ                             | 注意                                                                                                                                                 |
+| ---------------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Leaf venation networks of Bornean trees / LeafVeinCNN Images** | 葉脈セグメンテーション、VLA計算、手動トレースとの比較に最も近い | Bornean tree species の高解像度画像と手動トレース。元画像は約50–70 MP、複数百種規模。LeafVeinCNN用にダウンサンプル画像・ground truth・処理結果もZenodoにある。([Macrosystems Ecology Laboratory][1]) |
+| **UCBG 122 species venation dataset**                            | 多様な系統の葉脈形質データ、既存の形質値との照合          | Dryadに `LeafVeinCNN.zip`, `UCBG_venation_form_images.zip`, `UCBG_venation_anatomy.csv` などがあるが、全体はかなり大きい。122種の葉脈・機能形質データ。([Dryad][2])               |
+| **Cleared / x-rayed / fossil leaves dataset**                    | 透明化葉・X線葉画像を大量に見たい、分類・探索用          | 30,252画像、うち26,176画像が cleared / x-rayed leaves。葉脈標本そのものに近いが、基本は分類・参照用で、VLA用のマスクやスケール情報は期待しすぎない方がよい。([EurekAlert!][3])                               |
+| **HALVS dataset**                                                | 葉脈の次数別セグメンテーションモデルのテスト            | 5,057枚、 soybean / sweet cherry / London planetree の3種、1–3次脈のアノテーションあり。ただし「透明化標本」ではなく高解像度スキャン葉画像。([IJCAI][4])                                       |
+| **LeafVeinCNN software / results**                               | 既存ツールの挙動確認、出力形式の参考                | MATLAB/Windows向け。ソフト自体と学習済みCNNモデルが公開されている。([Zenodo][5])                                                                                            |
+
+[1]: https://benjaminblonder.org/2019/08/27/new-data-paper-leaf-venation-networks-of-bornean-trees/ "New data paper: Leaf venation networks of Bornean trees – Macrosystems Ecology Laboratory"
+[2]: https://datadryad.org/dataset/doi%3A10.5061/dryad.1g1jwsv36 "Dryad | Data: Leaf architecture and functional traits for 122 species at the University of California at Berkeley botanical garden"
+[3]: https://www.eurekalert.org/news-releases/946532 "From museum to laptop: Visual leaf library a new tool for identifying plants  | EurekAlert!"
+[4]: https://www.ijcai.org/proceedings/2024/815?utm_source=chatgpt.com "Revealing Hierarchical Structure of Leaf Venations in Plant ..."
+[5]: https://zenodo.org/records/8272938 "Leaf Vein Network CNN Analysis Software v2.14 | Zenodo"
