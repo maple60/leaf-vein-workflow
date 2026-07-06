@@ -6,12 +6,20 @@
 """
 
 import numpy as np
-from napari.layers import Image, Shapes
+from napari.layers import Image, Labels, Shapes
 from napari.utils.notifications import show_info, show_warning
 from qtpy.QtCore import QTimer
-from qtpy.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QDoubleSpinBox,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from .crop import crop_to_rectangle, rectangle_to_slices
+from .threshold import otsu_threshold, threshold_image
 
 
 # napari の各レイヤーには metadata という辞書を持たせられる。
@@ -20,7 +28,9 @@ from .crop import crop_to_rectangle, rectangle_to_slices
 ROLE_KEY = "leaf_vein_workflow_role"
 ROLE_ROI_SHAPES = "roi_shapes"
 ROLE_ROI_CROP = "roi_crop"
+ROLE_VEIN_MASK = "vein_mask"
 SOURCE_IMAGE_KEY = "source_image"
+SOURCE_CROP_KEY = "source_crop"
 
 
 class CropWidget(QWidget):
@@ -40,6 +50,11 @@ class CropWidget(QWidget):
         # 既存の crop レイヤーを更新するために使う。
         self._roi_to_crop: dict[int, Image] = {}
 
+        # Crop Image レイヤーと、そこから作った二値 mask Labels レイヤーの対応表。
+        # threshold を変えて Create Mask を押したとき、既存 mask を更新する。
+        self._crop_to_mask: dict[int, Labels] = {}
+        self._mask_to_crop: dict[int, Image] = {}
+
         # Qt の部品を作る。QLabel は状態表示、QPushButton は crop 実行ボタン。
         self.status_label = QLabel(
             "Open an image with napari. A rectangle ROI layer will be created "
@@ -47,14 +62,29 @@ class CropWidget(QWidget):
         )
         self.status_label.setWordWrap(True)
         self.add_roi_button = QPushButton("Add ROI")
+        self.threshold_label = QLabel("Mask threshold")
+        self.threshold_spinbox = QDoubleSpinBox()
+        self.threshold_spinbox.setRange(-1_000_000_000.0, 1_000_000_000.0)
+        self.threshold_spinbox.setDecimals(6)
+        self.threshold_spinbox.setSingleStep(1.0)
+        self.threshold_spinbox.setValue(0.5)
+        self.invert_threshold_checkbox = QCheckBox("Invert threshold")
+        self.otsu_button = QPushButton("Use Otsu")
+        self.create_mask_button = QPushButton("Create Mask")
 
         # 画像がまだない段階では ROI もないので、最初はボタンを押せない。
         self.add_roi_button.setEnabled(False)
+        self._set_mask_controls_enabled(False)
 
         # Qt では layout に部品を追加し、その layout を QWidget に設定する。
-        # ここでは上からボタン、説明ラベルの順に縦に並べるだけの簡単な UI。
+        # ここでは上から crop 操作、mask 操作、説明ラベルの順に縦に並べる。
         layout = QVBoxLayout()
         layout.addWidget(self.add_roi_button)
+        layout.addWidget(self.threshold_label)
+        layout.addWidget(self.threshold_spinbox)
+        layout.addWidget(self.invert_threshold_checkbox)
+        layout.addWidget(self.otsu_button)
+        layout.addWidget(self.create_mask_button)
         layout.addWidget(self.status_label)
         self.setLayout(layout)
 
@@ -62,6 +92,8 @@ class CropWidget(QWidget):
         # これにより、ボタンが押されたら add_roi()、新しいレイヤーが追加されたら
         # _on_layer_inserted() が自動的に呼ばれる。
         self.add_roi_button.clicked.connect(self.add_roi)
+        self.otsu_button.clicked.connect(self.use_otsu_threshold)
+        self.create_mask_button.clicked.connect(self.create_mask)
         self.viewer.layers.events.inserted.connect(self._on_layer_inserted)
 
         # widget を開く前から画像が viewer に存在している場合にも対応する。
@@ -223,7 +255,11 @@ class CropWidget(QWidget):
             existing_crop.translate = (y_slice.start, x_slice.start)
             self._move_layer_to_top(existing_crop)
             self._activate_rectangle_mode(roi_layer)
-            self._set_status(f"Updated ROI crop layer from {image_layer.name}.")
+            self._set_mask_controls_enabled(True)
+            self._set_status(
+                f"Updated ROI crop layer from {image_layer.name}. "
+                "Use Otsu or Create Mask to refresh the vein mask."
+            )
             return
 
         # 初回は新しい Image レイヤーとして crop 結果を追加する。
@@ -243,8 +279,72 @@ class CropWidget(QWidget):
         # 次回以降はこの crop レイヤーを更新できるよう、対応表に保存する。
         self._roi_to_crop[id(roi_layer)] = crop_layer
         self._activate_rectangle_mode(roi_layer)
-        self._set_status(f"Created ROI crop layer from {image_layer.name}.")
+        self._set_mask_controls_enabled(True)
+        self._set_status(
+            f"Created ROI crop layer from {image_layer.name}. "
+            "Use Otsu or set a threshold, then click Create Mask."
+        )
         show_info(f"Created ROI crop layer from {image_layer.name}.")
+
+    def use_otsu_threshold(self) -> None:
+        """現在の crop 画像から Otsu 閾値を推定して入力欄へ反映する。"""
+        crop_layer = self._active_crop_layer()
+        if crop_layer is None:
+            self._warn("Create or select an ROI crop layer before using Otsu.")
+            return
+
+        try:
+            threshold = otsu_threshold(np.asarray(crop_layer.data))
+        except ValueError as exc:
+            self._warn(str(exc))
+            return
+
+        self.threshold_spinbox.setValue(threshold)
+        self._set_status(
+            f"Set Otsu threshold for {crop_layer.name}: {threshold:.6g}."
+        )
+
+    def create_mask(self) -> None:
+        """現在の crop 画像から二値 mask Labels レイヤーを作成または更新する。"""
+        crop_layer = self._active_crop_layer()
+        if crop_layer is None:
+            self._warn("Create or select an ROI crop layer before creating a mask.")
+            return
+
+        try:
+            mask = threshold_image(
+                np.asarray(crop_layer.data),
+                self.threshold_spinbox.value(),
+                invert=self.invert_threshold_checkbox.isChecked(),
+            ).astype(np.uint8)
+        except ValueError as exc:
+            self._warn(str(exc))
+            return
+
+        existing_mask = self._crop_to_mask.get(id(crop_layer))
+        if existing_mask is not None and self._layer_is_present(existing_mask):
+            existing_mask.data = mask
+            existing_mask.translate = tuple(crop_layer.translate)
+            self._move_layer_to_top(existing_mask)
+            self._set_status(f"Updated vein mask from {crop_layer.name}.")
+            return
+
+        mask_layer = self.viewer.add_labels(
+            mask,
+            name=self._unique_layer_name(f"{crop_layer.name} vein mask"),
+            translate=tuple(crop_layer.translate),
+            opacity=0.5,
+            metadata={
+                ROLE_KEY: ROLE_VEIN_MASK,
+                SOURCE_IMAGE_KEY: crop_layer.metadata.get(SOURCE_IMAGE_KEY),
+                SOURCE_CROP_KEY: crop_layer.name,
+            },
+        )
+
+        self._crop_to_mask[id(crop_layer)] = mask_layer
+        self._mask_to_crop[id(mask_layer)] = crop_layer
+        self._set_status(f"Created vein mask from {crop_layer.name}.")
+        show_info(f"Created vein mask from {crop_layer.name}.")
 
     def _active_roi_layer(self) -> Shapes | None:
         """現在選択されているレイヤーが本プラグインの ROI なら返す。"""
@@ -254,6 +354,34 @@ class CropWidget(QWidget):
             and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES
         ):
             return layer
+        return None
+
+    def _active_crop_layer(self) -> Image | None:
+        """現在の選択状態から、本プラグインの crop Image レイヤーを返す。"""
+        layer = self.viewer.layers.selection.active
+
+        if (
+            isinstance(layer, Image)
+            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_CROP
+        ):
+            return layer
+
+        if (
+            isinstance(layer, Shapes)
+            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES
+        ):
+            crop_layer = self._roi_to_crop.get(id(layer))
+            if crop_layer is not None and self._layer_is_present(crop_layer):
+                return crop_layer
+
+        if (
+            isinstance(layer, Labels)
+            and layer.metadata.get(ROLE_KEY) == ROLE_VEIN_MASK
+        ):
+            crop_layer = self._mask_to_crop.get(id(layer))
+            if crop_layer is not None and self._layer_is_present(crop_layer):
+                return crop_layer
+
         return None
 
     def _activate_rectangle_mode(self, roi_layer: Shapes) -> None:
@@ -280,6 +408,13 @@ class CropWidget(QWidget):
 
     def _set_status(self, message: str) -> None:
         self.status_label.setText(message)
+
+    def _set_mask_controls_enabled(self, enabled: bool) -> None:
+        self.threshold_label.setEnabled(enabled)
+        self.threshold_spinbox.setEnabled(enabled)
+        self.invert_threshold_checkbox.setEnabled(enabled)
+        self.otsu_button.setEnabled(enabled)
+        self.create_mask_button.setEnabled(enabled)
 
     def _warn(self, message: str) -> None:
         """ステータス表示と napari 通知の両方で警告を出す。"""

@@ -10,11 +10,12 @@ format:
 
 このノートは、`leaf-vein-workflow` の現在の MVP 実装について、人間が読んで流れを理解するための説明です。
 
-このプラグインが今やることは、次の 1 点に絞られています。
+このプラグインが今やることは、次の 2 点に絞られています。
 
 - napari で画像を開き、長方形 ROI を 1 つ描き、`Add ROI` ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。
+- 切り抜き画像から、手動閾値または Otsu 閾値で葉脈候補の mask Labels レイヤーを作る。
 
-まだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、葉脈の自動抽出、VLA の計算です。
+まだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、骨格化、VLA の計算、major/minor の分離です。
 
 ## ユーザーから見た流れ
 
@@ -27,6 +28,10 @@ format:
 5. 画像上に長方形を 1 つ描く。
 6. `Add ROI` ボタンを押す。
 7. 長方形の範囲だけを切り抜いた Image レイヤーが追加される。
+8. `Use Otsu` で自動閾値を入れるか、閾値を手で入力する。
+9. 必要なら `Invert threshold` を切り替える。
+10. `Create Mask` ボタンを押す。
+11. crop 画像から二値 mask の Labels レイヤーが追加または更新される。
 
 重要なのは、長方形を描いただけでは切り抜きレイヤーは作られない点です。切り抜きは必ず `Add ROI` を押した後に実行されます。
 
@@ -38,8 +43,9 @@ format:
 |---|---|
 | `src/leaf_vein_workflow/_widget.py` | napari の画面、レイヤー、ボタン、通知を扱う |
 | `src/leaf_vein_workflow/crop.py` | 画像配列をどこで切るかを計算する |
+| `src/leaf_vein_workflow/threshold.py` | 画像配列を grayscale 化し、閾値で二値 mask を作る |
 
-初心者向けに言うと、`_widget.py` は「画面の係」、`crop.py` は「計算の係」です。
+初心者向けに言うと、`_widget.py` は「画面の係」、`crop.py` と `threshold.py` は「計算の係」です。
 
 ```{mermaid}
 flowchart TD
@@ -54,6 +60,10 @@ flowchart TD
   I --> J["rectangle_to_slices()"]
   J --> K["crop_to_rectangle()"]
   K --> L["切り抜き Image レイヤーを作成または更新"]
+  L --> M["ユーザーが Use Otsu または閾値を設定"]
+  M --> N["create_mask()"]
+  N --> O["threshold_image()"]
+  O --> P["二値 mask Labels レイヤーを作成または更新"]
 ```
 
 ## napari への登録
@@ -71,8 +81,12 @@ napari は `src/leaf_vein_workflow/napari.yaml` を読んで、このパッケ�
 - napari viewer を `self.viewer` に保存する。
 - ROI レイヤーと元画像レイヤーの対応表を作る。
 - ROI レイヤーと crop レイヤーの対応表を作る。
+- crop レイヤーと mask レイヤーの対応表を作る。
 - `Add ROI` ボタンとステータス表示を作る。
+- 閾値入力、`Invert threshold`、`Use Otsu`、`Create Mask` を作る。
 - `Add ROI` ボタンが押されたら `add_roi()` が動くようにする。
+- `Use Otsu` が押されたら `use_otsu_threshold()` が動くようにする。
+- `Create Mask` が押されたら `create_mask()` が動くようにする。
 - 新しいレイヤーが追加されたら `_on_layer_inserted()` が動くようにする。
 - すでに開かれている画像があれば、それにも ROI レイヤーを準備する。
 
@@ -190,6 +204,20 @@ image_array[y_slice, x_slice, :]
 
 同じ ROI レイヤーからすでに crop レイヤーが作られている場合は、新しいレイヤーを増やさず、既存レイヤーの `data` と `translate` を更新します。
 
+## mask レイヤーの作成と更新
+
+`Create Mask` ボタンを押すと、現在の crop Image レイヤーから二値 mask を作ります。
+
+入力として使えるのは、本プラグインが `Add ROI` で作った crop レイヤーです。crop レイヤーそのものを選択していても、対応する ROI レイヤーを選択していても、その crop を使います。
+
+二値化では、まず `threshold.py` の `to_grayscale()` で画像を 2D grayscale に変換します。RGB/RGBA 画像の場合は RGB だけを使い、alpha は無視します。その後、`threshold_image()` が閾値以上の画素を 1、その他を 0 とする mask を返します。
+
+`Invert threshold` が有効な場合は、閾値以下の画素を 1 として扱います。これは、葉脈が背景より暗い画像で使う想定です。
+
+`Use Otsu` ボタンは、現在の crop 画像から `otsu_threshold()` で閾値を推定し、閾値入力欄に入れます。このボタンだけでは mask レイヤーは作られません。mask を作る、または更新するには `Create Mask` を押します。
+
+mask は napari の Labels レイヤーとして作られます。レイヤー名は `crop レイヤー名 vein mask` です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの `data` と `translate` を更新します。
+
 ## エラーや警告になる例
 
 次の場合は、切り抜き処理に進まず、警告またはエラーになります。
@@ -202,6 +230,8 @@ image_array[y_slice, x_slice, :]
 | ROI が長方形ではない | MVP では rectangle のみ対応 |
 | ROI が画像と重ならない | 切り抜ける画素がない |
 | 画像が 2D grayscale または RGB/RGBA ではない | MVP の対応範囲外 |
+| crop レイヤーがまだない状態で `Use Otsu` または `Create Mask` を押す | 二値化する画像がない |
+| crop 画像に NaN や inf が含まれる | 閾値計算が信用できない |
 
 ## テストで確認していること
 
@@ -213,7 +243,16 @@ image_array[y_slice, x_slice, :]
 - 空の ROI や画像外 ROI がエラーになること。
 - 未対応の画像 shape がエラーになること。
 
+`tests/test_threshold.py` では、napari に依存しない二値化計算を確認しています。
+
+- grayscale 画像をそのまま float の 2D 配列として扱えること。
+- RGB/RGBA 画像を grayscale に変換できること。
+- 手動閾値で明るい前景と暗い前景の両方を mask にできること。
+- Otsu 閾値が単純な二峰性画像を分けられること。
+- 未対応の画像 shape がエラーになること。
+
 `tests/test_widget_import.py` では、Qt backend がある環境で widget を import できることと、画像追加から ROI レイヤー作成、`Add ROI` による crop レイヤー作成までを確認しています。
+現在はさらに、crop レイヤーから Otsu 閾値を設定し、`Create Mask` で mask Labels レイヤーを作れることも確認しています。
 
 ## 開発時に見る順番
 
@@ -226,9 +265,11 @@ image_array[y_slice, x_slice, :]
 5. `_on_roi_data_changed()` で ROI 編集時の確認を見る。
 6. `add_roi()` でボタン押下時の処理を見る。
 7. `src/leaf_vein_workflow/crop.py` で切り抜き計算を見る。
+8. `use_otsu_threshold()` と `create_mask()` で二値化 UI の処理を見る。
+9. `src/leaf_vein_workflow/threshold.py` で grayscale 化と二値化計算を見る。
 
 ## まとめ
 
-現在の実装は、葉脈解析そのものではなく、葉脈解析の前段階として「人が画像上で ROI を指定し、その範囲を切り出す」ための最小機能です。
+現在の実装は、葉脈解析そのものではなく、葉脈解析の前段階として「人が画像上で ROI を指定し、その範囲を切り出し、葉脈候補 mask をプレビューする」ための最小機能です。
 
-設計上は、napari 依存の GUI 部分と、NumPy ベースの切り抜き計算が分かれています。このため、今後 ROI 管理や保存機能を足す場合は `_widget.py` を中心に、切り抜き仕様を変える場合は `crop.py` を中心に変更すればよい構造になっています。
+設計上は、napari 依存の GUI 部分と、NumPy ベースの計算部分が分かれています。このため、今後 ROI 管理や保存機能を足す場合は `_widget.py` を中心に、切り抜き仕様を変える場合は `crop.py` を中心に、二値化仕様を変える場合は `threshold.py` を中心に変更すればよい構造になっています。

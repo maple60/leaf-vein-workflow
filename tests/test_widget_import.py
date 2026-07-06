@@ -52,7 +52,7 @@ def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
     import napari
     from qtpy.QtWidgets import QApplication
 
-    from leaf_vein_workflow._widget import CropWidget
+    from leaf_vein_workflow._widget import CropWidget, ROLE_KEY, ROLE_VEIN_MASK
 
     app = QApplication.instance() or QApplication([])
     try:
@@ -93,6 +93,15 @@ def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
             crop_layer.data,
             np.arange(25).reshape(5, 5)[1:3, 1:4],
         )
+
+        widget.use_otsu_threshold()
+        widget.create_mask()
+
+        mask_layer = viewer.layers["leaf ROI vein mask"]
+        assert mask_layer.metadata[ROLE_KEY] == ROLE_VEIN_MASK
+        assert mask_layer.data.shape == (2, 3)
+        np.testing.assert_allclose(mask_layer.translate, [1.0, 1.0])
+        assert np.any(mask_layer.data == 1)
         assert widget is not None
     finally:
         viewer.close()
