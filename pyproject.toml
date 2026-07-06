@@ -1,7 +1,41 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "leaf-vein-workflow"
 version = "0.1.0"
-description = "Add your description here"
+description = "napari workflow tools for leaf vein image processing"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+classifiers = [
+    "Framework :: napari",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "napari",
+    "numpy",
+    "qtpy",
+]
+
+[dependency-groups]
+dev = [
+    "pyqt6>=6.11.0",
+    "pytest",
+]
+
+[project.entry-points."napari.manifest"]
+leaf-vein-workflow = "leaf_vein_workflow:napari.yaml"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+leaf_vein_workflow = ["napari.yaml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
