@@ -40,8 +40,9 @@ Plugins > Leaf Vein Workflow > Leaf Vein Workflow
 With the widget open, use napari's normal image loading workflow. The plugin
 creates and activates the ROI drawing layer automatically when an image layer is
 added. Draw one rectangle, then click `Add ROI` in the widget to create the ROI
-crop layer. Click `Use Otsu` or enter a threshold manually, then click
-`Create Mask` to create a vein mask layer from the crop.
+crop layer. The plugin then creates a vein mask layer from the crop and updates
+it automatically when `Use Otsu`, `Invert threshold`, or `Mask threshold`
+changes.
 
 Run tests:
 

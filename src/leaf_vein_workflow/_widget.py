@@ -51,7 +51,7 @@ class CropWidget(QWidget):
         self._roi_to_crop: dict[int, Image] = {}
 
         # Crop Image レイヤーと、そこから作った二値 mask Labels レイヤーの対応表。
-        # threshold を変えて Create Mask を押したとき、既存 mask を更新する。
+        # threshold や invert 設定を変えたとき、既存 mask を自動更新する。
         self._crop_to_mask: dict[int, Labels] = {}
         self._mask_to_crop: dict[int, Image] = {}
 
@@ -62,15 +62,18 @@ class CropWidget(QWidget):
         )
         self.status_label.setWordWrap(True)
         self.add_roi_button = QPushButton("Add ROI")
+        self.otsu_button = QPushButton("Use Otsu")
+        self.invert_threshold_checkbox = QCheckBox("Invert threshold")
         self.threshold_label = QLabel("Mask threshold")
         self.threshold_spinbox = QDoubleSpinBox()
         self.threshold_spinbox.setRange(-1_000_000_000.0, 1_000_000_000.0)
         self.threshold_spinbox.setDecimals(6)
         self.threshold_spinbox.setSingleStep(1.0)
         self.threshold_spinbox.setValue(0.5)
-        self.invert_threshold_checkbox = QCheckBox("Invert threshold")
-        self.otsu_button = QPushButton("Use Otsu")
-        self.create_mask_button = QPushButton("Create Mask")
+
+        self._mask_update_timer = QTimer(self)
+        self._mask_update_timer.setSingleShot(True)
+        self._mask_update_timer.setInterval(200)
 
         # 画像がまだない段階では ROI もないので、最初はボタンを押せない。
         self.add_roi_button.setEnabled(False)
@@ -80,11 +83,10 @@ class CropWidget(QWidget):
         # ここでは上から crop 操作、mask 操作、説明ラベルの順に縦に並べる。
         layout = QVBoxLayout()
         layout.addWidget(self.add_roi_button)
+        layout.addWidget(self.otsu_button)
+        layout.addWidget(self.invert_threshold_checkbox)
         layout.addWidget(self.threshold_label)
         layout.addWidget(self.threshold_spinbox)
-        layout.addWidget(self.invert_threshold_checkbox)
-        layout.addWidget(self.otsu_button)
-        layout.addWidget(self.create_mask_button)
         layout.addWidget(self.status_label)
         self.setLayout(layout)
 
@@ -93,7 +95,9 @@ class CropWidget(QWidget):
         # _on_layer_inserted() が自動的に呼ばれる。
         self.add_roi_button.clicked.connect(self.add_roi)
         self.otsu_button.clicked.connect(self.use_otsu_threshold)
-        self.create_mask_button.clicked.connect(self.create_mask)
+        self.invert_threshold_checkbox.toggled.connect(self._schedule_mask_update)
+        self.threshold_spinbox.valueChanged.connect(self._schedule_mask_update)
+        self._mask_update_timer.timeout.connect(self._update_mask_from_controls)
         self.viewer.layers.events.inserted.connect(self._on_layer_inserted)
 
         # widget を開く前から画像が viewer に存在している場合にも対応する。
@@ -255,12 +259,13 @@ class CropWidget(QWidget):
             existing_crop.translate = (y_slice.start, x_slice.start)
             self._move_layer_to_top(existing_crop)
             image_layer.visible = False
-            self._activate_rectangle_mode(roi_layer)
+            self._activate_layer(existing_crop)
             self._set_mask_controls_enabled(True)
             self._set_status(
                 f"Updated ROI crop layer from {image_layer.name}. "
-                "Use Otsu or Create Mask to refresh the vein mask."
+                "The vein mask will update automatically."
             )
+            self._schedule_mask_update()
             return
 
         # 初回は新しい Image レイヤーとして crop 結果を追加する。
@@ -280,12 +285,13 @@ class CropWidget(QWidget):
         # 次回以降はこの crop レイヤーを更新できるよう、対応表に保存する。
         self._roi_to_crop[id(roi_layer)] = crop_layer
         image_layer.visible = False
-        self._activate_rectangle_mode(roi_layer)
+        self._activate_layer(crop_layer)
         self._set_mask_controls_enabled(True)
         self._set_status(
             f"Created ROI crop layer from {image_layer.name}. "
-            "Use Otsu or set a threshold, then click Create Mask."
+            "Use Otsu or adjust the threshold to update the vein mask."
         )
+        self._schedule_mask_update()
         show_info(f"Created ROI crop layer from {image_layer.name}.")
 
     def use_otsu_threshold(self) -> None:
@@ -302,15 +308,21 @@ class CropWidget(QWidget):
             return
 
         self.threshold_spinbox.setValue(threshold)
+        self._schedule_mask_update()
         self._set_status(
             f"Set Otsu threshold for {crop_layer.name}: {threshold:.6g}."
         )
 
-    def create_mask(self) -> None:
+    def _schedule_mask_update(self, *args) -> None:
+        """閾値 UI の連続変更を少し待ってから mask に反映する。"""
+        if self._active_crop_layer() is None:
+            return
+        self._mask_update_timer.start()
+
+    def _update_mask_from_controls(self) -> None:
         """現在の crop 画像から二値 mask Labels レイヤーを作成または更新する。"""
         crop_layer = self._active_crop_layer()
         if crop_layer is None:
-            self._warn("Create or select an ROI crop layer before creating a mask.")
             return
 
         try:
@@ -390,10 +402,14 @@ class CropWidget(QWidget):
         """ROI レイヤーを選択し、長方形を追加するモードに切り替える。"""
         # napari の選択状態をいったん空にしてから ROI レイヤーだけを選択する。
         # これにより、ユーザーがそのまま画像上で長方形を描ける状態になる。
-        self.viewer.layers.selection.clear()
-        self.viewer.layers.selection.add(roi_layer)
-        self.viewer.layers.selection.active = roi_layer
+        self._activate_layer(roi_layer)
         roi_layer.mode = "add_rectangle"
+
+    def _activate_layer(self, layer) -> None:
+        """指定したレイヤーだけを選択状態にする。"""
+        self.viewer.layers.selection.clear()
+        self.viewer.layers.selection.add(layer)
+        self.viewer.layers.selection.active = layer
 
     def _unique_layer_name(self, base_name: str) -> str:
         """既存レイヤーと衝突しない名前を返す。"""
@@ -416,7 +432,6 @@ class CropWidget(QWidget):
         self.threshold_spinbox.setEnabled(enabled)
         self.invert_threshold_checkbox.setEnabled(enabled)
         self.otsu_button.setEnabled(enabled)
-        self.create_mask_button.setEnabled(enabled)
 
     def _warn(self, message: str) -> None:
         """ステータス表示と napari 通知の両方で警告を出す。"""

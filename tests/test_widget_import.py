@@ -50,6 +50,7 @@ def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
 
     _patch_napari_dirs(monkeypatch, tmp_path)
     import napari
+    from qtpy.QtTest import QTest
     from qtpy.QtWidgets import QApplication
 
     from leaf_vein_workflow._widget import CropWidget, ROLE_KEY, ROLE_VEIN_MASK
@@ -88,8 +89,7 @@ def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
 
         image_layer = viewer.layers["leaf"]
         crop_layer = viewer.layers["leaf ROI"]
-        assert viewer.layers.selection.active is roi_layer
-        assert roi_layer.mode == "add_rectangle"
+        assert viewer.layers.selection.active is crop_layer
         assert image_layer.visible is False
         assert crop_layer.data.shape == (2, 3)
         np.testing.assert_allclose(crop_layer.translate, [1.0, 1.0])
@@ -98,14 +98,29 @@ def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
             np.arange(25).reshape(5, 5)[1:3, 1:4],
         )
 
-        widget.use_otsu_threshold()
-        widget.create_mask()
-
+        QTest.qWait(250)
+        app.processEvents()
         mask_layer = viewer.layers["leaf ROI vein mask"]
         assert mask_layer.metadata[ROLE_KEY] == ROLE_VEIN_MASK
         assert mask_layer.data.shape == (2, 3)
         np.testing.assert_allclose(mask_layer.translate, [1.0, 1.0])
         assert np.any(mask_layer.data == 1)
+
+        viewer.layers.selection.active = roi_layer
+        widget.add_roi()
+        assert viewer.layers.selection.active is crop_layer
+        assert image_layer.visible is False
+
+        widget.use_otsu_threshold()
+        QTest.qWait(250)
+        app.processEvents()
+
+        assert np.any(mask_layer.data == 1)
+
+        widget.threshold_spinbox.setValue(100.0)
+        QTest.qWait(250)
+        app.processEvents()
+        assert not np.any(mask_layer.data == 1)
         assert widget is not None
     finally:
         viewer.close()

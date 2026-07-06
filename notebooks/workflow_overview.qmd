@@ -28,10 +28,9 @@ format:
 5. 画像上に長方形を 1 つ描く。
 6. `Add ROI` ボタンを押す。
 7. 長方形の範囲だけを切り抜いた Image レイヤーが追加される。
-8. `Use Otsu` で自動閾値を入れるか、閾値を手で入力する。
-9. 必要なら `Invert threshold` を切り替える。
-10. `Create Mask` ボタンを押す。
-11. crop 画像から二値 mask の Labels レイヤーが追加または更新される。
+8. crop 画像から二値 mask の Labels レイヤーが自動で追加または更新される。
+9. 必要なら `Use Otsu`、`Invert threshold`、`Mask threshold` を調整する。
+10. 変更後、少し待つと同じ mask レイヤーが自動更新される。
 
 重要なのは、長方形を描いただけでは切り抜きレイヤーは作られない点です。切り抜きは必ず `Add ROI` を押した後に実行されます。
 
@@ -60,10 +59,11 @@ flowchart TD
   I --> J["rectangle_to_slices()"]
   J --> K["crop_to_rectangle()"]
   K --> L["切り抜き Image レイヤーを作成または更新"]
-  L --> M["ユーザーが Use Otsu または閾値を設定"]
-  M --> N["create_mask()"]
+  L --> M["mask 更新を予約"]
+  M --> N["_update_mask_from_controls()"]
   N --> O["threshold_image()"]
   O --> P["二値 mask Labels レイヤーを作成または更新"]
+  Q["ユーザーが Use Otsu・Invert・閾値を変更"] --> M
 ```
 
 ## napari への登録
@@ -83,10 +83,10 @@ napari は `src/leaf_vein_workflow/napari.yaml` を読んで、このパッケ�
 - ROI レイヤーと crop レイヤーの対応表を作る。
 - crop レイヤーと mask レイヤーの対応表を作る。
 - `Add ROI` ボタンとステータス表示を作る。
-- 閾値入力、`Invert threshold`、`Use Otsu`、`Create Mask` を作る。
+- `Use Otsu`、`Invert threshold`、閾値入力を作る。
 - `Add ROI` ボタンが押されたら `add_roi()` が動くようにする。
 - `Use Otsu` が押されたら `use_otsu_threshold()` が動くようにする。
-- `Create Mask` が押されたら `create_mask()` が動くようにする。
+- 閾値や `Invert threshold` が変わったら、少し待って mask が自動更新されるようにする。
 - 新しいレイヤーが追加されたら `_on_layer_inserted()` が動くようにする。
 - すでに開かれている画像があれば、それにも ROI レイヤーを準備する。
 
@@ -206,7 +206,7 @@ image_array[y_slice, x_slice, :]
 
 ## mask レイヤーの作成と更新
 
-`Create Mask` ボタンを押すと、現在の crop Image レイヤーから二値 mask を作ります。
+`Add ROI` 後、または閾値 UI を変更した後に、現在の crop Image レイヤーから二値 mask を作ります。
 
 入力として使えるのは、本プラグインが `Add ROI` で作った crop レイヤーです。crop レイヤーそのものを選択していても、対応する ROI レイヤーを選択していても、その crop を使います。
 
@@ -214,7 +214,7 @@ image_array[y_slice, x_slice, :]
 
 `Invert threshold` が有効な場合は、閾値以下の画素を 1 として扱います。これは、葉脈が背景より暗い画像で使う想定です。
 
-`Use Otsu` ボタンは、現在の crop 画像から `otsu_threshold()` で閾値を推定し、閾値入力欄に入れます。このボタンだけでは mask レイヤーは作られません。mask を作る、または更新するには `Create Mask` を押します。
+`Use Otsu` ボタンは、現在の crop 画像から `otsu_threshold()` で閾値を推定し、閾値入力欄に入れます。閾値入力欄や `Invert threshold` が変わると、すぐには再計算せず、短い待ち時間の後にまとめて mask を更新します。
 
 mask は napari の Labels レイヤーとして作られます。レイヤー名は `crop レイヤー名 vein mask` です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの `data` と `translate` を更新します。
 
@@ -230,7 +230,7 @@ mask は napari の Labels レイヤーとして作られます。レイヤー�
 | ROI が長方形ではない | MVP では rectangle のみ対応 |
 | ROI が画像と重ならない | 切り抜ける画素がない |
 | 画像が 2D grayscale または RGB/RGBA ではない | MVP の対応範囲外 |
-| crop レイヤーがまだない状態で `Use Otsu` または `Create Mask` を押す | 二値化する画像がない |
+| crop レイヤーがまだない状態で `Use Otsu` を押す | 二値化する画像がない |
 | crop 画像に NaN や inf が含まれる | 閾値計算が信用できない |
 
 ## テストで確認していること
@@ -252,7 +252,7 @@ mask は napari の Labels レイヤーとして作られます。レイヤー�
 - 未対応の画像 shape がエラーになること。
 
 `tests/test_widget_import.py` では、Qt backend がある環境で widget を import できることと、画像追加から ROI レイヤー作成、`Add ROI` による crop レイヤー作成までを確認しています。
-現在はさらに、crop レイヤーから Otsu 閾値を設定し、`Create Mask` で mask Labels レイヤーを作れることも確認しています。
+現在はさらに、crop レイヤーから mask Labels レイヤーが自動作成され、Otsu 閾値や手動閾値の変更で自動更新されることも確認しています。
 
 ## 開発時に見る順番
 
@@ -265,7 +265,7 @@ mask は napari の Labels レイヤーとして作られます。レイヤー�
 5. `_on_roi_data_changed()` で ROI 編集時の確認を見る。
 6. `add_roi()` でボタン押下時の処理を見る。
 7. `src/leaf_vein_workflow/crop.py` で切り抜き計算を見る。
-8. `use_otsu_threshold()` と `create_mask()` で二値化 UI の処理を見る。
+8. `use_otsu_threshold()`、`_schedule_mask_update()`、`_update_mask_from_controls()` で二値化 UI の処理を見る。
 9. `src/leaf_vein_workflow/threshold.py` で grayscale 化と二値化計算を見る。
 
 ## まとめ
