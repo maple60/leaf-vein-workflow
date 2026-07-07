@@ -14,8 +14,9 @@ format:
 
 - napari で画像を開き、長方形 ROI を 1 つ描き、`Add ROI` ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。
 - 切り抜き画像から、手動閾値または Otsu 閾値で葉脈候補の mask Labels レイヤーを作る。
+- mask Labels レイヤーから骨格化 Labels レイヤーと、手動分類用の order labels レイヤーを作る。
 
-まだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、骨格化、VLA の計算、major/minor の分離です。
+まだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、骨格のセグメンテーション、VLA の計算、major/minor の自動分離です。
 
 ## ユーザーから見た流れ
 
@@ -31,6 +32,7 @@ format:
 8. crop 画像から二値 mask の Labels レイヤーが自動で追加または更新される。
 9. 必要なら `Use Otsu`、`Invert threshold`、`Mask threshold` を調整する。
 10. 変更後、少し待つと同じ mask レイヤーが自動更新される。
+11. mask がよければ `Create Skeleton` を押し、骨格レイヤーと手動分類用 order labels レイヤーを作る。
 
 重要なのは、長方形を描いただけでは切り抜きレイヤーは作られない点です。切り抜きは必ず `Add ROI` を押した後に実行されます。
 
@@ -43,6 +45,7 @@ format:
 | `src/leaf_vein_workflow/_widget.py` | napari の画面、レイヤー、ボタン、通知を扱う |
 | `src/leaf_vein_workflow/crop.py` | 画像配列をどこで切るかを計算する |
 | `src/leaf_vein_workflow/threshold.py` | 画像配列を grayscale 化し、閾値で二値 mask を作る |
+| `src/leaf_vein_workflow/skeleton.py` | 二値 mask から骨格画像を作る |
 
 初心者向けに言うと、`_widget.py` は「画面の係」、`crop.py` と `threshold.py` は「計算の係」です。
 
@@ -63,6 +66,9 @@ flowchart TD
   M --> N["_update_mask_from_controls()"]
   N --> O["threshold_image()"]
   O --> P["二値 mask Labels レイヤーを作成または更新"]
+  P --> R["ユーザーが Create Skeleton を押す"]
+  R --> S["skeletonize_mask()"]
+  S --> T["骨格 Labels レイヤーと order labels レイヤーを作成または更新"]
   Q["ユーザーが Use Otsu・Invert・閾値を変更"] --> M
 ```
 
@@ -218,6 +224,26 @@ image_array[y_slice, x_slice, :]
 
 mask は napari の Labels レイヤーとして作られます。レイヤー名は `crop レイヤー名 vein mask` です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの `data` と `translate` を更新します。
 
+## skeleton レイヤーと order labels レイヤーの作成
+
+`Create Skeleton` を押すと、現在の vein mask Labels レイヤーから骨格画像を作ります。
+
+骨格化では、`skeleton.py` の `skeletonize_mask()` が mask の 0 より大きい画素を前景として扱い、`scikit-image` の `skeletonize()` で 1 pixel 幅の骨格にします。
+
+結果は `mask レイヤー名 skeleton` という Labels レイヤーとして追加または更新されます。さらに、手動分類用に `mask レイヤー名 order labels` という空の Labels レイヤーも作ります。
+
+order labels の値は、次の用途を想定しています。
+
+| label | 意味 |
+|---|---|
+| 0 | 未分類または背景 |
+| 1 | primary |
+| 2 | secondary |
+| 3 | tertiary |
+| 4 | higher order / minor |
+
+同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きしません。mask の shape が変わった場合は、既存の手動分類を壊さないため、新しい order labels レイヤーを作ります。
+
 ## エラーや警告になる例
 
 次の場合は、切り抜き処理に進まず、警告またはエラーになります。
@@ -251,8 +277,15 @@ mask は napari の Labels レイヤーとして作られます。レイヤー�
 - Otsu 閾値が単純な二峰性画像を分けられること。
 - 未対応の画像 shape がエラーになること。
 
+`tests/test_skeleton.py` では、napari に依存しない骨格化計算を確認しています。
+
+- 2D mask から骨格画像を作れること。
+- Labels 形式の整数 mask でも、0 より大きい画素を前景として扱うこと。
+- 空 mask や 2D 以外の入力がエラーになること。
+
 `tests/test_widget_import.py` では、Qt backend がある環境で widget を import できることと、画像追加から ROI レイヤー作成、`Add ROI` による crop レイヤー作成までを確認しています。
 現在はさらに、crop レイヤーから mask Labels レイヤーが自動作成され、Otsu 閾値や手動閾値の変更で自動更新されることも確認しています。
+また、mask から skeleton Labels レイヤーと手動分類用 order labels レイヤーが作られ、既存の order labels が上書きされないことも確認しています。
 
 ## 開発時に見る順番
 
@@ -267,6 +300,7 @@ mask は napari の Labels レイヤーとして作られます。レイヤー�
 7. `src/leaf_vein_workflow/crop.py` で切り抜き計算を見る。
 8. `use_otsu_threshold()`、`_schedule_mask_update()`、`_update_mask_from_controls()` で二値化 UI の処理を見る。
 9. `src/leaf_vein_workflow/threshold.py` で grayscale 化と二値化計算を見る。
+10. `create_skeleton()` と `src/leaf_vein_workflow/skeleton.py` で骨格化と手動分類用レイヤー作成を見る。
 
 ## まとめ
 

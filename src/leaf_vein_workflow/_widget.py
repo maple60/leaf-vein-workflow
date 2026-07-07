@@ -19,6 +19,7 @@ from qtpy.QtWidgets import (
 )
 
 from .crop import crop_to_rectangle, rectangle_to_slices
+from .skeleton import skeletonize_mask
 from .threshold import otsu_threshold, threshold_image
 
 
@@ -29,8 +30,11 @@ ROLE_KEY = "leaf_vein_workflow_role"
 ROLE_ROI_SHAPES = "roi_shapes"
 ROLE_ROI_CROP = "roi_crop"
 ROLE_VEIN_MASK = "vein_mask"
+ROLE_VEIN_SKELETON = "vein_skeleton"
+ROLE_ORDER_LABELS = "order_labels"
 SOURCE_IMAGE_KEY = "source_image"
 SOURCE_CROP_KEY = "source_crop"
+SOURCE_MASK_KEY = "source_mask"
 
 
 class CropWidget(QWidget):
@@ -55,6 +59,11 @@ class CropWidget(QWidget):
         self._crop_to_mask: dict[int, Labels] = {}
         self._mask_to_crop: dict[int, Image] = {}
 
+        # Mask Labels レイヤーと、そこから作った skeleton / order labels の対応表。
+        # order labels はユーザーが手で編集するため、同じ shape なら上書きしない。
+        self._mask_to_skeleton: dict[int, Labels] = {}
+        self._mask_to_order_labels: dict[int, Labels] = {}
+
         # Qt の部品を作る。QLabel は状態表示、QPushButton は crop 実行ボタン。
         self.status_label = QLabel(
             "Open an image with napari. A rectangle ROI layer will be created "
@@ -63,6 +72,7 @@ class CropWidget(QWidget):
         self.status_label.setWordWrap(True)
         self.add_roi_button = QPushButton("Add ROI")
         self.otsu_button = QPushButton("Use Otsu")
+        self.create_skeleton_button = QPushButton("Create Skeleton")
         self.invert_threshold_checkbox = QCheckBox("Invert threshold")
         self.threshold_label = QLabel("Mask threshold")
         self.threshold_spinbox = QDoubleSpinBox()
@@ -78,6 +88,7 @@ class CropWidget(QWidget):
         # 画像がまだない段階では ROI もないので、最初はボタンを押せない。
         self.add_roi_button.setEnabled(False)
         self._set_mask_controls_enabled(False)
+        self.create_skeleton_button.setEnabled(False)
 
         # Qt では layout に部品を追加し、その layout を QWidget に設定する。
         # ここでは上から crop 操作、mask 操作、説明ラベルの順に縦に並べる。
@@ -87,6 +98,7 @@ class CropWidget(QWidget):
         layout.addWidget(self.invert_threshold_checkbox)
         layout.addWidget(self.threshold_label)
         layout.addWidget(self.threshold_spinbox)
+        layout.addWidget(self.create_skeleton_button)
         layout.addWidget(self.status_label)
         self.setLayout(layout)
 
@@ -95,6 +107,7 @@ class CropWidget(QWidget):
         # _on_layer_inserted() が自動的に呼ばれる。
         self.add_roi_button.clicked.connect(self.add_roi)
         self.otsu_button.clicked.connect(self.use_otsu_threshold)
+        self.create_skeleton_button.clicked.connect(self.create_skeleton)
         self.invert_threshold_checkbox.toggled.connect(self._schedule_mask_update)
         self.threshold_spinbox.valueChanged.connect(self._schedule_mask_update)
         self._mask_update_timer.timeout.connect(self._update_mask_from_controls)
@@ -340,6 +353,7 @@ class CropWidget(QWidget):
             existing_mask.data = mask
             existing_mask.translate = tuple(crop_layer.translate)
             self._move_layer_to_top(existing_mask)
+            self.create_skeleton_button.setEnabled(True)
             self._set_status(f"Updated vein mask from {crop_layer.name}.")
             return
 
@@ -357,8 +371,97 @@ class CropWidget(QWidget):
 
         self._crop_to_mask[id(crop_layer)] = mask_layer
         self._mask_to_crop[id(mask_layer)] = crop_layer
+        self.create_skeleton_button.setEnabled(True)
         self._set_status(f"Created vein mask from {crop_layer.name}.")
         show_info(f"Created vein mask from {crop_layer.name}.")
+
+    def create_skeleton(self) -> None:
+        """現在の vein mask から skeleton と手動分類用 label レイヤーを作る。"""
+        mask_layer = self._active_mask_layer()
+        if mask_layer is None:
+            self._warn("Create or select a vein mask layer before skeletonizing.")
+            return
+
+        try:
+            skeleton = skeletonize_mask(np.asarray(mask_layer.data))
+        except ValueError as exc:
+            self._warn(str(exc))
+            return
+
+        skeleton_layer = self._create_or_update_skeleton_layer(
+            mask_layer,
+            skeleton,
+        )
+        order_layer = self._create_or_reuse_order_labels_layer(mask_layer)
+        self._move_layer_to_top(order_layer)
+        self._move_layer_to_top(skeleton_layer)
+        self._activate_layer(order_layer)
+        self._set_status(
+            f"Created skeleton and manual order labels from {mask_layer.name}."
+        )
+        show_info(f"Created skeleton and manual order labels from {mask_layer.name}.")
+
+    def _create_or_update_skeleton_layer(
+        self,
+        mask_layer: Labels,
+        skeleton: np.ndarray,
+    ) -> Labels:
+        """Mask に対応する skeleton Labels レイヤーを作成または更新する。"""
+        existing_skeleton = self._mask_to_skeleton.get(id(mask_layer))
+        if (
+            existing_skeleton is not None
+            and self._layer_is_present(existing_skeleton)
+        ):
+            existing_skeleton.data = skeleton
+            existing_skeleton.translate = tuple(mask_layer.translate)
+            return existing_skeleton
+
+        skeleton_layer = self.viewer.add_labels(
+            skeleton,
+            name=self._unique_layer_name(f"{mask_layer.name} skeleton"),
+            translate=tuple(mask_layer.translate),
+            opacity=0.75,
+            metadata={
+                ROLE_KEY: ROLE_VEIN_SKELETON,
+                SOURCE_IMAGE_KEY: mask_layer.metadata.get(SOURCE_IMAGE_KEY),
+                SOURCE_CROP_KEY: mask_layer.metadata.get(SOURCE_CROP_KEY),
+                SOURCE_MASK_KEY: mask_layer.name,
+            },
+        )
+        self._mask_to_skeleton[id(mask_layer)] = skeleton_layer
+        return skeleton_layer
+
+    def _create_or_reuse_order_labels_layer(self, mask_layer: Labels) -> Labels:
+        """手動編集済み order labels を保ったまま、必要なら新規作成する。"""
+        existing_order_labels = self._mask_to_order_labels.get(id(mask_layer))
+        if (
+            existing_order_labels is not None
+            and self._layer_is_present(existing_order_labels)
+            and existing_order_labels.data.shape == mask_layer.data.shape
+        ):
+            existing_order_labels.translate = tuple(mask_layer.translate)
+            return existing_order_labels
+
+        order_labels = np.zeros_like(np.asarray(mask_layer.data), dtype=np.uint8)
+        order_layer = self.viewer.add_labels(
+            order_labels,
+            name=self._unique_layer_name(f"{mask_layer.name} order labels"),
+            translate=tuple(mask_layer.translate),
+            opacity=0.65,
+            metadata={
+                ROLE_KEY: ROLE_ORDER_LABELS,
+                SOURCE_IMAGE_KEY: mask_layer.metadata.get(SOURCE_IMAGE_KEY),
+                SOURCE_CROP_KEY: mask_layer.metadata.get(SOURCE_CROP_KEY),
+                SOURCE_MASK_KEY: mask_layer.name,
+                "label_0": "unclassified/background",
+                "label_1": "primary",
+                "label_2": "secondary",
+                "label_3": "tertiary",
+                "label_4": "higher order/minor",
+            },
+        )
+        self._mask_to_order_labels[id(mask_layer)] = order_layer
+        return order_layer
 
     def _active_roi_layer(self) -> Shapes | None:
         """現在選択されているレイヤーが本プラグインの ROI なら返す。"""
@@ -395,6 +498,36 @@ class CropWidget(QWidget):
             crop_layer = self._mask_to_crop.get(id(layer))
             if crop_layer is not None and self._layer_is_present(crop_layer):
                 return crop_layer
+
+        return None
+
+    def _active_mask_layer(self) -> Labels | None:
+        """現在の選択状態から、本プラグインの vein mask レイヤーを返す。"""
+        layer = self.viewer.layers.selection.active
+
+        if (
+            isinstance(layer, Labels)
+            and layer.metadata.get(ROLE_KEY) == ROLE_VEIN_MASK
+        ):
+            return layer
+
+        if (
+            isinstance(layer, Image)
+            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_CROP
+        ):
+            mask_layer = self._crop_to_mask.get(id(layer))
+            if mask_layer is not None and self._layer_is_present(mask_layer):
+                return mask_layer
+
+        if (
+            isinstance(layer, Shapes)
+            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES
+        ):
+            crop_layer = self._roi_to_crop.get(id(layer))
+            if crop_layer is not None and self._layer_is_present(crop_layer):
+                mask_layer = self._crop_to_mask.get(id(crop_layer))
+                if mask_layer is not None and self._layer_is_present(mask_layer):
+                    return mask_layer
 
         return None
 

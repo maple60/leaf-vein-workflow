@@ -53,7 +53,13 @@ def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
     from qtpy.QtTest import QTest
     from qtpy.QtWidgets import QApplication
 
-    from leaf_vein_workflow._widget import CropWidget, ROLE_KEY, ROLE_VEIN_MASK
+    from leaf_vein_workflow._widget import (
+        CropWidget,
+        ROLE_KEY,
+        ROLE_ORDER_LABELS,
+        ROLE_VEIN_MASK,
+        ROLE_VEIN_SKELETON,
+    )
 
     app = QApplication.instance() or QApplication([])
     try:
@@ -105,6 +111,24 @@ def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
         assert mask_layer.data.shape == (2, 3)
         np.testing.assert_allclose(mask_layer.translate, [1.0, 1.0])
         assert np.any(mask_layer.data == 1)
+
+        viewer.layers.selection.active = mask_layer
+        widget.create_skeleton()
+
+        skeleton_layer = viewer.layers["leaf ROI vein mask skeleton"]
+        order_layer = viewer.layers["leaf ROI vein mask order labels"]
+        assert skeleton_layer.metadata[ROLE_KEY] == ROLE_VEIN_SKELETON
+        assert order_layer.metadata[ROLE_KEY] == ROLE_ORDER_LABELS
+        assert skeleton_layer.data.shape == mask_layer.data.shape
+        assert order_layer.data.shape == mask_layer.data.shape
+        np.testing.assert_allclose(skeleton_layer.translate, mask_layer.translate)
+        np.testing.assert_allclose(order_layer.translate, mask_layer.translate)
+
+        order_layer.data[0, 0] = 2
+        viewer.layers.selection.active = mask_layer
+        widget.create_skeleton()
+        assert viewer.layers["leaf ROI vein mask order labels"] is order_layer
+        assert order_layer.data[0, 0] == 2
 
         viewer.layers.selection.active = roi_layer
         widget.add_roi()

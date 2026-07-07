@@ -10,9 +10,12 @@ napari plugin for leaf vein image workflow development.
 - Add or update a cropped ROI Image layer only after clicking `Add ROI`.
 - Create or update a vein mask Labels layer from the ROI crop with a manual
   threshold or an Otsu threshold estimate.
+- Create a skeleton Labels layer from the vein mask and an empty order labels
+  layer for manual vein-order annotation.
 
-Saving cropped images, multiple ROIs, polygon ROIs, nD stacks, skeletonization,
-and VLA calculation are outside the first MVP.
+Saving cropped images, multiple ROIs, polygon ROIs, nD stacks, automatic vein
+order classification, skeleton segmentation, and VLA calculation are outside
+the first MVP.
 
 ## Development
 
@@ -43,6 +46,10 @@ added. Draw one rectangle, then click `Add ROI` in the widget to create the ROI
 crop layer. The plugin then creates a vein mask layer from the crop and updates
 it automatically when `Use Otsu`, `Invert threshold`, or `Mask threshold`
 changes.
+
+After the mask looks acceptable, click `Create Skeleton` with the vein mask
+selected. The plugin creates a skeleton layer and a blank order-label layer for
+manual annotation.
 
 Run tests:
 
