@@ -15,8 +15,12 @@ classifiers = [
 ]
 dependencies = [
     "napari",
+    "numba>=0.59",
     "numpy",
+    "pandas>=3.0.3",
     "qtpy",
+    "scikit-image",
+    "skan>=0.13.1",
 ]
 
 [dependency-groups]

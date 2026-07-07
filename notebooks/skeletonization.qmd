@@ -1,0 +1,230 @@
+---
+title: "葉脈の抽出"
+---
+
+## ライブラリのインポート
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+from skimage.io import imread
+from skimage.color import rgb2gray
+from skimage.morphology import (
+    skeletonize, 
+    remove_small_objects, 
+    remove_small_holes, 
+    closing, 
+    opening, 
+    disk
+    )
+from skimage.filters import gaussian, threshold_otsu
+
+from skan import Skeleton
+import pandas as pd
+```
+
+## 画像の読み込み
+
+```{python}
+# 画像読み込み
+file_path = "data/BEL-T44-BS_img.png"
+img = imread(file_path)
+
+print(type(img))
+print(img.shape)
+print(img.dtype)
+```
+
+画像を確認してみます。
+
+```{python}
+fig, ax = plt.subplots()
+if img.ndim == 2:
+    ax.imshow(img, cmap="gray")
+else:
+    ax.imshow(img)
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
+
+## グレースケール化
+
+もし RGB/RGBA 画像の場合は、グレースケール化します。
+
+```{python}
+# RGBならグレースケール化
+if img.ndim == 3:
+    gray = rgb2gray(img)
+else:
+    gray = img.astype(float)
+
+# 値域をざっくり 0-1 にそろえる
+if gray.max() > 1:
+    gray = gray / 255
+```
+
+## 切り取り
+
+```{python}
+bbox = (2000, 2000, 5000, 5000) # (ymin, xmin, ymax, xmax)
+
+fig, ax = plt.subplots()
+ax.imshow(gray, cmap="gray")
+rect = plt.Rectangle((bbox[1], bbox[0]), bbox[3]-bbox[1], bbox[2]-bbox[0], edgecolor="red", facecolor="none", lw=2)
+ax.add_patch(rect)
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+img_crop = gray[bbox[0]:bbox[2], bbox[1]:bbox[3]]
+```
+
+## ガウシアンフィルタによる平滑化
+
+```{python}
+img_smooth = gaussian(img_crop, sigma=1)
+
+# 横並びで表示
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)
+axes[0].imshow(img_crop, cmap="gray")
+axes[0].set_title("cropped image")
+
+axes[1].imshow(img_smooth, cmap="gray")
+axes[1].set_title("smoothed image")
+
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
+
+## 二値化
+
+```{python}
+threshold = threshold_otsu(img_smooth)
+img_binary = img_crop < threshold
+
+# 横並びで表示
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)
+axes[0].imshow(img_crop, cmap="gray")
+axes[0].set_title("cropped image")
+
+axes[1].imshow(img_binary, cmap="gray")
+axes[1].set_title("binary image")
+
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
+
+## 後処理
+
+```{python}
+# 小さいゴミ除去
+max_size = 100
+vein_mask = remove_small_objects(img_binary, max_size=max_size)
+
+# 横並びで表示
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)
+axes[0].imshow(img_binary, cmap="gray")
+axes[0].set_title("binary image")
+
+axes[1].imshow(vein_mask, cmap="gray")
+axes[1].set_title("filtered image")
+
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
+
+```{python}
+# 太い葉脈内部の穴埋め
+vein_mask = remove_small_holes(vein_mask, max_size=500)
+# 境界を少し整える
+vein_mask = closing(vein_mask, footprint=disk(2))
+vein_mask = opening(vein_mask, footprint=disk(1))
+
+# 横並びで表示
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)
+axes[0].imshow(img_binary, cmap="gray")
+axes[0].set_title("binary image")
+
+axes[1].imshow(vein_mask, cmap="gray")
+axes[1].set_title("filtered image")
+
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
+
+## Skeletonize
+
+```{python}
+skeleton = skeletonize(img_binary)
+
+# 横並びで表示
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)
+axes[0].imshow(img_binary, cmap="gray")
+axes[0].set_title("binary image")
+
+axes[1].imshow(skeleton, cmap="gray")
+axes[1].set_title("skeleton image")
+
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
+
+## この次にやること
+
+### spur pruning
+
+末端から数 px〜数十 px だけ伸びる短い枝を削る。
+
+例えば考え方は：
+
+- 端点 endpoint を探す
+- 分岐点 branchpoint までの枝長を測る
+- 閾値より短い枝を削除する
+
+たとえば
+
+- 5 px
+- 10 px
+- 20 px
+
+くらいを試して比較するとよいです。
+ただし強すぎると本物の自由終端脈まで消えるので注意です。
+
+### branch / node の抽出
+
+VLA や vein order に進むなら、skeleton を
+
+node（分岐点・端点）
+edge（node 間の枝）
+
+に変換したいです。
+
+ここで `skan` 的な発想が便利です。
+もし自前実装でも、
+
+近傍数1 → endpoint
+近傍数2 → 通常の線分
+近傍数3以上 → branchpoint
+
+でかなり進められます。
+
+### major / minor の分離方針を決める
+
+葉脈次数をやるなら、ここが次の設計ポイントですね。
+
+候補はたとえば：
+
+手動ラベル（MVPとして一番確実）
+太さベース（元マスクの distance transform を使う）
+連結関係ベース（midrib からの接続順）
+ハイブリッド（自動候補 + napariで修正）
+
+特に distance transform を skeleton 上に戻して局所半径を持たせる と、
+「この skeleton edge は平均太さが大きいから major 寄り」
+みたいなことができます。
