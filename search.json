@@ -536,7 +536,7 @@
     "href": "notebooks/skeletonization.html",
     "title": "葉脈の抽出",
     "section": "",
-    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.color import rgb2gray\nfrom skimage.morphology import (\n    skeletonize, \n    remove_small_objects, \n    remove_small_holes, \n    closing, \n    opening, \n    disk\n    )\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nimport pandas as pd",
+    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
     "crumbs": [
       "Home",
       "Manual",
@@ -548,7 +548,7 @@
     "href": "notebooks/skeletonization.html#ライブラリのインポート",
     "title": "葉脈の抽出",
     "section": "",
-    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.color import rgb2gray\nfrom skimage.morphology import (\n    skeletonize, \n    remove_small_objects, \n    remove_small_holes, \n    closing, \n    opening, \n    disk\n    )\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nimport pandas as pd",
+    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
     "crumbs": [
       "Home",
       "Manual",
@@ -560,7 +560,7 @@
     "href": "notebooks/skeletonization.html#画像の読み込み",
     "title": "葉脈の抽出",
     "section": "画像の読み込み",
-    "text": "画像の読み込み\n\n# 画像読み込み\nfile_path = \"data/BEL-T44-BS_img.png\"\nimg = imread(file_path)\n\nprint(type(img))\nprint(img.shape)\nprint(img.dtype)\n\n画像を確認してみます。\n\nfig, ax = plt.subplots()\nif img.ndim == 2:\n    ax.imshow(img, cmap=\"gray\")\nelse:\n    ax.imshow(img)\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "text": "画像の読み込み\n解析に使用する画像を読み込みます。\n\n# 画像読み込み\nfile_path = \"data/BEL-T44-BS_img.png\"\nimg = imread(file_path)\n\nprint(type(img))\nprint(img.shape)\nprint(img.dtype)\n\n画像を確認してみます。\n\nfig, ax = plt.subplots()\nif img.ndim == 2:\n    ax.imshow(img, cmap=\"gray\")\nelse:\n    ax.imshow(img)\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
     "crumbs": [
       "Home",
       "Manual",
@@ -572,7 +572,7 @@
     "href": "notebooks/skeletonization.html#グレースケール化",
     "title": "葉脈の抽出",
     "section": "グレースケール化",
-    "text": "グレースケール化\nもし RGB/RGBA 画像の場合は、グレースケール化します。\n\n# RGBならグレースケール化\nif img.ndim == 3:\n    gray = rgb2gray(img)\nelse:\n    gray = img.astype(float)\n\n# 値域をざっくり 0-1 にそろえる\nif gray.max() &gt; 1:\n    gray = gray / 255",
+    "text": "グレースケール化\nもし RGB/RGBA 画像の場合は、グレースケール化します。 ここでは GUI 側でも使っている to_grayscale() を使います。 RGBA 画像では alpha channel は無視します。\n\ngray = to_grayscale(img)\n\n# 値域をざっくり 0-1 にそろえる\nif gray.max() &gt; 1:\n    gray = gray / 255",
     "crumbs": [
       "Home",
       "Manual",
@@ -584,7 +584,7 @@
     "href": "notebooks/skeletonization.html#切り取り",
     "title": "葉脈の抽出",
     "section": "切り取り",
-    "text": "切り取り\n\nbbox = (2000, 2000, 5000, 5000) # (ymin, xmin, ymax, xmax)\n\nfig, ax = plt.subplots()\nax.imshow(gray, cmap=\"gray\")\nrect = plt.Rectangle((bbox[1], bbox[0]), bbox[3]-bbox[1], bbox[2]-bbox[0], edgecolor=\"red\", facecolor=\"none\", lw=2)\nax.add_patch(rect)\nfig.tight_layout()\nplt.show()\nplt.close(fig)\nimg_crop = gray[bbox[0]:bbox[2], bbox[1]:bbox[3]]",
+    "text": "切り取り\nROIを指定して、画像を切り取ります。 ここでは例として、(ymin, xmin, ymax, xmax) = (2000, 2000, 5000, 5000) の範囲を切り取ります。\n\nbbox = (2000, 2000, 5000, 5000) # (ymin, xmin, ymax, xmax)\n\nfig, ax = plt.subplots()\nax.imshow(gray, cmap=\"gray\")\nrect = plt.Rectangle((bbox[1], bbox[0]), bbox[3]-bbox[1], bbox[2]-bbox[0], edgecolor=\"red\", facecolor=\"none\", lw=2)\nax.add_patch(rect)\nfig.tight_layout()\nplt.show()\nplt.close(fig)\nimg_crop = gray[bbox[0]:bbox[2], bbox[1]:bbox[3]]",
     "crumbs": [
       "Home",
       "Manual",
@@ -596,7 +596,7 @@
     "href": "notebooks/skeletonization.html#ガウシアンフィルタによる平滑化",
     "title": "葉脈の抽出",
     "section": "ガウシアンフィルタによる平滑化",
-    "text": "ガウシアンフィルタによる平滑化\n\nimg_smooth = gaussian(img_crop, sigma=1)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_smooth, cmap=\"gray\")\naxes[1].set_title(\"smoothed image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "text": "ガウシアンフィルタによる平滑化\nガウシアンフィルタで平滑化します。 sigma は 1 に設定します。\n\nimg_smooth = gaussian(img_crop, sigma=1)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_smooth, cmap=\"gray\")\naxes[1].set_title(\"smoothed image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
     "crumbs": [
       "Home",
       "Manual",
@@ -608,7 +608,7 @@
     "href": "notebooks/skeletonization.html#二値化",
     "title": "葉脈の抽出",
     "section": "二値化",
-    "text": "二値化\n\nthreshold = threshold_otsu(img_smooth)\nimg_binary = img_crop &lt; threshold\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_binary, cmap=\"gray\")\naxes[1].set_title(\"binary image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "text": "二値化\n解析前の二値化を行います。 ここでは Otsu の方法で閾値を決定します。 napariでの二値化では、調整できるようにします。 現在の画像では葉脈が背景より暗いため、img_smooth &lt; threshold を前景として扱います。 GUI ではこの条件が Invert threshold を有効にした状態に相当します。\n\nthreshold = threshold_otsu(img_smooth)\nimg_binary = img_smooth &lt; threshold\n\nprint(f\"Otsu threshold: {threshold:.6f}\")\nprint(f\"Binary foreground pixels: {np.count_nonzero(img_binary)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_binary, cmap=\"gray\")\naxes[1].set_title(\"binary image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
     "crumbs": [
       "Home",
       "Manual",
@@ -620,7 +620,7 @@
     "href": "notebooks/skeletonization.html#後処理",
     "title": "葉脈の抽出",
     "section": "後処理",
-    "text": "後処理\n\n# 小さいゴミ除去\nmax_size = 100\nvein_mask = remove_small_objects(img_binary, max_size=max_size)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n\n# 太い葉脈内部の穴埋め\nvein_mask = remove_small_holes(vein_mask, max_size=500)\n# 境界を少し整える\nvein_mask = closing(vein_mask, footprint=disk(2))\nvein_mask = opening(vein_mask, footprint=disk(1))\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "text": "後処理\n小さい穴やゴミを除去します。\n\n# 小さいゴミ除去\nmax_size = 100\nvein_mask = remove_small_objects(img_binary, max_size=max_size)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n葉脈内部の穴埋めや境界の整形を行います。\n\n# 太い葉脈内部の穴埋め\nvein_mask = remove_small_holes(vein_mask, max_size=500)\n# 境界を少し整える\nvein_mask = closing(vein_mask, footprint=disk(2))\nvein_mask = opening(vein_mask, footprint=disk(1))\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
     "crumbs": [
       "Home",
       "Manual",
@@ -632,7 +632,7 @@
     "href": "notebooks/skeletonization.html#skeletonize",
     "title": "葉脈の抽出",
     "section": "Skeletonize",
-    "text": "Skeletonize\n\nskeleton = skeletonize(img_binary)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(skeleton, cmap=\"gray\")\naxes[1].set_title(\"skeleton image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "text": "Skeletonize\n後処理済みの vein_mask から skeleton を作ります。 この skeleton が、GUI で mask layer から作る skeleton layer に対応します。\n\nskeleton = skeletonize(vein_mask)\n\nprint(f\"Mask foreground pixels: {np.count_nonzero(vein_mask)}\")\nprint(f\"Skeleton pixels: {np.count_nonzero(skeleton)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\naxes[1].imshow(skeleton, cmap=\"gray\")\naxes[1].set_title(\"skeleton image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n前の画像に重ねてみます。 表示用に skeleton を太らせて、赤色で重ねます。\n\nfig, ax = plt.subplots()\n\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 表示用に太らせた skeleton を作る\nskeleton_display = dilation(skeleton, footprint=disk(3))\n\nskeleton_overlay = np.zeros((*skeleton.shape, 4), dtype=np.float32)\nskeleton_overlay[skeleton_display] = [1, 0, 0, 1]  # red, alpha=1\n\nax.imshow(skeleton_overlay)\nax.set_title(\"skeleton overlay\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
     "crumbs": [
       "Home",
       "Manual",
@@ -640,11 +640,47 @@
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#この次にやること",
-    "href": "notebooks/skeletonization.html#この次にやること",
+    "objectID": "notebooks/skeletonization.html#脈の太さの推定",
+    "href": "notebooks/skeletonization.html#脈の太さの推定",
     "title": "葉脈の抽出",
-    "section": "この次にやること",
-    "text": "この次にやること\n\nspur pruning\n末端から数 px〜数十 px だけ伸びる短い枝を削る。\n例えば考え方は：\n\n端点 endpoint を探す\n分岐点 branchpoint までの枝長を測る\n閾値より短い枝を削除する\n\nたとえば\n\n5 px\n10 px\n20 px\n\nくらいを試して比較するとよいです。 ただし強すぎると本物の自由終端脈まで消えるので注意です。\n\n\nbranch / node の抽出\nVLA や vein order に進むなら、skeleton を\nnode（分岐点・端点） edge（node 間の枝）\nに変換したいです。\nここで skan 的な発想が便利です。 もし自前実装でも、\n近傍数1 → endpoint 近傍数2 → 通常の線分 近傍数3以上 → branchpoint\nでかなり進められます。\n\n\nmajor / minor の分離方針を決める\n葉脈次数をやるなら、ここが次の設計ポイントですね。\n候補はたとえば：\n手動ラベル（MVPとして一番確実） 太さベース（元マスクの distance transform を使う） 連結関係ベース（midrib からの接続順） ハイブリッド（自動候補 + napariで修正）\n特に distance transform を skeleton 上に戻して局所半径を持たせる と、 「この skeleton edge は平均太さが大きいから major 寄り」 みたいなことができます。",
+    "section": "脈の太さの推定",
+    "text": "脈の太さの推定\nmask の distance transform から、各 foreground pixel が背景からどれだけ離れているかを求めます。 skeleton 上の距離を 2 倍すると、局所的な直径の近似値として使えます。\nこの値は threshold や mask 後処理に依存するため、major/minor を自動分類する決定値ではなく、手動確認前のヒントとして扱います。\n\nmedial_skeleton, radius_px = medial_axis(vein_mask, return_distance=True)\ndiameter_px = radius_px * 2\ndiameter_on_skeleton = np.where(skeleton, diameter_px, np.nan)\n\nprint(pd.Series(diameter_px[skeleton], name=\"skeleton-diameter-px\").describe())\n\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(9, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\ndiameter_image = axes[1].imshow(diameter_on_skeleton, cmap=\"magma\")\naxes[1].set_title(\"diameter on skeleton (px)\")\nfig.colorbar(diameter_image, ax=axes[1], fraction=0.046, pad=0.04)\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n先ほどと同様に、太らせて重ねてみます。\n\nfig, ax = plt.subplots()\nax.imshow(vein_mask, cmap=\"gray\")\n\n# skeleton 上だけに値を持つ画像\ndiameter_on_skeleton = np.where(skeleton, diameter_px, 0)\n\n# footprint は共通で定義\nfoot = disk(5)\n\n# 値つき画像を太らせる\ndiameter_display = dilation(diameter_on_skeleton, footprint=foot)\n\n# 表示範囲だけを制限するためのマスク\ndisplay_mask = dilation(skeleton, footprint=foot)\n\n# skeleton 以外は透明にする\ndiameter_display = np.where(display_mask, diameter_display, np.nan)\n\nim = ax.imshow(diameter_display, cmap=\"magma\", alpha=0.9)\nax.set_title(\"diameter-colored skeleton overlay\")\nfig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label=\"diameter (px)\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#branch-node-の抽出",
+    "href": "notebooks/skeletonization.html#branch-node-の抽出",
+    "title": "葉脈の抽出",
+    "section": "branch / node の抽出",
+    "text": "branch / node の抽出\nskan を使って skeleton を branch 単位の表に変換します。 branch-type は、0 が tip-tip、1 が tip-junction、2 が junction-junction、3 が cycle です。\n\nskeleton_graph = Skeleton(skeleton, spacing=1)\nbranch_table = summarize(skeleton_graph, separator=\"-\").copy()\nbranch_table[\"branch-id\"] = np.arange(len(branch_table))\n\nbranch_type_labels = {\n    0: \"tip-tip\",\n    1: \"tip-junction\",\n    2: \"junction-junction\",\n    3: \"cycle\",\n}\nbranch_table[\"branch-type-label\"] = branch_table[\"branch-type\"].map(branch_type_labels)\n\nmean_diameter = []\nmedian_diameter = []\nmax_diameter = []\n\nfor branch_index in range(skeleton_graph.n_paths):\n    coords = skeleton_graph.path_coordinates(branch_index).astype(int)\n    branch_diameter = diameter_px[coords[:, 0], coords[:, 1]]\n    mean_diameter.append(float(np.mean(branch_diameter)))\n    median_diameter.append(float(np.median(branch_diameter)))\n    max_diameter.append(float(np.max(branch_diameter)))\n\nbranch_table[\"mean-diameter-px\"] = mean_diameter\nbranch_table[\"median-diameter-px\"] = median_diameter\nbranch_table[\"max-diameter-px\"] = max_diameter\n\nspur_length_px = 20\nbranch_table[\"spur-candidate\"] = (\n    (branch_table[\"branch-type\"] == 1)\n    & (branch_table[\"branch-distance\"] &lt;= spur_length_px)\n)\n\nprint(f\"Number of branches: {len(branch_table)}\")\nprint(branch_table[\"branch-type-label\"].value_counts().to_string())\nprint(\n    branch_table[\n        [\"mean-diameter-px\", \"median-diameter-px\", \"max-diameter-px\"]\n    ].describe().to_string()\n)\nprint(\n    branch_table[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"spur-candidate\",\n        ]\n    ]\n    .head(10)\n    .to_string(index=False)\n)\n\nnode は skeleton graph の degree で確認します。 degree 1 は endpoint、degree 2 は通常の線分上の pixel、degree 3 以上は branchpoint として扱います。\n\nnode_table = pd.DataFrame(\n    {\n        \"node-id\": np.arange(len(skeleton_graph.degrees)),\n        \"coord-y-px\": skeleton_graph.coordinates[:, 0],\n        \"coord-x-px\": skeleton_graph.coordinates[:, 1],\n        \"degree\": skeleton_graph.degrees,\n    }\n)\nnode_table[\"image-y-px\"] = node_table[\"coord-y-px\"] + bbox[0]\nnode_table[\"image-x-px\"] = node_table[\"coord-x-px\"] + bbox[1]\nnode_table[\"node-type\"] = \"path\"\nnode_table.loc[node_table[\"degree\"] == 1, \"node-type\"] = \"endpoint\"\nnode_table.loc[node_table[\"degree\"] &gt;= 3, \"node-type\"] = \"branchpoint\"\n\nkey_node_table = node_table[node_table[\"node-type\"] != \"path\"].copy()\n\nprint(key_node_table[\"node-type\"].value_counts().to_string())\nprint(key_node_table.head(10).to_string(index=False))",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#spur-pruning-の候補確認",
+    "href": "notebooks/skeletonization.html#spur-pruning-の候補確認",
+    "title": "葉脈の抽出",
+    "section": "spur pruning の候補確認",
+    "text": "spur pruning の候補確認\nここでは pruning 自体は行わず、短い terminal branch を候補として表で確認します。 spur_length_px は GUI では調整可能な値にする想定です。\n\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].sort_values(\n    \"branch-distance\"\n)\n\nprint(f\"Spur candidates at &lt;= {spur_length_px} px: {len(spur_candidates)}\")\nprint(\n    spur_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ]\n    .head(20)\n    .to_string(index=False)\n)\n\n\n# spur candidates を branch-id ベースで取り出す\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].copy()\n\nfig, ax = plt.subplots(figsize=(8, 8))\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 全 branch を薄い水色で描く\nfor branch_id in branch_table[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"cyan\", linewidth=1, alpha=0.6)\n\n# spur candidate を黄色で強調\nfor branch_id in spur_candidates[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"yellow\", linewidth=2.5, alpha=1.0)\n\n# endpoint と branchpoint を描く\nendpoint_table = node_table[node_table[\"node-type\"] == \"endpoint\"]\nbranchpoint_table = node_table[node_table[\"node-type\"] == \"branchpoint\"]\n\nax.scatter(\n    endpoint_table[\"coord-x-px\"],\n    endpoint_table[\"coord-y-px\"],\n    s=20,\n    c=\"lime\",\n    label=\"endpoint\",\n    zorder=3,\n)\n\nax.scatter(\n    branchpoint_table[\"coord-x-px\"],\n    branchpoint_table[\"coord-y-px\"],\n    s=30,\n    c=\"red\",\n    label=\"branchpoint\",\n    zorder=3,\n)\n\nax.set_title(\"branches / nodes / spur candidates\")\nax.legend(loc=\"upper right\")\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
+    "href": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
+    "title": "葉脈の抽出",
+    "section": "major / minor 分離前の太さヒント",
+    "text": "major / minor 分離前の太さヒント\nmajor / minor の自動分類はまだ行いません。 ただし、太さが大きい branch は major vein 候補として確認する価値があります。 この表は、napari で手動 order labels を作るときの確認用ヒントとして使います。\n\nwide_branch_candidates = branch_table.sort_values(\n    [\"mean-diameter-px\", \"branch-distance\"],\n    ascending=[False, False],\n).head(20)\n\nprint(\n    wide_branch_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ].to_string(index=False)\n)\n\n今後の方針としては、まず手動ラベルを基準にし、太さ・接続関係・midrib からの距離を補助情報として重ねるのが安全です。 完全自動分類よりも、「自動候補 + napari で修正」のほうが、画像条件の違いや葉脈の切断に強いです。\nskan は branch table を安定して作る用途に向いています。 一方で、branchpoint が複数 pixel の塊になる場合や、junction 近傍で branch が細かく分割される場合があります。 そのため、GUI に接続するときは branch table をそのまま最終分類に使うのではなく、可視化・候補提示・手動修正の補助として使うのがよいです。",
     "crumbs": [
       "Home",
       "Manual",
