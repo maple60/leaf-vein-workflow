@@ -9,22 +9,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from skimage.io import imread
-from skimage.color import rgb2gray
 from skimage.morphology import (
-    skeletonize, 
-    remove_small_objects, 
-    remove_small_holes, 
-    closing, 
-    opening, 
-    disk
-    )
+    skeletonize,
+    medial_axis,
+    remove_small_objects,
+    remove_small_holes,
+    closing,
+    opening,
+    disk,
+    dilation
+)
 from skimage.filters import gaussian, threshold_otsu
 
 from skan import Skeleton
+from skan.csr import summarize
 import pandas as pd
+
+from leaf_vein_workflow.threshold import to_grayscale
 ```
 
 ## 画像の読み込み
+
+解析に使用する画像を読み込みます。
 
 ```{python}
 # 画像読み込み
@@ -52,13 +58,11 @@ plt.close(fig)
 ## グレースケール化
 
 もし RGB/RGBA 画像の場合は、グレースケール化します。
+ここでは GUI 側でも使っている `to_grayscale()` を使います。
+RGBA 画像では alpha channel は無視します。
 
 ```{python}
-# RGBならグレースケール化
-if img.ndim == 3:
-    gray = rgb2gray(img)
-else:
-    gray = img.astype(float)
+gray = to_grayscale(img)
 
 # 値域をざっくり 0-1 にそろえる
 if gray.max() > 1:
@@ -66,6 +70,9 @@ if gray.max() > 1:
 ```
 
 ## 切り取り
+
+ROIを指定して、画像を切り取ります。
+ここでは例として、(ymin, xmin, ymax, xmax) = (2000, 2000, 5000, 5000) の範囲を切り取ります。
 
 ```{python}
 bbox = (2000, 2000, 5000, 5000) # (ymin, xmin, ymax, xmax)
@@ -81,6 +88,9 @@ img_crop = gray[bbox[0]:bbox[2], bbox[1]:bbox[3]]
 ```
 
 ## ガウシアンフィルタによる平滑化
+
+ガウシアンフィルタで平滑化します。
+sigma は 1 に設定します。
 
 ```{python}
 img_smooth = gaussian(img_crop, sigma=1)
@@ -100,9 +110,18 @@ plt.close(fig)
 
 ## 二値化
 
+解析前の二値化を行います。
+ここでは Otsu の方法で閾値を決定します。
+napariでの二値化では、調整できるようにします。
+現在の画像では葉脈が背景より暗いため、`img_smooth < threshold` を前景として扱います。
+GUI ではこの条件が `Invert threshold` を有効にした状態に相当します。
+
 ```{python}
 threshold = threshold_otsu(img_smooth)
-img_binary = img_crop < threshold
+img_binary = img_smooth < threshold
+
+print(f"Otsu threshold: {threshold:.6f}")
+print(f"Binary foreground pixels: {np.count_nonzero(img_binary)}")
 
 # 横並びで表示
 fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)
@@ -118,6 +137,8 @@ plt.close(fig)
 ```
 
 ## 後処理
+
+小さい穴やゴミを除去します。
 
 ```{python}
 # 小さいゴミ除去
@@ -136,6 +157,8 @@ fig.tight_layout()
 plt.show()
 plt.close(fig)
 ```
+
+葉脈内部の穴埋めや境界の整形を行います。
 
 ```{python}
 # 太い葉脈内部の穴埋め
@@ -159,13 +182,19 @@ plt.close(fig)
 
 ## Skeletonize
 
+後処理済みの `vein_mask` から skeleton を作ります。
+この skeleton が、GUI で mask layer から作る skeleton layer に対応します。
+
 ```{python}
-skeleton = skeletonize(img_binary)
+skeleton = skeletonize(vein_mask)
+
+print(f"Mask foreground pixels: {np.count_nonzero(vein_mask)}")
+print(f"Skeleton pixels: {np.count_nonzero(skeleton)}")
 
 # 横並びで表示
 fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)
-axes[0].imshow(img_binary, cmap="gray")
-axes[0].set_title("binary image")
+axes[0].imshow(vein_mask, cmap="gray")
+axes[0].set_title("post-processed mask")
 
 axes[1].imshow(skeleton, cmap="gray")
 axes[1].set_title("skeleton image")
@@ -175,56 +204,277 @@ plt.show()
 plt.close(fig)
 ```
 
-## この次にやること
+前の画像に重ねてみます。
+表示用に skeleton を太らせて、赤色で重ねます。
 
-### spur pruning
+```{python}
+fig, ax = plt.subplots()
 
-末端から数 px〜数十 px だけ伸びる短い枝を削る。
+ax.imshow(vein_mask, cmap="gray")
 
-例えば考え方は：
+# 表示用に太らせた skeleton を作る
+skeleton_display = dilation(skeleton, footprint=disk(3))
 
-- 端点 endpoint を探す
-- 分岐点 branchpoint までの枝長を測る
-- 閾値より短い枝を削除する
+skeleton_overlay = np.zeros((*skeleton.shape, 4), dtype=np.float32)
+skeleton_overlay[skeleton_display] = [1, 0, 0, 1]  # red, alpha=1
 
-たとえば
+ax.imshow(skeleton_overlay)
+ax.set_title("skeleton overlay")
 
-- 5 px
-- 10 px
-- 20 px
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
 
-くらいを試して比較するとよいです。
-ただし強すぎると本物の自由終端脈まで消えるので注意です。
+## 脈の太さの推定
 
-### branch / node の抽出
+mask の distance transform から、各 foreground pixel が背景からどれだけ離れているかを求めます。
+skeleton 上の距離を 2 倍すると、局所的な直径の近似値として使えます。
 
-VLA や vein order に進むなら、skeleton を
+この値は threshold や mask 後処理に依存するため、major/minor を自動分類する決定値ではなく、手動確認前のヒントとして扱います。
 
-node（分岐点・端点）
-edge（node 間の枝）
+```{python}
+medial_skeleton, radius_px = medial_axis(vein_mask, return_distance=True)
+diameter_px = radius_px * 2
+diameter_on_skeleton = np.where(skeleton, diameter_px, np.nan)
 
-に変換したいです。
+print(pd.Series(diameter_px[skeleton], name="skeleton-diameter-px").describe())
 
-ここで `skan` 的な発想が便利です。
-もし自前実装でも、
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(9, 4), sharex=True, sharey=True)
+axes[0].imshow(vein_mask, cmap="gray")
+axes[0].set_title("post-processed mask")
 
-近傍数1 → endpoint
-近傍数2 → 通常の線分
-近傍数3以上 → branchpoint
+diameter_image = axes[1].imshow(diameter_on_skeleton, cmap="magma")
+axes[1].set_title("diameter on skeleton (px)")
+fig.colorbar(diameter_image, ax=axes[1], fraction=0.046, pad=0.04)
 
-でかなり進められます。
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
 
-### major / minor の分離方針を決める
+先ほどと同様に、太らせて重ねてみます。
 
-葉脈次数をやるなら、ここが次の設計ポイントですね。
+```{python}
+fig, ax = plt.subplots()
+ax.imshow(vein_mask, cmap="gray")
 
-候補はたとえば：
+# skeleton 上だけに値を持つ画像
+diameter_on_skeleton = np.where(skeleton, diameter_px, 0)
 
-手動ラベル（MVPとして一番確実）
-太さベース（元マスクの distance transform を使う）
-連結関係ベース（midrib からの接続順）
-ハイブリッド（自動候補 + napariで修正）
+# footprint は共通で定義
+foot = disk(5)
 
-特に distance transform を skeleton 上に戻して局所半径を持たせる と、
-「この skeleton edge は平均太さが大きいから major 寄り」
-みたいなことができます。
+# 値つき画像を太らせる
+diameter_display = dilation(diameter_on_skeleton, footprint=foot)
+
+# 表示範囲だけを制限するためのマスク
+display_mask = dilation(skeleton, footprint=foot)
+
+# skeleton 以外は透明にする
+diameter_display = np.where(display_mask, diameter_display, np.nan)
+
+im = ax.imshow(diameter_display, cmap="magma", alpha=0.9)
+ax.set_title("diameter-colored skeleton overlay")
+fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="diameter (px)")
+
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
+
+## branch / node の抽出
+
+`skan` を使って skeleton を branch 単位の表に変換します。
+`branch-type` は、0 が tip-tip、1 が tip-junction、2 が junction-junction、3 が cycle です。
+
+```{python}
+skeleton_graph = Skeleton(skeleton, spacing=1)
+branch_table = summarize(skeleton_graph, separator="-").copy()
+branch_table["branch-id"] = np.arange(len(branch_table))
+
+branch_type_labels = {
+    0: "tip-tip",
+    1: "tip-junction",
+    2: "junction-junction",
+    3: "cycle",
+}
+branch_table["branch-type-label"] = branch_table["branch-type"].map(branch_type_labels)
+
+mean_diameter = []
+median_diameter = []
+max_diameter = []
+
+for branch_index in range(skeleton_graph.n_paths):
+    coords = skeleton_graph.path_coordinates(branch_index).astype(int)
+    branch_diameter = diameter_px[coords[:, 0], coords[:, 1]]
+    mean_diameter.append(float(np.mean(branch_diameter)))
+    median_diameter.append(float(np.median(branch_diameter)))
+    max_diameter.append(float(np.max(branch_diameter)))
+
+branch_table["mean-diameter-px"] = mean_diameter
+branch_table["median-diameter-px"] = median_diameter
+branch_table["max-diameter-px"] = max_diameter
+
+spur_length_px = 20
+branch_table["spur-candidate"] = (
+    (branch_table["branch-type"] == 1)
+    & (branch_table["branch-distance"] <= spur_length_px)
+)
+
+print(f"Number of branches: {len(branch_table)}")
+print(branch_table["branch-type-label"].value_counts().to_string())
+print(
+    branch_table[
+        ["mean-diameter-px", "median-diameter-px", "max-diameter-px"]
+    ].describe().to_string()
+)
+print(
+    branch_table[
+        [
+            "branch-distance",
+            "branch-type-label",
+            "mean-diameter-px",
+            "median-diameter-px",
+            "max-diameter-px",
+            "spur-candidate",
+        ]
+    ]
+    .head(10)
+    .to_string(index=False)
+)
+```
+
+node は skeleton graph の degree で確認します。
+degree 1 は endpoint、degree 2 は通常の線分上の pixel、degree 3 以上は branchpoint として扱います。
+
+```{python}
+node_table = pd.DataFrame(
+    {
+        "node-id": np.arange(len(skeleton_graph.degrees)),
+        "coord-y-px": skeleton_graph.coordinates[:, 0],
+        "coord-x-px": skeleton_graph.coordinates[:, 1],
+        "degree": skeleton_graph.degrees,
+    }
+)
+node_table["image-y-px"] = node_table["coord-y-px"] + bbox[0]
+node_table["image-x-px"] = node_table["coord-x-px"] + bbox[1]
+node_table["node-type"] = "path"
+node_table.loc[node_table["degree"] == 1, "node-type"] = "endpoint"
+node_table.loc[node_table["degree"] >= 3, "node-type"] = "branchpoint"
+
+key_node_table = node_table[node_table["node-type"] != "path"].copy()
+
+print(key_node_table["node-type"].value_counts().to_string())
+print(key_node_table.head(10).to_string(index=False))
+```
+
+## spur pruning の候補確認
+
+ここでは pruning 自体は行わず、短い terminal branch を候補として表で確認します。
+`spur_length_px` は GUI では調整可能な値にする想定です。
+
+```{python}
+spur_candidates = branch_table[branch_table["spur-candidate"]].sort_values(
+    "branch-distance"
+)
+
+print(f"Spur candidates at <= {spur_length_px} px: {len(spur_candidates)}")
+print(
+    spur_candidates[
+        [
+            "branch-distance",
+            "branch-type-label",
+            "mean-diameter-px",
+            "image-coord-src-0",
+            "image-coord-src-1",
+            "image-coord-dst-0",
+            "image-coord-dst-1",
+        ]
+    ]
+    .head(20)
+    .to_string(index=False)
+)
+```
+
+```{python}
+# spur candidates を branch-id ベースで取り出す
+spur_candidates = branch_table[branch_table["spur-candidate"]].copy()
+
+fig, ax = plt.subplots(figsize=(8, 8))
+ax.imshow(vein_mask, cmap="gray")
+
+# 全 branch を薄い水色で描く
+for branch_id in branch_table["branch-id"]:
+    coords = skeleton_graph.path_coordinates(branch_id)
+    ax.plot(coords[:, 1], coords[:, 0], color="cyan", linewidth=1, alpha=0.6)
+
+# spur candidate を黄色で強調
+for branch_id in spur_candidates["branch-id"]:
+    coords = skeleton_graph.path_coordinates(branch_id)
+    ax.plot(coords[:, 1], coords[:, 0], color="yellow", linewidth=2.5, alpha=1.0)
+
+# endpoint と branchpoint を描く
+endpoint_table = node_table[node_table["node-type"] == "endpoint"]
+branchpoint_table = node_table[node_table["node-type"] == "branchpoint"]
+
+ax.scatter(
+    endpoint_table["coord-x-px"],
+    endpoint_table["coord-y-px"],
+    s=20,
+    c="lime",
+    label="endpoint",
+    zorder=3,
+)
+
+ax.scatter(
+    branchpoint_table["coord-x-px"],
+    branchpoint_table["coord-y-px"],
+    s=30,
+    c="red",
+    label="branchpoint",
+    zorder=3,
+)
+
+ax.set_title("branches / nodes / spur candidates")
+ax.legend(loc="upper right")
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
+
+## major / minor 分離前の太さヒント
+
+major / minor の自動分類はまだ行いません。
+ただし、太さが大きい branch は major vein 候補として確認する価値があります。
+この表は、napari で手動 order labels を作るときの確認用ヒントとして使います。
+
+```{python}
+wide_branch_candidates = branch_table.sort_values(
+    ["mean-diameter-px", "branch-distance"],
+    ascending=[False, False],
+).head(20)
+
+print(
+    wide_branch_candidates[
+        [
+            "branch-distance",
+            "branch-type-label",
+            "mean-diameter-px",
+            "median-diameter-px",
+            "max-diameter-px",
+            "image-coord-src-0",
+            "image-coord-src-1",
+            "image-coord-dst-0",
+            "image-coord-dst-1",
+        ]
+    ].to_string(index=False)
+)
+```
+
+今後の方針としては、まず手動ラベルを基準にし、太さ・接続関係・midrib からの距離を補助情報として重ねるのが安全です。
+完全自動分類よりも、「自動候補 + napari で修正」のほうが、画像条件の違いや葉脈の切断に強いです。
+
+`skan` は branch table を安定して作る用途に向いています。
+一方で、branchpoint が複数 pixel の塊になる場合や、junction 近傍で branch が細かく分割される場合があります。
+そのため、GUI に接続するときは branch table をそのまま最終分類に使うのではなく、可視化・候補提示・手動修正の補助として使うのがよいです。
