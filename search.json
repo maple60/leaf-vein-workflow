@@ -108,6 +108,202 @@
     ]
   },
   {
+    "objectID": "notebooks/napari_plugin_development.html",
+    "href": "notebooks/napari_plugin_development.html",
+    "title": "napari プラグイン作成の要点",
+    "section": "",
+    "text": "このノートは、napari 公式ドキュメントの Building a plugin をもとに、leaf-vein-workflow のような napari plugin を作るときの基本構造を整理したものです。\n対象は、現在の leaf-vein-workflow と同じく、napari のメニューから dock widget を開いて画像処理ワークフローを進めるタイプの plugin です。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#このノートの目的",
+    "href": "notebooks/napari_plugin_development.html#このノートの目的",
+    "title": "napari プラグイン作成の要点",
+    "section": "",
+    "text": "このノートは、napari 公式ドキュメントの Building a plugin をもとに、leaf-vein-workflow のような napari plugin を作るときの基本構造を整理したものです。\n対象は、現在の leaf-vein-workflow と同じく、napari のメニューから dock widget を開いて画像処理ワークフローを進めるタイプの plugin です。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#公式ドキュメント上の位置づけ",
+    "href": "notebooks/napari_plugin_development.html#公式ドキュメント上の位置づけ",
+    "title": "napari プラグイン作成の要点",
+    "section": "公式ドキュメント上の位置づけ",
+    "text": "公式ドキュメント上の位置づけ\nnapari plugin は、napari の機能を Python package として拡張する仕組みです。公式ドキュメントでは、主に次のような拡張が想定されています。\n\n\n\n種類\n何を追加するか\n\n\n\n\nreader\n新しいファイル形式の読み込み\n\n\nwriter\nnapari レイヤーの保存\n\n\nwidget\n独自の UI や処理パネル\n\n\nsample data\nFile &gt; Open Sample から開けるサンプルデータ\n\n\ntheme\nnapari の見た目\n\n\n\nleaf-vein-workflow は、このうち widget plugin です。画像の読み込み自体は napari 標準機能に任せ、plugin は ROI、mask、skeleton、order labels の作成を担当します。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#最小構成",
+    "href": "notebooks/napari_plugin_development.html#最小構成",
+    "title": "napari プラグイン作成の要点",
+    "section": "最小構成",
+    "text": "最小構成\n公式チュートリアルでは、現在の新しい plugin 形式として npe2 を対象にしています。napari plugin は通常の Python package ですが、少なくとも次の 2 つが必要です。\n\nplugin の貢献内容を静的に書いた manifest ファイル\nnapari が manifest を見つけるための napari.manifest entry point\n\nこの repo では、それぞれ次のファイルが対応しています。\n\n\n\n役割\nこの repo のファイル\n\n\n\n\npackage metadata と entry point\npyproject.toml\n\n\nplugin manifest\nsrc/leaf_vein_workflow/napari.yaml\n\n\nwidget 実装\nsrc/leaf_vein_workflow/_widget.py",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#pyproject.toml-で-napari-に見つけてもらう",
+    "href": "notebooks/napari_plugin_development.html#pyproject.toml-で-napari-に見つけてもらう",
+    "title": "napari プラグイン作成の要点",
+    "section": "pyproject.toml で napari に見つけてもらう",
+    "text": "pyproject.toml で napari に見つけてもらう\nnapari は、インストール済み Python package の entry point を見て plugin を発見します。この repo では次の部分が対応しています。\n[project.entry-points.\"napari.manifest\"]\nleaf-vein-workflow = \"leaf_vein_workflow:napari.yaml\"\n左辺の leaf-vein-workflow は plugin の配布名です。右辺は、Python package leaf_vein_workflow の中にある napari.yaml を manifest として読む、という意味です。\nまた、PyPI や napari hub 上で napari plugin として認識されやすくするため、package metadata には次の classifier を入れます。\nclassifiers = [\n    \"Framework :: napari\",\n]\nこの repo ではすでに Framework :: napari が入っています。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#napari.yaml-で何を提供するかを書く",
+    "href": "notebooks/napari_plugin_development.html#napari.yaml-で何を提供するかを書く",
+    "title": "napari プラグイン作成の要点",
+    "section": "napari.yaml で何を提供するかを書く",
+    "text": "napari.yaml で何を提供するかを書く\nmanifest には、plugin が napari に提供する機能を書きます。公式ドキュメントでは、まず commands を定義し、その command を widget、reader、writer、menu などから参照する形が基本です。\nこの repo の napari.yaml は、widget を 1 つ提供します。\nname: leaf-vein-workflow\ndisplay_name: Leaf Vein Workflow\ncontributions:\n  commands:\n    - id: leaf-vein-workflow.make_crop_widget\n      title: Make ROI Crop Widget\n      python_name: leaf_vein_workflow._widget:CropWidget\n  widgets:\n    - command: leaf-vein-workflow.make_crop_widget\n      display_name: Leaf Vein Workflow\nここで重要なのは、commands と widgets の対応です。\n\n\n\n項目\n意味\n\n\n\n\nid\ncommand の一意な ID。plugin 名から始める\n\n\ntitle\ncommand の説明名\n\n\npython_name\n実際に呼び出す Python オブジェクト\n\n\nwidgets.command\nwidget として開く command\n\n\ndisplay_name\nnapari の plugin menu に表示される名前\n\n\n\nこの設定により、napari の Plugins menu から Leaf Vein Workflow を選ぶと、leaf_vein_workflow._widget:CropWidget が作られます。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#widget-実装の考え方",
+    "href": "notebooks/napari_plugin_development.html#widget-実装の考え方",
+    "title": "napari プラグイン作成の要点",
+    "section": "widget 実装の考え方",
+    "text": "widget 実装の考え方\nwidget contribution は、napari の画面に独自の操作パネルを追加する仕組みです。公式ドキュメントでは、widget は Qt の QWidget、magicgui の widget、または自動生成 widget として提供できます。\nこの repo では Qt widget を直接使っています。\nclass CropWidget(QWidget):\n    def __init__(self, napari_viewer):\n        super().__init__()\n        self.viewer = napari_viewer\nnapari_viewer を受け取ることで、widget から viewer の layer list にアクセスできます。現在の実装では、次の処理を viewer API 経由で行います。\n\n新しい Image layer を見つける\nROI 用 Shapes layer を追加する\ncrop Image layer を追加または更新する\nmask、skeleton、order labels の Labels layer を追加または更新する",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#contribution-の種類を選ぶ",
+    "href": "notebooks/napari_plugin_development.html#contribution-の種類を選ぶ",
+    "title": "napari プラグイン作成の要点",
+    "section": "contribution の種類を選ぶ",
+    "text": "contribution の種類を選ぶ\nplugin を作るときは、最初に「napari のどこを拡張したいのか」を決めます。\n\n\n\n目的\n選ぶ contribution\n\n\n\n\n独自フォーマットを開きたい\nreader\n\n\nレイヤーを独自形式で保存したい\nwriter\n\n\n操作パネルを出したい\nwidget\n\n\nメニュー項目を追加したい\nmenu\n\n\nデモ用画像を同梱したい\nsample data\n\n\n\nleaf-vein-workflow の MVP では、まず widget だけで十分です。画像ファイルの読み込みは napari に任せられるため、reader を追加する必要はまだありません。\n将来、葉脈解析用の独自 project file を読み書きする段階になったら、reader や writer の追加を検討します。その場合も、GUI から無理にファイル形式を扱うより、reader/writer contribution として分けた方が napari の作法に合います。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#dependency-の注意点",
+    "href": "notebooks/napari_plugin_development.html#dependency-の注意点",
+    "title": "napari プラグイン作成の要点",
+    "section": "dependency の注意点",
+    "text": "dependency の注意点\n公式の best practices では、plugin の依存関係を重くしすぎないことが強調されています。特に Qt backend への依存は避けるべきです。\n避けたい例:\n\nruntime dependency に napari[all] を入れる\nruntime dependency に PyQt5、PyQt6、PySide6 を固定する\nwheel がない重い binary dependency を安易に増やす\n\nこの repo では、Qt backend の pyqt6 は dev dependency に置いています。plugin の利用者がどの Qt backend を使うかは、基本的に利用者側の napari 環境に任せる方が安全です。\nまた、型注釈だけのために napari を import する場合は、文字列 annotation や typing.TYPE_CHECKING を使うと runtime dependency を増やさずに済みます。ただし、この repo は napari.layers や通知 API を runtime で使うため、napari dependency は実際に必要です。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#テスト方針",
+    "href": "notebooks/napari_plugin_development.html#テスト方針",
+    "title": "napari プラグイン作成の要点",
+    "section": "テスト方針",
+    "text": "テスト方針\n公式ドキュメントでは、napari plugin のテストには pytest が推奨されています。また、viewer を使うテストには make_napari_viewer_proxy fixture が用意されています。\n一方で、すべてを napari の画面操作として統合テストする必要はありません。公式 docs でも、小さい unit test に分けることが勧められています。\nこの repo の方針は次の通りです。\n\n\n\n\n\n\n\n対象\nテスト方針\n\n\n\n\ncrop 計算\ntests/test_crop.py で NumPy 配列として直接テスト\n\n\nthreshold 計算\ntests/test_threshold.py で直接テスト\n\n\nskeleton 計算\ntests/test_skeleton.py で直接テスト\n\n\nwidget と napari layer\ntests/test_widget_import.py で最小限の統合確認\n\n\n\nこの分け方にすると、GUI や Qt の不安定さに引きずられず、画像処理の仕様を小さく確認できます。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#開発中の確認手順",
+    "href": "notebooks/napari_plugin_development.html#開発中の確認手順",
+    "title": "napari プラグイン作成の要点",
+    "section": "開発中の確認手順",
+    "text": "開発中の確認手順\nローカルで plugin を変更したら、まず editable install 相当の環境で napari を起動して確認します。この repo では uv を使うため、基本コマンドは次の通りです。\nuv sync\nuv run napari\nnapari が起動したら、次を確認します。\n\nPlugins &gt; Leaf Vein Workflow &gt; Leaf Vein Workflow から widget が開く。\n画像を開くと ROI 用 Shapes layer が作られる。\nAdd ROI、mask 更新、Create Skeleton が期待通り動く。\n\n自動テストは次で実行します。\nuv run pytest",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#公開するときの流れ",
+    "href": "notebooks/napari_plugin_development.html#公開するときの流れ",
+    "title": "napari プラグイン作成の要点",
+    "section": "公開するときの流れ",
+    "text": "公開するときの流れ\n公式ドキュメントでは、公開先として PyPI、conda-forge、napari hub が挙げられています。\n基本的な流れは次の通りです。\n\nFramework :: napari classifier を package metadata に入れる。\npyproject.toml と napari.yaml が正しく入った配布物を作る。\nPyPI に公開する。\nnapari hub 上の説明文や metadata を整える。\n必要なら conda-forge にも公開する。\n\n新規 plugin を最初から作る場合は、公式の napari-plugin-template を使うと、package 構成、テスト、CI、公開設定の雛形を作れます。ただし、既存 repo で小さく育てる場合は、今のように pyproject.toml、napari.yaml、widget 実装、tests を確認しながら足していく方が追いやすいです。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#この-repo-で次に見直す場所",
+    "href": "notebooks/napari_plugin_development.html#この-repo-で次に見直す場所",
+    "title": "napari プラグイン作成の要点",
+    "section": "この repo で次に見直す場所",
+    "text": "この repo で次に見直す場所\nプラグイン作成の観点では、今後の変更時に次を確認するとよいです。\n\n\n\n\n\n\n\n確認点\n見る場所\n\n\n\n\nnapari が plugin を発見できるか\npyproject.toml の napari.manifest\n\n\nmenu に出る名前が適切か\nsrc/leaf_vein_workflow/napari.yaml\n\n\nwidget が layer を直接壊していないか\nsrc/leaf_vein_workflow/_widget.py\n\n\n計算処理が GUI から分離されているか\ncrop.py、threshold.py、skeleton.py\n\n\nnapari なしで確認できる仕様がテストされているか\ntests/test_*.py",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#参考リンク",
+    "href": "notebooks/napari_plugin_development.html#参考リンク",
+    "title": "napari プラグイン作成の要点",
+    "section": "参考リンク",
+    "text": "参考リンク\n\nBuilding a plugin\nYour first plugin\nPlugin contributions\nBest practices for plugin developers\nTesting guidelines\nPublish your plugin",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "leaf-vein-workflow",
+    "section": "",
+    "text": "leaf-vein-workflow は、葉脈画像の ROI 切り出し、二値 mask 作成、骨格化、手動分類のための napari plugin です。\nこのサイトは、実装の保守と利用手順の確認に使うためのドキュメントです。"
+  },
+  {
+    "objectID": "index.html#manual",
+    "href": "index.html#manual",
+    "title": "leaf-vein-workflow",
+    "section": "Manual",
+    "text": "Manual\n\nLeaf Vein Workflow の挙動と関数の流れ\nnapari プラグイン作成の要点\n葉脈の抽出\nサンプルデータセット"
+  },
+  {
+    "objectID": "index.html#reports",
+    "href": "index.html#reports",
+    "title": "leaf-vein-workflow",
+    "section": "Reports",
+    "text": "Reports\n\n生態学研究における葉脈形質の測定方法とツール比較\n葉脈形質の測定法と既存ツールの比較報告"
+  },
+  {
+    "objectID": "index.html#development",
+    "href": "index.html#development",
+    "title": "leaf-vein-workflow",
+    "section": "Development",
+    "text": "Development\nローカル環境の準備:\nuv sync\nnapari の起動:\nuv run napari\nテスト:\nuv run pytest\nドキュメントの確認:\nquarto preview --no-execute"
+  },
+  {
     "objectID": "notebooks/workflow_overview.html",
     "href": "notebooks/workflow_overview.html",
     "title": "Leaf Vein Workflow の挙動と関数の流れ",
@@ -322,34 +518,6 @@
       "Manual",
       "Leaf Vein Workflow の挙動と関数の流れ"
     ]
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "leaf-vein-workflow",
-    "section": "",
-    "text": "leaf-vein-workflow は、葉脈画像の ROI 切り出し、二値 mask 作成、骨格化、手動分類のための napari plugin です。\nこのサイトは、実装の保守と利用手順の確認に使うためのドキュメントです。"
-  },
-  {
-    "objectID": "index.html#manual",
-    "href": "index.html#manual",
-    "title": "leaf-vein-workflow",
-    "section": "Manual",
-    "text": "Manual\n\nLeaf Vein Workflow の挙動と関数の流れ\n葉脈の抽出\nサンプルデータセット"
-  },
-  {
-    "objectID": "index.html#reports",
-    "href": "index.html#reports",
-    "title": "leaf-vein-workflow",
-    "section": "Reports",
-    "text": "Reports\n\n生態学研究における葉脈形質の測定方法とツール比較\n葉脈形質の測定法と既存ツールの比較報告"
-  },
-  {
-    "objectID": "index.html#development",
-    "href": "index.html#development",
-    "title": "leaf-vein-workflow",
-    "section": "Development",
-    "text": "Development\nローカル環境の準備:\nuv sync\nnapari の起動:\nuv run napari\nテスト:\nuv run pytest\nドキュメントの確認:\nquarto preview --no-execute"
   },
   {
     "objectID": "notebooks/skeletonization.html",
