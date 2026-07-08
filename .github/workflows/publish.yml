@@ -30,7 +30,7 @@ jobs:
             git reset --hard
             git commit --allow-empty -m "chore: initialize gh-pages"
             git push origin gh-pages
-            git switch -
+            git checkout "$GITHUB_SHA"
           fi
 
       - name: Render and Publish
