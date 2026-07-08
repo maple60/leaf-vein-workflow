@@ -2,6 +2,43 @@
 title: "leaf-vein-workflow"
 ---
 
-## Quarto
+`leaf-vein-workflow` は、葉脈画像の ROI 切り出し、二値 mask 作成、骨格化、手動分類のための napari plugin です。
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+このサイトは、実装の保守と利用手順の確認に使うためのドキュメントです。
+
+## Manual
+
+- [Leaf Vein Workflow の挙動と関数の流れ](notebooks/workflow_overview.qmd)
+- [葉脈の抽出](notebooks/skeletonization.qmd)
+- [サンプルデータセット](notebooks/data_source.qmd)
+
+## Reports
+
+- [生態学研究における葉脈形質の測定方法とツール比較](notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd)
+- [葉脈形質の測定法と既存ツールの比較報告](notebooks/葉脈形質の測定法と既存ツールの比較報告.qmd)
+
+## Development
+
+ローカル環境の準備:
+
+```powershell
+uv sync
+```
+
+napari の起動:
+
+```powershell
+uv run napari
+```
+
+テスト:
+
+```powershell
+uv run pytest
+```
+
+ドキュメントの確認:
+
+```powershell
+quarto preview --no-execute
+```
