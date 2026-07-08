@@ -9,8 +9,8 @@ project:
     - notebooks/data_source.qmd
     - notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd
     - notebooks/葉脈形質の測定法と既存ツールの比較報告.qmd
-    - "!.pytest_cache/"
-    - "!.pytest_cache_local/"
+  resources:
+    - .nojekyll
 
 website:
   title: "leaf-vein-workflow"
