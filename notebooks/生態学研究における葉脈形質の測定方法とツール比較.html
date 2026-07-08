@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>quarto-input1b4e0c1e772beeae – leaf-vein-workflow</title>
+<title>quarto-input5aadec2beea2a237 – leaf-vein-workflow</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -247,27 +247,26 @@ ul.task-list li input[type="checkbox"] {
 <h1>生態学研究における葉脈形質の測定方法とツール比較</h1>
 <section id="エグゼクティブサマリ" class="level2">
 <h2 class="anchored" data-anchor-id="エグゼクティブサマリ">エグゼクティブサマリ</h2>
-<p>本報告は、対象植物群や取得装置が未指定であることを踏まえ、<strong>一般的な被子植物の葉</strong>を想定して、葉脈形質、とくに <strong>major VLA</strong> を最低限確実に取り、可能なら <strong>minor VLA</strong> まで扱うための測定法とツールを整理したものだ。結論を先に言うと、<strong>major VLA を確実に取る</strong>という目的だけなら、いまでも <strong>手動ないし手動補正を含む方法が最も堅い</strong>。一方で、<strong>minor VLA まで安定して大量処理したい</strong>なら、画像品質が十分高いことを前提に <strong>phenoVein</strong> か <strong>LeafVeinCNN</strong> 系、あるいはそれらの発想を取り込んだ <strong>napari+Python 自作</strong>が有力になる。citeturn7view2turn29view0turn17search0turn19search19</p>
-<p>既存ツールのうち、<strong>LeafJ は葉形測定用</strong>であり葉脈解析ツールではない。<strong>RhizoVision Explorer は根画像解析用</strong>で、画像処理思想は参考になるが、葉脈の major/minor VLA をそのまま出す用途には向かない。<strong>LEAF GUI</strong> と <strong>phenoVein</strong> は古典的かつ重要な葉脈解析ソフトだが、原著ベースではどちらも <strong>major/minor VLA を生態学の定義どおりに「直接」出す設計ではない</strong>。そのため、<strong>葉脈次数の明示的区別が必要な研究</strong>では、結局どこかで手動規則か追加後処理が要る。citeturn31view0turn29view1turn30view0turn29view0turn44view0</p>
-<p><strong>LeafVeinCNN</strong> は、現状もっとも有望な高精度・高スループット側の選択肢で、報告上は <strong>precision-recall harmonic mean 94.5% ± 6%</strong> とされ、既存法を上回った。さらにネットワークの幅・角度・接続性や multiscale 統計まで扱えるので、将来的に major/minor VLA を超えるネットワーク指標へ拡張しやすい。ただし、標準配布物は MATLAB app / Windows 実行系ベースで、<strong>研究室の Python 中心ワークフローとの統合性</strong>では制約がある。citeturn17search0turn17search2turn11view1turn32view0</p>
-<p><strong>napari+Python で自作する意義</strong>はかなり大きい。理由は、葉脈次数の規則を自分で定義し、<strong>major VLA を確実に出すための半自動ワークフロー</strong>を組みやすいからだ。napari は画像・labels・points を重ねて可視化でき、プラグインは <code>napari.yaml</code> と widgets で拡張できる。scikit-image, OpenCV, networkx, PyTorch を組み合わせれば、<strong>「自動候補生成 → ユーザー確認 → major/minor 切り分け → CSV 出力」</strong>という研究実務向けの流れを作れる。既存ツールが弱い <strong>対話的検証</strong> と <strong>custom 指標</strong> の部分で、自作の利点が最も大きい。citeturn22search5turn22search1turn22search6turn24search13turn24search1turn22search2turn25search3turn22search3turn39search2</p>
+<p>本報告は、対象植物群や取得装置が未指定であることを踏まえ、<strong>一般的な被子植物の葉</strong>を想定して、葉脈形質、とくに <strong>major VLA</strong> を最低限確実に取り、可能なら <strong>minor VLA</strong> まで扱うための測定法とツールを整理したものだ。結論を先に言うと、<strong>major VLA を確実に取る</strong>という目的だけなら、いまでも <strong>手動ないし手動補正を含む方法が最も堅い</strong>。一方で、<strong>minor VLA まで安定して大量処理したい</strong>なら、画像品質が十分高いことを前提に <strong>phenoVein</strong> か <strong>LeafVeinCNN</strong> 系、あるいはそれらの発想を取り込んだ <strong>napari+Python 自作</strong>が有力になる。</p>
+<p>既存ツールのうち、<strong>LeafJ は葉形測定用</strong>であり葉脈解析ツールではない。<strong>RhizoVision Explorer は根画像解析用</strong>で、画像処理思想は参考になるが、葉脈の major/minor VLA をそのまま出す用途には向かない。<strong>LEAF GUI</strong> と <strong>phenoVein</strong> は古典的かつ重要な葉脈解析ソフトだが、原著ベースではどちらも <strong>major/minor VLA を生態学の定義どおりに「直接」出す設計ではない</strong>。そのため、<strong>葉脈次数の明示的区別が必要な研究</strong>では、結局どこかで手動規則か追加後処理が要る。</p>
+<p><strong>LeafVeinCNN</strong> は、現状もっとも有望な高精度・高スループット側の選択肢で、報告上は <strong>precision-recall harmonic mean 94.5% ± 6%</strong> とされ、既存法を上回った。さらにネットワークの幅・角度・接続性や multiscale 統計まで扱えるので、将来的に major/minor VLA を超えるネットワーク指標へ拡張しやすい。ただし、標準配布物は MATLAB app / Windows 実行系ベースで、<strong>研究室の Python 中心ワークフローとの統合性</strong>では制約がある。</p>
+<p><strong>napari+Python で自作する意義</strong>はかなり大きい。理由は、葉脈次数の規則を自分で定義し、<strong>major VLA を確実に出すための半自動ワークフロー</strong>を組みやすいからだ。napari は画像・labels・points を重ねて可視化でき、プラグインは <code>napari.yaml</code> と widgets で拡張できる。scikit-image, OpenCV, networkx, PyTorch を組み合わせれば、<strong>「自動候補生成 → ユーザー確認 → major/minor 切り分け → CSV 出力」</strong>という研究実務向けの流れを作れる。既存ツールが弱い <strong>対話的検証</strong> と <strong>custom 指標</strong> の部分で、自作の利点が最も大きい。</p>
 </section>
 <section id="測定対象の定義と算出式" class="level2">
 <h2 class="anchored" data-anchor-id="測定対象の定義と算出式">測定対象の定義と算出式</h2>
 <p>生態学で使う葉脈密度の基本量は <strong>VLA</strong>（vein length per unit leaf area, mm mm(^{-2})）で、葉脈長を葉面積で割った値だ。PROMETHEUS の標準プロトコルでは、<strong>major VLA = 1°・2°・3°葉脈密度の和</strong>、<strong>minor VLA = 4°以上の葉脈密度の和</strong>と定義されている。したがって、代表的な書き方をすると、<br>
-[ <em>{total}=, </em>{major}=<em>{k=1}^{3}, </em>{minor}=_{k} ] となる。ここで (L_k) は次数 (k) の葉脈長、(A) は葉面積、(A^*) は minor を測る視野面積で、プロトコル上は <strong>3°葉脈以上が占める面積を分母から差し引くかどうか</strong>に実務上の選択がある。つまり <strong>minor VLA は分母設計まで含めて手順を固定しないと比較不能</strong>になりやすい。citeturn7view2turn8view2</p>
-<p>major/minor の切り分けは、生態学的には単なる太さの問題ではなく、<strong>1°–3°を主骨格、4°以上を細網目</strong>として扱う約束に基づく。PROMETHEUS では、たとえば 1°葉脈は petiole から出て葉縁方向へ向かう太い葉脈とし、2°葉脈と3°葉脈の判定も、単独の線幅だけでなく <strong>その葉内での連続性とメッシュ形成パターン</strong>で判断している。したがって、major/minor VLA の厳密測定では、<strong>幾何学的閾値だけで完全自動分類するのは難しい</strong>。citeturn8view1turn8view0</p>
-<p>major/minor VLA を取る理由は機能生態学上も明確だ。大規模比較では、<strong>major vein density は葉サイズと負にスケール</strong>する一方、<strong>minor vein density は葉サイズと有意にスケールしない</strong>ことが示されている。さらに minor veins は総葉脈長の平均 <strong>84%</strong> を占めるため、<strong>total VLA はしばしば minor 側に強く支配</strong>される。そのため、「major VLA を最低限」取りたいという要件は、葉サイズ補正や力学・輸送骨格の比較には合理的だが、<strong>水輸送や光合成との関係を見るなら minor 側を落とすと解釈が変わる</strong>。citeturn33view2</p>
-<p>major/minor VLA のほか、生態学で同時に取られることが多いのは、<strong>free-ending vein density</strong>、<strong>branching point density</strong>、<strong>areole area / areole density</strong>、<strong>vein width / diameter</strong>、そしてグラフ統計量だ。phenoVein の整理では、たとえば vein density は (D_V=L/A)、branching point density は (N_{BP}/A)、ending point density は (N_{EP}/A)、total vein area は (_i L_iW_i) と表される。major/minor VLA を中心にしても、将来の解析を考えるなら、<strong>骨格画像とグラフ構造を保存しておく</strong>価値は高い。citeturn8view2</p>
+[ <em>{total}=, </em>{major}=<em>{k=1}^{3}, </em>{minor}=_{k} ] となる。ここで (L_k) は次数 (k) の葉脈長、(A) は葉面積、(A^*) は minor を測る視野面積で、プロトコル上は <strong>3°葉脈以上が占める面積を分母から差し引くかどうか</strong>に実務上の選択がある。つまり <strong>minor VLA は分母設計まで含めて手順を固定しないと比較不能</strong>になりやすい。</p>
+<p>major/minor の切り分けは、生態学的には単なる太さの問題ではなく、<strong>1°–3°を主骨格、4°以上を細網目</strong>として扱う約束に基づく。PROMETHEUS では、たとえば 1°葉脈は petiole から出て葉縁方向へ向かう太い葉脈とし、2°葉脈と3°葉脈の判定も、単独の線幅だけでなく <strong>その葉内での連続性とメッシュ形成パターン</strong>で判断している。したがって、major/minor VLA の厳密測定では、<strong>幾何学的閾値だけで完全自動分類するのは難しい</strong>。</p>
+<p>major/minor VLA を取る理由は機能生態学上も明確だ。大規模比較では、<strong>major vein density は葉サイズと負にスケール</strong>する一方、<strong>minor vein density は葉サイズと有意にスケールしない</strong>ことが示されている。さらに minor veins は総葉脈長の平均 <strong>84%</strong> を占めるため、<strong>total VLA はしばしば minor 側に強く支配</strong>される。そのため、「major VLA を最低限」取りたいという要件は、葉サイズ補正や力学・輸送骨格の比較には合理的だが、<strong>水輸送や光合成との関係を見るなら minor 側を落とすと解釈が変わる</strong>。</p>
+<p>major/minor VLA のほか、生態学で同時に取られることが多いのは、<strong>free-ending vein density</strong>、<strong>branching point density</strong>、<strong>areole area / areole density</strong>、<strong>vein width / diameter</strong>、そしてグラフ統計量だ。phenoVein の整理では、たとえば vein density は (D_V=L/A)、branching point density は (N_{BP}/A)、ending point density は (N_{EP}/A)、total vein area は (_i L_iW_i) と表される。major/minor VLA を中心にしても、将来の解析を考えるなら、<strong>骨格画像とグラフ構造を保存しておく</strong>価値は高い。</p>
 </section>
 <section id="測定手法とアルゴリズム" class="level2">
 <h2 class="anchored" data-anchor-id="測定手法とアルゴリズム">測定手法とアルゴリズム</h2>
-<p>葉脈測定は大きく、<strong>手動</strong>, <strong>半自動</strong>, <strong>全自動</strong>に分かれる。生態学の major/minor VLA では、いまでも <strong>手動トレースが基準法</strong>で、PROMETHEUS も 1°・2°・3°葉脈の測定や minor 視野の取り方をかなり明示的に規定している。一方、葉全体の網目構造や areole を大量処理したい場合、LEAF GUI、phenoVein、LeafVeinCNN のような半自動・全自動ツールが有利になる。citeturn8view1turn8view0turn30view0turn29view0turn17search0</p>
-<p>iturn21image1turn21image6turn21image8turn21image0</p>
-<p>上の図版は、典型的な入力画像のイメージを示す。古典的には <strong>cleared leaf + 染色 + 透過照明</strong>で major から minor まで見やすい網目を得る。近年は <strong>バックライト付きフラットベッドスキャナの transmission mode</strong> や、<strong>光学写真 + 3D/マルチスペクトル</strong>、<strong>非破壊の light table + カメラ</strong>も使われるが、fine minor veins の再現性は画像条件に強く依存する。citeturn35search4turn44view3turn35search13</p>
-<p>古典的な半自動パイプラインは、ざっくり言えば <strong>前処理 → 二値化 → モルフォロジー補正 → 骨格化 → 節点/枝検出 → 長さ・密度・角度・幅の算出</strong>から成る。LEAF GUI は global / adaptive thresholding を備え、不均一照明には <strong>局所平均との差分で前景判定する adaptive thresholding</strong> を使う。phenoVein はさらに進んで、色空間選択、局所明るさ補償、<strong>multiscale vesselness filter</strong>、morphological closing、二値化、骨格化、必要に応じた手動修正を行う。Iwamasa らの高スループット法では、<strong>CLAHE → 閾値化 → U-Net 学習</strong>という流れでマスクを作っている。citeturn9view0turn44view3turn42view4turn25search1turn25search3turn23search1</p>
-<p>LEAF GUI のネットワーク計測は、まず二値画像を <strong>1-pixel 幅に skeletonize</strong> し、branchpoint を node として抽出したうえで、<strong>3 以上の近傍を持つ画素を外して edge を切り離し</strong>、各 edge の長さと直径を求める。長さは水平/垂直隣接を 1、対角隣接を () として積算する。phenoVein も skeleton 長を weighted pixel counting で算出し、width は threshold 依存の輪郭ではなく、<strong>葉脈中心からの距離に対する輝度分布を half-Gaussian 的にフィットする model-based edge detection</strong>で出す。つまり、<strong>長さは骨格、幅は強度モデル</strong>という役割分担になっている。citeturn9view1turn9view5turn9view6turn44view4</p>
-<p>Deep learning 系では、問題設定が少し変わる。LeafVeinCNN は CNN で葉脈をセグメントしたあと、<strong>空間グラフ表現</strong>と <strong>hierarchical loop decomposition</strong> に進み、幅・角度・接続性や multiscale 統計まで扱う。LVD2021 では self-supervision により mIoU 71.02%、mean Dice 79.76% が報告され、HALVS はさらに <strong>primary / secondary / tertiary の階層アノテーション</strong>を備えたベンチマークを提供した。DL の利点は minor veins を含む複雑パターンの抽出能力だが、弱点は <strong>位相切断</strong>で、最近は DA-UNet や clDice のような <strong>topology-preserving</strong> な設計が重視されている。citeturn17search0turn17search2turn20search3turn20search8turn34search8turn41search2turn41search3</p>
+<p>葉脈測定は大きく、<strong>手動</strong>, <strong>半自動</strong>, <strong>全自動</strong>に分かれる。生態学の major/minor VLA では、いまでも <strong>手動トレースが基準法</strong>で、PROMETHEUS も 1°・2°・3°葉脈の測定や minor 視野の取り方をかなり明示的に規定している。一方、葉全体の網目構造や areole を大量処理したい場合、LEAF GUI、phenoVein、LeafVeinCNN のような半自動・全自動ツールが有利になる。</p>
+<p>上の図版は、典型的な入力画像のイメージを示す。古典的には <strong>cleared leaf + 染色 + 透過照明</strong>で major から minor まで見やすい網目を得る。近年は <strong>バックライト付きフラットベッドスキャナの transmission mode</strong> や、<strong>光学写真 + 3D/マルチスペクトル</strong>、<strong>非破壊の light table + カメラ</strong>も使われるが、fine minor veins の再現性は画像条件に強く依存する。</p>
+<p>古典的な半自動パイプラインは、ざっくり言えば <strong>前処理 → 二値化 → モルフォロジー補正 → 骨格化 → 節点/枝検出 → 長さ・密度・角度・幅の算出</strong>から成る。LEAF GUI は global / adaptive thresholding を備え、不均一照明には <strong>局所平均との差分で前景判定する adaptive thresholding</strong> を使う。phenoVein はさらに進んで、色空間選択、局所明るさ補償、<strong>multiscale vesselness filter</strong>、morphological closing、二値化、骨格化、必要に応じた手動修正を行う。Iwamasa らの高スループット法では、<strong>CLAHE → 閾値化 → U-Net 学習</strong>という流れでマスクを作っている。</p>
+<p>LEAF GUI のネットワーク計測は、まず二値画像を <strong>1-pixel 幅に skeletonize</strong> し、branchpoint を node として抽出したうえで、<strong>3 以上の近傍を持つ画素を外して edge を切り離し</strong>、各 edge の長さと直径を求める。長さは水平/垂直隣接を 1、対角隣接を () として積算する。phenoVein も skeleton 長を weighted pixel counting で算出し、width は threshold 依存の輪郭ではなく、<strong>葉脈中心からの距離に対する輝度分布を half-Gaussian 的にフィットする model-based edge detection</strong>で出す。つまり、<strong>長さは骨格、幅は強度モデル</strong>という役割分担になっている。</p>
+<p>Deep learning 系では、問題設定が少し変わる。LeafVeinCNN は CNN で葉脈をセグメントしたあと、<strong>空間グラフ表現</strong>と <strong>hierarchical loop decomposition</strong> に進み、幅・角度・接続性や multiscale 統計まで扱う。LVD2021 では self-supervision により mIoU 71.02%、mean Dice 79.76% が報告され、HALVS はさらに <strong>primary / secondary / tertiary の階層アノテーション</strong>を備えたベンチマークを提供した。DL の利点は minor veins を含む複雑パターンの抽出能力だが、弱点は <strong>位相切断</strong>で、最近は DA-UNet や clDice のような <strong>topology-preserving</strong> な設計が重視されている。</p>
 <pre class="mermaid"><code>flowchart LR
     A[入力画像&lt;br&gt;cleared leaf / transmission scan / backlit photo] --&gt; B[前処理&lt;br&gt;色空間選択・CLAHE・背景補正]
     B --&gt; C[線状構造強調&lt;br&gt;vesselness / ridge filter]
@@ -278,7 +277,7 @@ ul.task-list li input[type="checkbox"] {
     G --&gt; H[長さ・密度・角度・幅算出]
     H --&gt; I[major/minor分類]
     I --&gt; J[major VLA / minor VLA / areole 指標]</code></pre>
-<p>このフローは、LEAF GUI の thresholding + segmentation、phenoVein の vesselness + closing + skeleton、U-Net 系の learned mask を <strong>1 本の研究実装フローに一般化</strong>したものだ。citeturn9view0turn44view3turn42view4</p>
+<p>このフローは、LEAF GUI の thresholding + segmentation、phenoVein の vesselness + closing + skeleton、U-Net 系の learned mask を <strong>1 本の研究実装フローに一般化</strong>したものだ。</p>
 <pre class="mermaid"><code>graph TD
     A[二値葉脈マスク] --&gt; B[1-pixel 骨格]
     B --&gt; C1[端点 degree=1]
@@ -290,11 +289,11 @@ ul.task-list li input[type="checkbox"] {
     F --&gt; G[VLA = 総エッジ長 / 面積]
     E --&gt; H[branch density]
     D --&gt; I[free-ending vein density]</code></pre>
-<p>この概念図が示すように、<strong>major/minor VLA 以外の多くの指標は骨格グラフから一貫して導出</strong>できる。だから自作する場合でも、最終的に欲しいのが VLA だけだったとしても、<strong>内部表現を skeleton+graph にしておく</strong>のが長期的には得だ。citeturn8view2turn9view1turn9view5</p>
+<p>この概念図が示すように、<strong>major/minor VLA 以外の多くの指標は骨格グラフから一貫して導出</strong>できる。だから自作する場合でも、最終的に欲しいのが VLA だけだったとしても、<strong>内部表現を skeleton+graph にしておく</strong>のが長期的には得だ。</p>
 </section>
 <section id="既存ツールの機能比較" class="level2">
 <h2 class="anchored" data-anchor-id="既存ツールの機能比較">既存ツールの機能比較</h2>
-<p>まず前提として、<strong>major/minor VLA を生態学プロトコルどおりに直接出す汎用 GUI は少ない</strong>。多くのソフトは「葉脈網全体の長さ・密度・幅・areole」を出す設計で、<strong>次数づけ</strong>は別問題として残っている。major VLA を確実に取得したいなら、既存ソフトの選定では <strong>“葉脈次数をどこで決めるか”</strong> を最優先で見るべきだ。citeturn7view2turn30view0turn29view0turn44view0</p>
+<p>まず前提として、<strong>major/minor VLA を生態学プロトコルどおりに直接出す汎用 GUI は少ない</strong>。多くのソフトは「葉脈網全体の長さ・密度・幅・areole」を出す設計で、<strong>次数づけ</strong>は別問題として残っている。major VLA を確実に取得したいなら、既存ソフトの選定では <strong>“葉脈次数をどこで決めるか”</strong> を最優先で見るべきだ。</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 11%">
@@ -324,124 +323,124 @@ ul.task-list li input[type="checkbox"] {
 <tr class="odd">
 <td><strong>ImageJ / Fiji 手動トレース</strong></td>
 <td>ゴールドスタンダード。次数ごと手動測定</td>
-<td>cleared leaf の高品質画像。PROMETHEUS は whole leaf と top/middle/bottom 視野の併用を推奨。citeturn8view1turn8view0</td>
+<td>cleared leaf の高品質画像。PROMETHEUS は whole leaf と top/middle/bottom 視野の併用を推奨。</td>
 <td>1°–3°長、4°+長、free-ending veins、直径</td>
-<td><strong>◎ / ◎</strong>。最も定義に忠実。citeturn7view2</td>
-<td>参照基準として使われる。phenoVein は完全手動分割と比較して R²=0.9996。citeturn14view0</td>
-<td>遅い。phenoVein 比較では manual 20 min/葉。citeturn14view1</td>
+<td><strong>◎ / ◎</strong>。最も定義に忠実。</td>
+<td>参照基準として使われる。phenoVein は完全手動分割と比較して R²=0.9996。</td>
+<td>遅い。phenoVein 比較では manual 20 min/葉。</td>
 <td>ImageJ/Fiji はオープンソース、複数 OS</td>
-<td>生態学プロトコルの標準実務。citeturn6view4turn14view0</td>
+<td>生態学プロトコルの標準実務。</td>
 </tr>
 <tr class="even">
 <td><strong>LeafJ</strong></td>
 <td>葉形測定</td>
-<td>ImageJ plugin。葉身・葉柄境界の半自動計測。citeturn31view0</td>
+<td>ImageJ plugin。葉身・葉柄境界の半自動計測。</td>
 <td>長さ、幅、面積、周囲長、円形度</td>
 <td><strong>× / ×</strong></td>
-<td>葉脈精度報告なし。そもそも葉脈解析用ではない。citeturn31view0</td>
+<td>葉脈精度報告なし。そもそも葉脈解析用ではない。</td>
 <td>軽量</td>
-<td>open-source / Win, Mac, Linux. citeturn31view0</td>
-<td>Arabidopsis 向け葉形測定。葉脈目的では非推奨。citeturn31view0</td>
+<td>open-source / Win, Mac, Linux.</td>
+<td>Arabidopsis 向け葉形測定。葉脈目的では非推奨。</td>
 </tr>
 <tr class="odd">
 <td><strong>Leaf Venation</strong></td>
 <td>2D 葉脈パターン定量。旧来ソフト</td>
-<td>Quantitative Plant では deprecated。Arabidopsis、MATLAB ベースの半自動。citeturn28view0</td>
+<td>Quantitative Plant では deprecated。Arabidopsis、MATLAB ベースの半自動。</td>
 <td>venation, length, width, topology, surface</td>
 <td><strong>○ / △</strong>。次数別 VLA の直接出力は確認できない</td>
-<td>原著は 2D map 抽出が主眼。citeturn27search0turn28view0</td>
+<td>原著は 2D map 抽出が主眼。</td>
 <td>不明</td>
-<td>licence on-demand / Win, Mac, MATLAB. citeturn28view0</td>
-<td>Rolland-Lagan et al.&nbsp;2009。古典的だが現在は保守性に難。citeturn27search0turn28view0</td>
+<td>licence on-demand / Win, Mac, MATLAB.</td>
+<td>Rolland-Lagan et al.&nbsp;2009。古典的だが現在は保守性に難。</td>
 </tr>
 <tr class="even">
 <td><strong>LEAF GUI</strong></td>
 <td>whole-leaf vein/areole 構造解析</td>
-<td>葉脈が背景より強調された cleared leaf 画像。global/adaptive thresholding。citeturn30view0turn9view0</td>
+<td>葉脈が背景より強調された cleared leaf 画像。global/adaptive thresholding。</td>
 <td>network length, vein density, nodes, edges, areoles, 位置・形状</td>
 <td><strong>○ / △</strong>。全葉脈密度は可、major/minor 直出しは弱い</td>
-<td>原著は代表例で whole-leaf 計算 58–84 s、設定によって 190–264 s。後年の議論では画質と threshold artifact が精度を左右。citeturn14view6turn37search4</td>
+<td>原著は代表例で whole-leaf 計算 58–84 s、設定によって 190–264 s。後年の議論では画質と threshold artifact が精度を左右。</td>
 <td>中速</td>
-<td>freeware / Win, Mac, MATLAB. citeturn30view0</td>
-<td>Price et al.&nbsp;2011。全葉網構造の解析に広く引用。citeturn8view3turn30view0</td>
+<td>freeware / Win, Mac, MATLAB.</td>
+<td>Price et al.&nbsp;2011。全葉網構造の解析に広く引用。</td>
 </tr>
 <tr class="odd">
 <td><strong>phenoVein</strong></td>
 <td>自動葉脈セグメンテーション + 手動補正</td>
-<td>顕微鏡・マクロ写真・高解像 whole-leaf。Arabidopsis では transmitted background illumination、約 5.7 µm/px。density は約 400 dpi 以上、width は 3000 dpi 以上で安定。citeturn29view0turn44view2turn44view3</td>
+<td>顕微鏡・マクロ写真・高解像 whole-leaf。Arabidopsis では transmitted background illumination、約 5.7 µm/px。density は約 400 dpi 以上、width は 3000 dpi 以上で安定。</td>
 <td>vein length, density, piecewise length/width, areole area, branching/ending points, skeleton overlay</td>
-<td><strong>○ / △</strong>。次数自動分類は未実装。manual segmentation 併用で major VLA は現実的。citeturn44view0</td>
-<td>manual segmentation に対して R²=0.9996。回転角依存は vein density 0.8% 未満。citeturn14view0turn44view2</td>
-<td>約 1–2 min/葉。citeturn14view1</td>
-<td>open-source, freeware / Windows. citeturn29view0</td>
-<td>Bühler et al.&nbsp;2015。変異体 Arabidopsis の葉脈形質解析。citeturn6view1turn29view0</td>
+<td><strong>○ / △</strong>。次数自動分類は未実装。manual segmentation 併用で major VLA は現実的。</td>
+<td>manual segmentation に対して R²=0.9996。回転角依存は vein density 0.8% 未満。</td>
+<td>約 1–2 min/葉。</td>
+<td>open-source, freeware / Windows.</td>
+<td>Bühler et al.&nbsp;2015。変異体 Arabidopsis の葉脈形質解析。</td>
 </tr>
 <tr class="even">
 <td><strong>RhizoVision Explorer</strong></td>
 <td>根画像解析。葉脈ではなく参考系</td>
-<td>高コントラスト・均一照明・重なり最小の画像を想定。Qt + OpenCV。citeturn29view1turn13search3</td>
+<td>高コントラスト・均一照明・重なり最小の画像を想定。Qt + OpenCV。</td>
 <td>長さ、直径、体積、角度、convex hull, batch 処理</td>
 <td><strong>× / ×</strong>。葉脈次数・VLA 向けではない</td>
-<td>銅線 ground truth や simulated roots で広く妥当性確認。citeturn29view1</td>
+<td>銅線 ground truth や simulated roots で広く妥当性確認。</td>
 <td>高速、バッチ向き</td>
-<td>GPL / Windows（ソースは GitHub）。citeturn13search3turn29view1</td>
-<td>葉脈には直接非推奨。ただし batch GUI と skeleton 設計は自作時の参考になる。citeturn29view1</td>
+<td>GPL / Windows（ソースは GitHub）。</td>
+<td>葉脈には直接非推奨。ただし batch GUI と skeleton 設計は自作時の参考になる。</td>
 </tr>
 <tr class="odd">
 <td><strong>LeafVeinCNN</strong></td>
 <td>CNN ベース葉脈抽出と multiscale network 解析</td>
-<td>学習済み CNN は 1.68 µm resolution モデル同梱。MATLAB app / Windows 実行系。citeturn11view1turn14view7</td>
+<td>学習済み CNN は 1.68 µm resolution モデル同梱。MATLAB app / Windows 実行系。</td>
 <td>vein segmentation, spatial graph, widths, angles, connectivity, multiscale stats, HLD</td>
 <td><strong>○ / △</strong>。direct な major/minor VLA より、幅階層・multiscale 指標が強い</td>
-<td>precision-recall harmonic mean <strong>94.5% ± 6%</strong>。既存抽出法より高性能。citeturn17search0turn17search2</td>
-<td>高スループット向き。parallel beta あり。citeturn32view0</td>
-<td>CC BY software / MATLAB 2020b+ または Windows 11 exe. citeturn11view1</td>
-<td>tropical 50 families, &gt;700 leaves から学習。近年の葉脈機能解析でも利用。citeturn15search4turn10search11</td>
+<td>precision-recall harmonic mean <strong>94.5% ± 6%</strong>。既存抽出法より高性能。</td>
+<td>高スループット向き。parallel beta あり。</td>
+<td>CC BY software / MATLAB 2020b+ または Windows 11 exe.</td>
+<td>tropical 50 families, &gt;700 leaves から学習。近年の葉脈機能解析でも利用。</td>
 </tr>
 <tr class="even">
 <td><strong>Deep learning custom</strong></td>
 <td>U-Net / self-supervision / hierarchy-aware 研究実装</td>
-<td>LVD2021: 4977 images, 2736×3648, 36 leaf types。HALVS: 5057 high-res scans, 3 species, 1°–3°アノテーション。citeturn20search3turn20search0turn34search8</td>
+<td>LVD2021: 4977 images, 2736×3648, 36 leaf types。HALVS: 5057 high-res scans, 3 species, 1°–3°アノテーション。</td>
 <td>segmentation mask, hierarchy labels, custom topology metrics</td>
 <td><strong>◎ / △</strong> まで拡張可能。HALVS 系なら major に強く、minor は追加学習が必要</td>
-<td>LVD2021 self-supervision: mIoU 71.02%, mean Dice 79.76%。HALVS/DA-UNet/LCET は topology preserving を前面化。citeturn20search8turn41search3turn34search0</td>
+<td>LVD2021 self-supervision: mIoU 71.02%, mean Dice 79.76%。HALVS/DA-UNet/LCET は topology preserving を前面化。</td>
 <td>学習後は高速</td>
 <td>実装依存。PyTorch/TensorFlow 中心</td>
-<td>研究用途として最も拡張性が高い。既製 GUI より開発負担は大。citeturn20search10turn34search8</td>
+<td>研究用途として最も拡張性が高い。既製 GUI より開発負担は大。</td>
 </tr>
 <tr class="odd">
 <td><strong>VeinViewer</strong></td>
 <td><strong>植物葉脈ソフトではなく医療用静脈可視化装置</strong></td>
-<td>近赤外で皮下静脈を投影表示する医療デバイス。citeturn45search14</td>
+<td>近赤外で皮下静脈を投影表示する医療デバイス。</td>
 <td>血管可視化</td>
 <td><strong>× / ×</strong></td>
 <td>葉脈解析の学術ソフトとしては本調査で採用不可</td>
 <td>ـ</td>
 <td>医療機器</td>
-<td>植物葉脈ツール比較の対象には不適切。名称の混同に注意。citeturn45search14</td>
+<td>植物葉脈ツール比較の対象には不適切。名称の混同に注意。</td>
 </tr>
 </tbody>
 </table>
-<p>この表から実務上の結論を出すと、<strong>major VLA を確実に取るだけなら「ImageJ/Fiji 手動基準」か、それを napari で置き換えた半自動実装</strong>が最も堅い。<strong>minor VLA も含めて大量処理</strong>したいなら、既製ソフトでは <strong>phenoVein</strong> か <strong>LeafVeinCNN</strong>、ただし前者は次数分類が未実装、後者は MATLAB 依存が残る。だから <strong>major VLA 必須 + 自前ルールで minor 追加 + Python 中心</strong>という条件では、napari+Python 自作の妥当性が高い。citeturn29view0turn11view1turn44view0turn24search13</p>
+<p>この表から実務上の結論を出すと、<strong>major VLA を確実に取るだけなら「ImageJ/Fiji 手動基準」か、それを napari で置き換えた半自動実装</strong>が最も堅い。<strong>minor VLA も含めて大量処理</strong>したいなら、既製ソフトでは <strong>phenoVein</strong> か <strong>LeafVeinCNN</strong>、ただし前者は次数分類が未実装、後者は MATLAB 依存が残る。だから <strong>major VLA 必須 + 自前ルールで minor 追加 + Python 中心</strong>という条件では、napari+Python 自作の妥当性が高い。</p>
 </section>
 <section id="精度評価と公開データセット" class="level2">
 <h2 class="anchored" data-anchor-id="精度評価と公開データセット">精度評価と公開データセット</h2>
-<p>葉脈測定の精度評価は、少なくとも <strong>二つのレベル</strong>で行う必要がある。第一は <strong>mask/skeleton のセグメンテーション精度</strong>、第二は <strong>生態学指標としての VLA や幅の測定精度</strong>だ。phenoVein は後者の代表で、完全手動分割に対する <strong>R²=0.9996</strong> を示した。一方、LeafVeinCNN や self-supervised segmentation は前者の代表で、<strong>F1, precision-recall harmonic mean, IoU, Dice</strong> が主に使われる。両者は同じ「精度」でも意味が違う。citeturn14view0turn17search0turn20search8</p>
-<p>公開ベンチマークとして重要なのは <strong>LVD2021</strong> と <strong>HALVS</strong> だ。LVD2021 は <strong>4977 枚、36 葉型、2736×3648 px、pixel-level annotation</strong> を持つ初期の公開セットで、self-supervision 法はこのデータで <strong>mIoU 71.02%、mean Dice 79.76%</strong> を報告した。HALVS はさらに進んで、<strong>5057 枚、3 種、primary/secondary/tertiary veins の階層アノテーション</strong>を備え、<strong>83.8 person-days</strong> のラベリングコストを明示した。major VLA の自動化、つまり <strong>1°–3°葉脈の階層抽出</strong>を考えるなら、HALVS 系はまさに必要な教師データの形に近い。citeturn20search3turn20search8turn34search8turn20search1</p>
-<p>高スループットの非破壊撮像系としては、Iwamasa らの <strong>light table + digital camera + non-reflective glass</strong> の workflow が実装性の高い中間解になる。彼らは <strong>U-Net + skeletonization + undirected graph + network feature calculation</strong> の流れを構築し、種分類課題で <strong>90.6% accuracy</strong> を示した。これは VLA の直接検証ではないが、<strong>未処理葉でも葉脈ネットワークを安価に再現可能</strong>であることを示している。citeturn42view4turn42view1</p>
-<p>誤差要因としては、<strong>照明むら</strong>, <strong>葉厚のむら</strong>, <strong>trichomes, dirt, leaf damage</strong>, <strong>低解像度</strong>, <strong>交差部の切断・誤接続</strong>, <strong>スケール較正ミス</strong>が主要だ。phenoVein は vesselness filter によって brightness gradients への頑健性を上げ、さらに manual correction を許している。逆に言えば、<strong>自動法の勝負は「前処理でどこまで補正し、どこから人手に戻すか」</strong>にある。citeturn44view0turn44view3</p>
-<p>位相を保つ評価指標も重要だ。葉脈は細い network-like structure なので、単純な Dice だけでは <strong>つながりの切断</strong>を十分に罰せない。clDice は segmentation mask と skeleton の交差に基づく指標で、<strong>tubular / network-like structure の topology preservation</strong>を重視する。葉脈 segmentation で recent deep learning が topology-preserving を強調するのは、この事情による。citeturn41search2turn41search0turn41search3</p>
+<p>葉脈測定の精度評価は、少なくとも <strong>二つのレベル</strong>で行う必要がある。第一は <strong>mask/skeleton のセグメンテーション精度</strong>、第二は <strong>生態学指標としての VLA や幅の測定精度</strong>だ。phenoVein は後者の代表で、完全手動分割に対する <strong>R²=0.9996</strong> を示した。一方、LeafVeinCNN や self-supervised segmentation は前者の代表で、<strong>F1, precision-recall harmonic mean, IoU, Dice</strong> が主に使われる。両者は同じ「精度」でも意味が違う。</p>
+<p>公開ベンチマークとして重要なのは <strong>LVD2021</strong> と <strong>HALVS</strong> だ。LVD2021 は <strong>4977 枚、36 葉型、2736×3648 px、pixel-level annotation</strong> を持つ初期の公開セットで、self-supervision 法はこのデータで <strong>mIoU 71.02%、mean Dice 79.76%</strong> を報告した。HALVS はさらに進んで、<strong>5057 枚、3 種、primary/secondary/tertiary veins の階層アノテーション</strong>を備え、<strong>83.8 person-days</strong> のラベリングコストを明示した。major VLA の自動化、つまり <strong>1°–3°葉脈の階層抽出</strong>を考えるなら、HALVS 系はまさに必要な教師データの形に近い。</p>
+<p>高スループットの非破壊撮像系としては、Iwamasa らの <strong>light table + digital camera + non-reflective glass</strong> の workflow が実装性の高い中間解になる。彼らは <strong>U-Net + skeletonization + undirected graph + network feature calculation</strong> の流れを構築し、種分類課題で <strong>90.6% accuracy</strong> を示した。これは VLA の直接検証ではないが、<strong>未処理葉でも葉脈ネットワークを安価に再現可能</strong>であることを示している。</p>
+<p>誤差要因としては、<strong>照明むら</strong>, <strong>葉厚のむら</strong>, <strong>trichomes, dirt, leaf damage</strong>, <strong>低解像度</strong>, <strong>交差部の切断・誤接続</strong>, <strong>スケール較正ミス</strong>が主要だ。phenoVein は vesselness filter によって brightness gradients への頑健性を上げ、さらに manual correction を許している。逆に言えば、<strong>自動法の勝負は「前処理でどこまで補正し、どこから人手に戻すか」</strong>にある。</p>
+<p>位相を保つ評価指標も重要だ。葉脈は細い network-like structure なので、単純な Dice だけでは <strong>つながりの切断</strong>を十分に罰せない。clDice は segmentation mask と skeleton の交差に基づく指標で、<strong>tubular / network-like structure の topology preservation</strong>を重視する。葉脈 segmentation で recent deep learning が topology-preserving を強調するのは、この事情による。</p>
 <pre class="mermaid"><code>xychart-beta
     title "代表的報告性能の比較"
     x-axis ["phenoVein R2", "LeafVeinCNN F1", "Object-oriented precision", "LVD2021 Dice"]
     y-axis "reported value" 0 --&gt; 1.0
     bar [0.9996, 0.945, 0.964, 0.798]</code></pre>
-<p>この棒グラフは文献報告値を並べたものだが、<strong>R², F1, precision, Dice が混在しており、厳密な同列比較ではない</strong>。それでも、<strong>測定値検証では phenoVein が強く、画像 segmentation では LeafVeinCNN と object-oriented 法が高く、汎化性のある公開ベンチマークでは LVD2021 系がまだ伸びしろを残す</strong>、という全体像は把握できる。citeturn14view0turn17search0turn33view4turn20search8</p>
+<p>この棒グラフは文献報告値を並べたものだが、<strong>R², F1, precision, Dice が混在しており、厳密な同列比較ではない</strong>。それでも、<strong>測定値検証では phenoVein が強く、画像 segmentation では LeafVeinCNN と object-oriented 法が高く、汎化性のある公開ベンチマークでは LVD2021 系がまだ伸びしろを残す</strong>、という全体像は把握できる。</p>
 </section>
 <section id="naparipythonで自作する意義と実装案" class="level2">
 <h2 class="anchored" data-anchor-id="naparipythonで自作する意義と実装案">napari+Pythonで自作する意義と実装案</h2>
-<p>napari+Python 自作の最大の意義は、<strong>生態学側の定義を第一級市民として扱える</strong>ことだ。既存葉脈ソフトの多くは「全葉脈網の定量」を強く意識しており、<strong>major VLA を 1°–3°葉脈の長さ/面積として厳密に固定</strong>したいときには、内部処理をこちらが支配できるほうが有利になる。napari 自体は多次元画像ビューアで、画像上に <strong>labels layer</strong>, <strong>points layer</strong> を重ねて編集でき、プラグインは <strong>manifest (<code>napari.yaml</code>)</strong> と widget で配布できる。つまり、<strong>自動抽出結果を可視化しながら、人が次数境界だけ修正する</strong> UI を作りやすい。citeturn22search5turn22search1turn22search6turn24search13turn24search1</p>
-<p>実装アーキテクチャは、つぎのように分けると扱いやすい。画像 I/O には napari reader と NumPy ベースを使い、前処理では <strong>CLAHE / background correction / threshold_local / Frangi などの ridge enhancement</strong> を scikit-image と OpenCV で行う。二値マスクからの skeleton 化は scikit-image の <code>skeletonize</code> / <code>medial_axis</code>、graph 化は networkx、必要なら skeleton-to-graph の補助に <strong>sknw</strong> が使える。region props は scikit-image と <code>napari-skimage-regionprops</code>、ImageJ 資産の再利用には <code>napari-imagej</code> が橋渡しになる。 DL を取り込むなら PyTorch の U-Net が素直だ。citeturn25search1turn25search3turn22search2turn22search7turn22search3turn22search13turn39search3turn39search2turn22search4</p>
+<p>napari+Python 自作の最大の意義は、<strong>生態学側の定義を第一級市民として扱える</strong>ことだ。既存葉脈ソフトの多くは「全葉脈網の定量」を強く意識しており、<strong>major VLA を 1°–3°葉脈の長さ/面積として厳密に固定</strong>したいときには、内部処理をこちらが支配できるほうが有利になる。napari 自体は多次元画像ビューアで、画像上に <strong>labels layer</strong>, <strong>points layer</strong> を重ねて編集でき、プラグインは <strong>manifest (<code>napari.yaml</code>)</strong> と widget で配布できる。つまり、<strong>自動抽出結果を可視化しながら、人が次数境界だけ修正する</strong> UI を作りやすい。</p>
+<p>実装アーキテクチャは、つぎのように分けると扱いやすい。画像 I/O には napari reader と NumPy ベースを使い、前処理では <strong>CLAHE / background correction / threshold_local / Frangi などの ridge enhancement</strong> を scikit-image と OpenCV で行う。二値マスクからの skeleton 化は scikit-image の <code>skeletonize</code> / <code>medial_axis</code>、graph 化は networkx、必要なら skeleton-to-graph の補助に <strong>sknw</strong> が使える。region props は scikit-image と <code>napari-skimage-regionprops</code>、ImageJ 資産の再利用には <code>napari-imagej</code> が橋渡しになる。 DL を取り込むなら PyTorch の U-Net が素直だ。</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%">
@@ -459,32 +458,32 @@ ul.task-list li input[type="checkbox"] {
 <tr class="odd">
 <td>画像 I/O・閲覧</td>
 <td>napari reader / image layer</td>
-<td>whole leaf、ROI、overlay の可視化。citeturn22search5turn39search9</td>
+<td>whole leaf、ROI、overlay の可視化。</td>
 </tr>
 <tr class="even">
 <td>QC 編集</td>
 <td>labels / points / shapes + magicgui</td>
-<td>自動 mask の修正、major vein pointer、ROI 指定。citeturn22search1turn22search6turn24search1</td>
+<td>自動 mask の修正、major vein pointer、ROI 指定。</td>
 </tr>
 <tr class="odd">
 <td>前処理</td>
 <td>scikit-image, OpenCV</td>
-<td>CLAHE、local threshold、morphology、ridge detection。citeturn25search1turn25search3turn23search1turn23search9</td>
+<td>CLAHE、local threshold、morphology、ridge detection。</td>
 </tr>
 <tr class="even">
 <td>骨格・グラフ</td>
 <td>scikit-image, networkx, sknw</td>
-<td>skeleton、degree、edge length、branch count。citeturn22search2turn22search3turn22search13</td>
+<td>skeleton、degree、edge length、branch count。</td>
 </tr>
 <tr class="odd">
 <td>DL セグメンテーション</td>
 <td>PyTorch / TensorFlow</td>
-<td>minor veins の抽出強化、hierarchy-aware 学習。citeturn22search4turn20search3turn34search8</td>
+<td>minor veins の抽出強化、hierarchy-aware 学習。</td>
 </tr>
 <tr class="even">
 <td>既存資産接続</td>
 <td>napari-imagej</td>
-<td>Fiji / ImageJ マクロや既存 plugin の再利用。citeturn39search2turn39search10</td>
+<td>Fiji / ImageJ マクロや既存 plugin の再利用。</td>
 </tr>
 </tbody>
 </table>
@@ -494,31 +493,31 @@ ul.task-list li input[type="checkbox"] {
 <li><strong>中</strong>: 画像ごとのスケール校正、ROI 管理、mask 編集、graph 抽出、CSV 一括出力まで含む plugin。major VLA を再現可能に回すならこの層が本命。</li>
 <li><strong>高</strong>: minor veins まで含む hierarchy-aware DL、公開配布、テスト、モデル管理、再学習 UI まで含む系。ここまで行くと既製ソフト 1 本分に近い。</li>
 </ul>
-<p>利点は、<strong>拡張性</strong>, <strong>対話的検証</strong>, <strong>custom 指標</strong>, <strong>Python 生態系との接続</strong>だ。反対に欠点は、<strong>検証責任が自分に来ること</strong>, <strong>保守負担</strong>, <strong>画像解析と GUI の学習コスト</strong>, <strong>論文 reviewer に対して自前法の妥当性説明が必要</strong>なことだ。これらは napari/plugin 生態系や既存ツールの機能から自然に導かれる判断で、特に <strong>major/minor の定義を独自に持ちたい研究</strong>でない限り、既存ソフトを使うほうが楽な場合は多い。citeturn24search13turn24search1turn39search2turn39search3turn29view0turn11view1</p>
+<p>利点は、<strong>拡張性</strong>, <strong>対話的検証</strong>, <strong>custom 指標</strong>, <strong>Python 生態系との接続</strong>だ。反対に欠点は、<strong>検証責任が自分に来ること</strong>, <strong>保守負担</strong>, <strong>画像解析と GUI の学習コスト</strong>, <strong>論文 reviewer に対して自前法の妥当性説明が必要</strong>なことだ。これらは napari/plugin 生態系や既存ツールの機能から自然に導かれる判断で、特に <strong>major/minor の定義を独自に持ちたい研究</strong>でない限り、既存ソフトを使うほうが楽な場合は多い。</p>
 <p>推奨ワークフローは、いきなり DL から入るより、<strong>段階導入</strong>がよい。<br>
 <strong>第1段階</strong>: transmitted scan / cleared images で major veins を classical 法で抽出し、manual correction を通して VLA を出す。<br>
 <strong>第2段階</strong>: skeleton と graph を保存し、branch / areole / free-ending traits を自動出力する。<br>
 <strong>第3段階</strong>: minor veins が必要になった時点で U-Net 系セグメンテーションを差し込み、major/minor 分離は UI 上で半自動補正する。<br>
-この順にすると、<strong>最初の論文化に必要な再現性</strong>と <strong>後の拡張性</strong>を両立しやすい。citeturn44view0turn42view4turn24search1turn17search0</p>
+この順にすると、<strong>最初の論文化に必要な再現性</strong>と <strong>後の拡張性</strong>を両立しやすい。</p>
 </section>
 <section id="推奨と実践ガイド" class="level2">
 <h2 class="anchored" data-anchor-id="推奨と実践ガイド">推奨と実践ガイド</h2>
-<p>研究目的別の推奨は明確だ。<strong>高精度研究</strong>で major/minor の定義を厳密に守りたいなら、<strong>ImageJ/Fiji 手動基準</strong>か <strong>napari 半自動自作</strong>を軸にするべきだ。<strong>ハイスループット</strong>なら <strong>LeafVeinCNN</strong> が最有力で、画像が均質なら <strong>phenoVein</strong> も良い。<strong>教育用途</strong>や全葉網の直感的理解には <strong>LEAF GUI</strong> が入りやすい。<strong>非専門家向け</strong>で major VLA だけを最低限出したいなら、むしろ <strong>既存 GUI より、major veins だけを対象にした簡素な napari ツール</strong>のほうが誤用が少ない可能性が高い。citeturn30view0turn29view0turn11view1turn24search1turn24search13</p>
-<p><strong>major VLA を確実に取る撮影条件</strong>としては、第一選択は <strong>clearing + staining + transmitted illumination</strong> だ。2025 protocol は clearing, staining, mounting, imaging, archiving を一体で示し、染色は <strong>ethanol dehydration を伴う safranin</strong>、mounting は <strong>xylene-based medium</strong> を採る。phenoVein の撮像例でも、<strong>暗室・透過背景照明のみ</strong>で取得している。非破壊寄りなら、HALVS や Iwamasa workflow のような <strong>backlit transmission scan / light table + camera</strong> が現実的だが、minor 側は画質依存が強い。citeturn37search1turn44view3turn35search4turn42view4</p>
-<p><strong>解像度の実務基準</strong>は、文献から直接一律には決まらない。だが、phenoVein では Arabidopsis で <strong>約 400 dpi 未満だと thin structures の消失で VLA が低下</strong>し、<strong>width は 3000 dpi 以上</strong>で安定した。別の近年研究では、<strong>47–144 px/mm</strong> の whole-leaf 画像で <strong>≥10 μm の veins</strong> を解像できた一方、より細い minor veins は種によって取りこぼし得るとされた。したがって、<strong>major VLA だけなら 400–1200 dpi 相当の transmitted scan /高品質マクロ写真で始める</strong>、<strong>minor VLA を本気で取るなら finest vein が少なくとも 2–3 pixel 以上で見える条件を確保</strong>、という保守的運用が妥当だ。これは文献報告を踏まえた実務的な推奨だ。citeturn44view2turn44view4turn15search13</p>
+<p>研究目的別の推奨は明確だ。<strong>高精度研究</strong>で major/minor の定義を厳密に守りたいなら、<strong>ImageJ/Fiji 手動基準</strong>か <strong>napari 半自動自作</strong>を軸にするべきだ。<strong>ハイスループット</strong>なら <strong>LeafVeinCNN</strong> が最有力で、画像が均質なら <strong>phenoVein</strong> も良い。<strong>教育用途</strong>や全葉網の直感的理解には <strong>LEAF GUI</strong> が入りやすい。<strong>非専門家向け</strong>で major VLA だけを最低限出したいなら、むしろ <strong>既存 GUI より、major veins だけを対象にした簡素な napari ツール</strong>のほうが誤用が少ない可能性が高い。</p>
+<p><strong>major VLA を確実に取る撮影条件</strong>としては、第一選択は <strong>clearing + staining + transmitted illumination</strong> だ。2025 protocol は clearing, staining, mounting, imaging, archiving を一体で示し、染色は <strong>ethanol dehydration を伴う safranin</strong>、mounting は <strong>xylene-based medium</strong> を採る。phenoVein の撮像例でも、<strong>暗室・透過背景照明のみ</strong>で取得している。非破壊寄りなら、HALVS や Iwamasa workflow のような <strong>backlit transmission scan / light table + camera</strong> が現実的だが、minor 側は画質依存が強い。</p>
+<p><strong>解像度の実務基準</strong>は、文献から直接一律には決まらない。だが、phenoVein では Arabidopsis で <strong>約 400 dpi 未満だと thin structures の消失で VLA が低下</strong>し、<strong>width は 3000 dpi 以上</strong>で安定した。別の近年研究では、<strong>47–144 px/mm</strong> の whole-leaf 画像で <strong>≥10 μm の veins</strong> を解像できた一方、より細い minor veins は種によって取りこぼし得るとされた。したがって、<strong>major VLA だけなら 400–1200 dpi 相当の transmitted scan /高品質マクロ写真で始める</strong>、<strong>minor VLA を本気で取るなら finest vein が少なくとも 2–3 pixel 以上で見える条件を確保</strong>、という保守的運用が妥当だ。これは文献報告を踏まえた実務的な推奨だ。</p>
 <p><strong>初期前処理パラメータ</strong>は画像依存なので、固定値より「出発点」を持つほうがよい。以下は <strong>推奨初期値</strong>で、phenoVein・Iwamasa workflow・scikit-image/OpenCV のアルゴリズム仕様から引いた <strong>ヒューリスティック</strong>だ。<br>
-CLAHE は clip limit 小さめ、局所二値化は <strong>51–101 px 程度の block size</strong>、ridge enhancement は <strong>1–4 px 程度の sigma</strong>、closing は <strong>1–2 px</strong>、small object 除去は <strong>20–50 px</strong> あたりから試行を開始するのがよい。重要なのは、最初から minor veins を全部取りに行かず、<strong>major veins が切れない条件を最優先</strong>にすることだ。局所二値化の <code>block_size</code> や <code>offset</code>、Frangi/Hessian 系の ridge filter は、まさにその調整のためにある。citeturn25search1turn25search3turn23search9turn44view3turn42view4</p>
-<p>major VLA を確実に出すなら、検出パラメータは <strong>「誤検出を減らす」より「主脈・2°・3°を切らない」</strong> 方向に寄せるべきだ。細い偽陽性は後で除去できるが、切れた主骨格の復元は難しい。phenoVein が closing によって crossing の dark gaps を埋めるのもそのためだ。major veins を最優先にするなら、<strong>closing は弱めに一回</strong>, <strong>remove_small_objects は少し大きめ</strong>, <strong>手動修正は major skeleton に限定</strong>という思想が運用しやすい。citeturn44view3turn44view0</p>
+CLAHE は clip limit 小さめ、局所二値化は <strong>51–101 px 程度の block size</strong>、ridge enhancement は <strong>1–4 px 程度の sigma</strong>、closing は <strong>1–2 px</strong>、small object 除去は <strong>20–50 px</strong> あたりから試行を開始するのがよい。重要なのは、最初から minor veins を全部取りに行かず、<strong>major veins が切れない条件を最優先</strong>にすることだ。局所二値化の <code>block_size</code> や <code>offset</code>、Frangi/Hessian 系の ridge filter は、まさにその調整のためにある。</p>
+<p>major VLA を確実に出すなら、検出パラメータは <strong>「誤検出を減らす」より「主脈・2°・3°を切らない」</strong> 方向に寄せるべきだ。細い偽陽性は後で除去できるが、切れた主骨格の復元は難しい。phenoVein が closing によって crossing の dark gaps を埋めるのもそのためだ。major veins を最優先にするなら、<strong>closing は弱めに一回</strong>, <strong>remove_small_objects は少し大きめ</strong>, <strong>手動修正は major skeleton に限定</strong>という思想が運用しやすい。</p>
 <p>品質管理は、少なくとも次のチェックを毎バッチで回すべきだ。</p>
 <ul>
-<li><strong>次数の定義固定</strong>: 1°–3°と4°+の規則を文書化し、曖昧な vein は判断ルールを残す。citeturn8view1turn8view0</li>
-<li><strong>scale calibration</strong>: 画像ごとに mm/px を記録し、スケールバーや marker で検証する。citeturn44view0turn42view4</li>
-<li><strong>major skeleton の連結性</strong>: crossing や junction で途切れていないかを見る。citeturn44view3turn9view1</li>
-<li><strong>artifact 点検</strong>: trichomes, dirt, 破損, 背景むらの影響を overlay で確認する。citeturn44view0turn9view8</li>
-<li><strong>手動基準との照合</strong>: まず 10–20 葉を人手でトレースし、自動値との回帰と Bland–Altman 的なずれを確認する。phenoVein 方式の manual comparison はそのまま参考になる。citeturn14view0turn14view1</li>
+<li><strong>次数の定義固定</strong>: 1°–3°と4°+の規則を文書化し、曖昧な vein は判断ルールを残す。</li>
+<li><strong>scale calibration</strong>: 画像ごとに mm/px を記録し、スケールバーや marker で検証する。</li>
+<li><strong>major skeleton の連結性</strong>: crossing や junction で途切れていないかを見る。</li>
+<li><strong>artifact 点検</strong>: trichomes, dirt, 破損, 背景むらの影響を overlay で確認する。</li>
+<li><strong>手動基準との照合</strong>: まず 10–20 葉を人手でトレースし、自動値との回帰と Bland–Altman 的なずれを確認する。phenoVein 方式の manual comparison はそのまま参考になる。</li>
 </ul>
 <p>最終的な推奨を一文でまとめるとこうなる。<br>
-<strong>major VLA が最低限必要</strong>で、後から minor も視野に入れるなら、現時点では <strong>「高品質透過画像 + napari 半自動 + 手動次数確認」</strong> が最も堅い。既製ソフトを使うなら <strong>phenoVein</strong> が近いが、<strong>次数分類未実装</strong>がネックになる。<strong>大量処理と将来拡張</strong>を重視するなら <strong>LeafVeinCNN か Python 自作</strong>に振るべきで、その場合も最初の論文化では <strong>major VLA の手動基準検証</strong>を必ず併走させるのがよい。citeturn29view0turn44view0turn11view1turn17search0turn14view0</p>
+<strong>major VLA が最低限必要</strong>で、後から minor も視野に入れるなら、現時点では <strong>「高品質透過画像 + napari 半自動 + 手動次数確認」</strong> が最も堅い。既製ソフトを使うなら <strong>phenoVein</strong> が近いが、<strong>次数分類未実装</strong>がネックになる。<strong>大量処理と将来拡張</strong>を重視するなら <strong>LeafVeinCNN か Python 自作</strong>に振るべきで、その場合も最初の論文化では <strong>major VLA の手動基準検証</strong>を必ず併走させるのがよい。</p>
 
 
 </section>
