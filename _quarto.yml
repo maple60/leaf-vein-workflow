@@ -4,6 +4,7 @@ project:
   render:
     - index.qmd
     - notebooks/workflow_overview.qmd
+    - notebooks/napari_plugin_development.qmd
     - notebooks/skeletonization.qmd
     - notebooks/data_source.qmd
     - notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd
@@ -22,6 +23,8 @@ website:
         menu:
           - href: notebooks/workflow_overview.qmd
             text: Workflow overview
+          - href: notebooks/napari_plugin_development.qmd
+            text: napari プラグイン作成
           - href: notebooks/skeletonization.qmd
             text: 葉脈の抽出
           - href: notebooks/data_source.qmd
@@ -38,6 +41,7 @@ website:
       - section: Manual
         contents:
           - notebooks/workflow_overview.qmd
+          - notebooks/napari_plugin_development.qmd
           - notebooks/skeletonization.qmd
           - notebooks/data_source.qmd
       - section: Reports
