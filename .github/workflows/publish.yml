@@ -20,6 +20,19 @@ jobs:
       - name: Render site
         run: quarto render --no-execute
 
+      - name: Ensure gh-pages branch exists
+        shell: bash
+        run: |
+          if ! git ls-remote --exit-code --heads origin gh-pages > /dev/null; then
+            git config --global user.email "quarto-github-actions-publish@example.com"
+            git config --global user.name "quarto-github-actions-publish"
+            git switch --orphan gh-pages
+            git reset --hard
+            git commit --allow-empty -m "chore: initialize gh-pages"
+            git push origin gh-pages
+            git switch -
+          fi
+
       - name: Render and Publish
         uses: quarto-dev/quarto-actions/publish@v2
         with:
