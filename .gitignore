@@ -4,6 +4,10 @@ _site/
 .venv/
 .pytest_cache/
 .pytest_cache_local/
+.tmp/
 __pycache__/
 *.pyc
 *.egg-info/
+
+notebooks/skeletonization.qmd
+notebooks/skeletonization.qmd

@@ -1,146 +1,174 @@
-"""napari dock widget for the ROI crop MVP.
-
-このファイルは napari の dock widget、つまり画面右側などに表示される
-小さな操作パネルを定義する。画像の切り抜き計算そのものは `crop.py` に
-分け、ここでは napari のレイヤー、ボタン、イベントだけを扱う。
-"""
+"""napari dock widget for ROI crop and editable vein-mask creation."""
 
 import numpy as np
 from napari.layers import Image, Labels, Shapes
 from napari.utils.notifications import show_info, show_warning
-from qtpy.QtCore import QTimer
+from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
+    QHBoxLayout,
     QLabel,
     QPushButton,
+    QSlider,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
 from .crop import crop_to_rectangle, rectangle_to_slices
-from .skeleton import skeletonize_mask
-from .threshold import otsu_threshold, threshold_image
+from .threshold import (
+    otsu_threshold,
+    postprocess_mask,
+    smooth_image,
+    threshold_image,
+    to_grayscale,
+)
 
 
-# napari の各レイヤーには metadata という辞書を持たせられる。
-# ここでは「このレイヤーはプラグインが作った ROI か crop 結果か」を
-# metadata に記録し、あとで通常の画像レイヤーと区別する。
 ROLE_KEY = "leaf_vein_workflow_role"
 ROLE_ROI_SHAPES = "roi_shapes"
 ROLE_ROI_CROP = "roi_crop"
+ROLE_SMOOTHED_IMAGE = "smoothed_image"
 ROLE_VEIN_MASK = "vein_mask"
-ROLE_VEIN_SKELETON = "vein_skeleton"
-ROLE_ORDER_LABELS = "order_labels"
 SOURCE_IMAGE_KEY = "source_image"
 SOURCE_CROP_KEY = "source_crop"
-SOURCE_MASK_KEY = "source_mask"
+
+SMOOTHED_LAYER_NAME = "smoothed_image"
+VEIN_MASK_LAYER_NAME = "vein_mask"
 
 
 class CropWidget(QWidget):
-    """新しく読み込まれた画像に ROI レイヤーを自動で用意する widget。"""
+    """Single-widget workflow from ROI crop to editable binary vein mask."""
 
     def __init__(self, napari_viewer):
         super().__init__()
         self.viewer = napari_viewer
 
-        # ROI Shapes レイヤーと元画像 Image レイヤーの対応表。
-        # napari のレイヤー名はユーザーが変更できるため、辞書のキーには
-        # レイヤーオブジェクト自身を識別しやすい `id(roi_layer)` を使う。
         self._roi_to_image: dict[int, Image] = {}
-
-        # ROI Shapes レイヤーと、そこから作った crop Image レイヤーの対応表。
-        # 同じ ROI で Add ROI をもう一度押したとき、新しいレイヤーを増やさず
-        # 既存の crop レイヤーを更新するために使う。
         self._roi_to_crop: dict[int, Image] = {}
-
-        # Crop Image レイヤーと、そこから作った二値 mask Labels レイヤーの対応表。
-        # threshold や invert 設定を変えたとき、既存 mask を自動更新する。
+        self._crop_to_smoothed: dict[int, Image] = {}
+        self._smoothed_to_crop: dict[int, Image] = {}
         self._crop_to_mask: dict[int, Labels] = {}
         self._mask_to_crop: dict[int, Image] = {}
+        self._mask_updates_enabled: set[int] = set()
 
-        # Mask Labels レイヤーと、そこから作った skeleton / order labels の対応表。
-        # order labels はユーザーが手で編集するため、同じ shape なら上書きしない。
-        self._mask_to_skeleton: dict[int, Labels] = {}
-        self._mask_to_order_labels: dict[int, Labels] = {}
+        self._threshold_min = 0.0
+        self._threshold_max = 1.0
+        self._syncing_threshold_controls = False
 
-        # Qt の部品を作る。QLabel は状態表示、QPushButton は crop 実行ボタン。
         self.status_label = QLabel(
             "Open an image with napari. A rectangle ROI layer will be created "
             "automatically."
         )
         self.status_label.setWordWrap(True)
+
         self.add_roi_button = QPushButton("Add ROI")
-        self.otsu_button = QPushButton("Use Otsu")
-        self.create_skeleton_button = QPushButton("Create Skeleton")
+        self.apply_gaussian_button = QPushButton("Apply Gaussian")
+        self.otsu_button = QPushButton("Apply Otsu")
         self.invert_threshold_checkbox = QCheckBox("Invert threshold")
+        self.clean_mask_button = QPushButton("Clean Mask")
+
+        self.gaussian_sigma_label = QLabel("Gaussian sigma")
+        self.gaussian_sigma_spinbox = QDoubleSpinBox()
+        self.gaussian_sigma_spinbox.setRange(0.0, 50.0)
+        self.gaussian_sigma_spinbox.setDecimals(3)
+        self.gaussian_sigma_spinbox.setSingleStep(0.1)
+        self.gaussian_sigma_spinbox.setValue(1.0)
+
         self.threshold_label = QLabel("Mask threshold")
         self.threshold_spinbox = QDoubleSpinBox()
-        self.threshold_spinbox.setRange(-1_000_000_000.0, 1_000_000_000.0)
         self.threshold_spinbox.setDecimals(6)
-        self.threshold_spinbox.setSingleStep(1.0)
+        self.threshold_spinbox.setRange(0.0, 1.0)
+        self.threshold_spinbox.setSingleStep(0.01)
         self.threshold_spinbox.setValue(0.5)
+
+        self.threshold_slider = QSlider(Qt.Orientation.Horizontal)
+        self.threshold_slider.setRange(0, 1000)
+        self.threshold_slider.setValue(500)
+
+        self.min_object_size_label = QLabel("Small object size")
+        self.min_object_size_spinbox = QSpinBox()
+        self.min_object_size_spinbox.setRange(0, 1_000_000)
+        self.min_object_size_spinbox.setSingleStep(10)
+        self.min_object_size_spinbox.setValue(100)
+
+        self.max_hole_size_label = QLabel("Hole size")
+        self.max_hole_size_spinbox = QSpinBox()
+        self.max_hole_size_spinbox.setRange(0, 1_000_000)
+        self.max_hole_size_spinbox.setSingleStep(10)
+        self.max_hole_size_spinbox.setValue(500)
+
+        self.closing_radius_label = QLabel("Closing radius")
+        self.closing_radius_spinbox = QSpinBox()
+        self.closing_radius_spinbox.setRange(0, 50)
+        self.closing_radius_spinbox.setValue(1)
+
+        self.opening_radius_label = QLabel("Opening radius")
+        self.opening_radius_spinbox = QSpinBox()
+        self.opening_radius_spinbox.setRange(0, 50)
+        self.opening_radius_spinbox.setValue(0)
 
         self._mask_update_timer = QTimer(self)
         self._mask_update_timer.setSingleShot(True)
-        self._mask_update_timer.setInterval(200)
+        self._mask_update_timer.setInterval(150)
 
-        # 画像がまだない段階では ROI もないので、最初はボタンを押せない。
         self.add_roi_button.setEnabled(False)
-        self._set_mask_controls_enabled(False)
-        self.create_skeleton_button.setEnabled(False)
+        self._set_gaussian_controls_enabled(False)
+        self._set_threshold_controls_enabled(False)
+        self._set_cleanup_controls_enabled(False)
 
-        # Qt では layout に部品を追加し、その layout を QWidget に設定する。
-        # ここでは上から crop 操作、mask 操作、説明ラベルの順に縦に並べる。
+        threshold_layout = QHBoxLayout()
+        threshold_layout.addWidget(self.threshold_slider)
+        threshold_layout.addWidget(self.threshold_spinbox)
+
         layout = QVBoxLayout()
         layout.addWidget(self.add_roi_button)
+        layout.addWidget(self.gaussian_sigma_label)
+        layout.addWidget(self.gaussian_sigma_spinbox)
+        layout.addWidget(self.apply_gaussian_button)
         layout.addWidget(self.otsu_button)
         layout.addWidget(self.invert_threshold_checkbox)
         layout.addWidget(self.threshold_label)
-        layout.addWidget(self.threshold_spinbox)
-        layout.addWidget(self.create_skeleton_button)
+        layout.addLayout(threshold_layout)
+        layout.addWidget(self.min_object_size_label)
+        layout.addWidget(self.min_object_size_spinbox)
+        layout.addWidget(self.max_hole_size_label)
+        layout.addWidget(self.max_hole_size_spinbox)
+        layout.addWidget(self.closing_radius_label)
+        layout.addWidget(self.closing_radius_spinbox)
+        layout.addWidget(self.opening_radius_label)
+        layout.addWidget(self.opening_radius_spinbox)
+        layout.addWidget(self.clean_mask_button)
         layout.addWidget(self.status_label)
         self.setLayout(layout)
 
-        # Qt の clicked signal と、napari の layer inserted event を接続する。
-        # これにより、ボタンが押されたら add_roi()、新しいレイヤーが追加されたら
-        # _on_layer_inserted() が自動的に呼ばれる。
         self.add_roi_button.clicked.connect(self.add_roi)
+        self.apply_gaussian_button.clicked.connect(self.apply_gaussian_filter)
         self.otsu_button.clicked.connect(self.use_otsu_threshold)
-        self.create_skeleton_button.clicked.connect(self.create_skeleton)
+        self.clean_mask_button.clicked.connect(self.clean_mask)
         self.invert_threshold_checkbox.toggled.connect(self._schedule_mask_update)
-        self.threshold_spinbox.valueChanged.connect(self._schedule_mask_update)
+        self.threshold_spinbox.valueChanged.connect(self._on_threshold_spinbox_changed)
+        self.threshold_slider.valueChanged.connect(self._on_threshold_slider_changed)
         self._mask_update_timer.timeout.connect(self._update_mask_from_controls)
         self.viewer.layers.events.inserted.connect(self._on_layer_inserted)
 
-        # widget を開く前から画像が viewer に存在している場合にも対応する。
-        # すでにある各レイヤーを、新しく追加された場合と同じ手順で処理する。
         for layer in list(self.viewer.layers):
             self._prepare_image_layer(layer)
 
     def _on_layer_inserted(self, event) -> None:
-        """新しいレイヤーが追加されたときに呼ばれる napari event handler。"""
-        # event.value には、追加されたレイヤーオブジェクトが入っている。
         self._prepare_image_layer(event.value)
 
     def _prepare_image_layer(self, layer) -> None:
-        """画像レイヤーに対応する ROI Shapes レイヤーを作る。"""
-        # この widget が対象にするのは napari.layers.Image だけ。
-        # Shapes や Points など、画像以外のレイヤーは何もしない。
         if not isinstance(layer, Image):
             return
 
-        # 自分で作った crop や helper 結果も Image レイヤーなので、そのままだと
-        # さらに ROI レイヤーを作ってしまう。metadata で除外する。
         if layer.metadata.get(ROLE_KEY) is not None:
             return
 
-        # すでに ROI レイヤーを作った元画像には、二重に ROI を作らない。
         if any(source is layer for source in self._roi_to_image.values()):
             return
 
-        # ROI を描くための Shapes レイヤーを追加する。
-        # ndim=2 は、現在の MVP が 2D 画像だけを対象にしているため。
         roi_layer = self.viewer.add_shapes(
             name=self._unique_layer_name(f"{layer.name} ROI rectangle"),
             ndim=2,
@@ -148,32 +176,16 @@ class CropWidget(QWidget):
             face_color=[1, 1, 0, 0.15],
             edge_width=2,
         )
-
-        # metadata に、この Shapes レイヤーが本プラグインの ROI であることと、
-        # どの画像名から作られたかを記録する。主な判定には _roi_to_image を使うが、
-        # metadata はレイヤー一覧を見たときの自己説明にもなる。
         roi_layer.metadata[ROLE_KEY] = ROLE_ROI_SHAPES
         roi_layer.metadata[SOURCE_IMAGE_KEY] = layer.name
-
-        # ROI レイヤーから元画像レイヤーをたどれるようにする。
-        # ここで保存しておくことで、Add ROI 時に「どの画像を切るか」が分かる。
         self._roi_to_image[id(roi_layer)] = layer
-
-        # ROI の図形データが変わったときに状態表示を更新する。
-        # lambda の既定引数に roi_layer を入れているのは、後から別の ROI が増えても
-        # この signal が必ず自分自身の ROI レイヤーを参照するようにするため。
         roi_layer.events.data.connect(
             lambda event, roi_layer=roi_layer: self._on_roi_data_changed(
                 roi_layer
             )
         )
 
-        # ROI レイヤーを選択し、すぐ長方形を描けるモードにする。
         self._activate_rectangle_mode(roi_layer)
-
-        # napari 側のレイヤー追加直後には、選択状態や mode が内部処理で
-        # 上書きされることがある。そのため Qt のイベントループが一度戻った後に
-        # もう一度だけ長方形描画モードを設定する。
         QTimer.singleShot(
             0,
             lambda roi_layer=roi_layer: self._activate_rectangle_mode(
@@ -183,164 +195,221 @@ class CropWidget(QWidget):
             else None,
         )
 
-        # 少なくとも 1 つ ROI レイヤーができたので、Add ROI を押せるようにする。
         self.add_roi_button.setEnabled(True)
-
         self._set_status(
             f"Created ROI rectangle layer for {layer.name}. Draw one rectangle."
         )
         show_info(f"Draw one rectangle ROI on {layer.name}.")
 
     def _on_roi_data_changed(self, roi_layer: Shapes) -> None:
-        """ROI が編集されたあと、切り抜き可能な状態かを表示する。"""
-        # この段階では crop は実行しない。ユーザーが長方形を微調整している途中で
-        # 毎回 crop レイヤーを作ると煩雑なので、Add ROI ボタンを押すまで待つ。
         image_layer = self._roi_to_image.get(id(roi_layer))
         if image_layer is None:
             return
 
-        # MVP では ROI は 1 つだけ。0 個や 2 個以上なら、どれを切るべきか
-        # 曖昧になるため、ここでは状態表示だけ更新して終了する。
         if len(roi_layer.data) != 1:
             self._set_status("Draw exactly one rectangle, then click Add ROI.")
             return
 
-        # Shapes レイヤーには rectangle 以外の図形も入りうる。
-        # この widget は長方形 crop 専用なので、rectangle 以外は警告する。
-        shape_type = self._single_shape_type(roi_layer)
-        if shape_type != "rectangle":
+        if self._single_shape_type(roi_layer) != "rectangle":
             self._warn("The ROI must be one rectangle.")
             return
 
         self._set_status(f"Rectangle ROI ready for {image_layer.name}. Click Add ROI.")
 
     def add_roi(self) -> None:
-        """選択中の ROI 長方形から crop Image レイヤーを作成または更新する。"""
-        # Add ROI は、現在選択されている ROI レイヤーを対象にする。
-        # 画像レイヤーや通常の Shapes レイヤーが選択されている場合は処理しない。
+        """Create or update an ROI crop for explicit mask refinement."""
         roi_layer = self._active_roi_layer()
         if roi_layer is None:
             self._warn("Select an ROI rectangle layer before clicking Add ROI.")
             return
 
-        # ROI レイヤーから元画像を取得する。対応がない場合は、プラグインが
-        # 管理していない ROI なので安全に止める。
         image_layer = self._roi_to_image.get(id(roi_layer))
         if image_layer is None:
             self._warn("The selected ROI rectangle is not linked to an image.")
             return
 
-        # 実行時にも ROI 数を確認する。_on_roi_data_changed() は状態表示用なので、
-        # ボタン押下時の本処理でも同じ条件を再確認しておく。
         if len(roi_layer.data) != 1:
             self._warn("Draw exactly one rectangle before clicking Add ROI.")
             return
 
-        # rectangle 以外の Shapes が入っていた場合は、crop 計算に渡す前に止める。
-        shape_type = self._single_shape_type(roi_layer)
-        if shape_type != "rectangle":
+        if self._single_shape_type(roi_layer) != "rectangle":
             self._warn("The ROI must be one rectangle.")
             return
 
         try:
-            # napari の ROI 座標を、NumPy 配列の切り抜きに使える slice に変換する。
-            # y_slice.start と x_slice.start は、後で crop レイヤーの表示位置にも使う。
             y_slice, x_slice = rectangle_to_slices(
                 np.asarray(roi_layer.data[0]),
                 np.asarray(image_layer.data).shape,
             )
-
-            # 実際の画像切り抜きは napari 非依存の helper に任せる。
             cropped = crop_to_rectangle(
                 np.asarray(image_layer.data),
                 np.asarray(roi_layer.data[0]),
             )
         except ValueError as exc:
-            # ROI が空、画像外、未対応 shape などの場合は helper が ValueError を出す。
-            # widget 側ではそれを napari の警告として表示する。
             self._warn(str(exc))
             return
 
-        # 同じ ROI から過去に crop レイヤーを作っていれば、そのレイヤーを更新する。
-        # ユーザーが ROI を修正して Add ROI を押すたびにレイヤーが増えるのを避ける。
         existing_crop = self._roi_to_crop.get(id(roi_layer))
         if existing_crop is not None and self._layer_is_present(existing_crop):
             existing_crop.data = cropped
-
-            # crop 画像は小さい配列だが、元画像上の ROI 位置に重ねて見えるように
-            # 左上座標分だけ translate する。
             existing_crop.translate = (y_slice.start, x_slice.start)
-            self._move_layer_to_top(existing_crop)
-            image_layer.visible = False
-            self._activate_layer(existing_crop)
-            self._set_mask_controls_enabled(True)
-            self._set_status(
-                f"Updated ROI crop layer from {image_layer.name}. "
-                "The vein mask will update automatically."
+            crop_layer = existing_crop
+        else:
+            crop_layer = self.viewer.add_image(
+                cropped,
+                name=self._unique_layer_name(f"{image_layer.name} ROI"),
+                rgb=cropped.ndim == 3 and cropped.shape[-1] in (3, 4),
+                translate=(y_slice.start, x_slice.start),
+                metadata={
+                    ROLE_KEY: ROLE_ROI_CROP,
+                    SOURCE_IMAGE_KEY: image_layer.name,
+                },
             )
-            self._schedule_mask_update()
-            return
+            self._roi_to_crop[id(roi_layer)] = crop_layer
 
-        # 初回は新しい Image レイヤーとして crop 結果を追加する。
-        crop_layer = self.viewer.add_image(
-            cropped,
-            name=self._unique_layer_name(f"{image_layer.name} ROI"),
-
-            # RGB/RGBA 画像の場合は napari に色画像として扱わせる。
-            rgb=cropped.ndim == 3 and cropped.shape[-1] in (3, 4),
-            translate=(y_slice.start, x_slice.start),
-            metadata={
-                ROLE_KEY: ROLE_ROI_CROP,
-                SOURCE_IMAGE_KEY: image_layer.name,
-            },
-        )
-
-        # 次回以降はこの crop レイヤーを更新できるよう、対応表に保存する。
-        self._roi_to_crop[id(roi_layer)] = crop_layer
         image_layer.visible = False
+        self._move_layer_to_top(crop_layer)
         self._activate_layer(crop_layer)
-        self._set_mask_controls_enabled(True)
+        self._clear_mask_products(crop_layer)
+        self._set_gaussian_controls_enabled(True)
+        self._set_threshold_controls_enabled(False)
         self._set_status(
-            f"Created ROI crop layer from {image_layer.name}. "
-            "Use Otsu or adjust the threshold to update the vein mask."
+            f"Created ROI crop from {image_layer.name}. "
+            "Click Apply Gaussian to create the smoothed_image layer."
         )
-        self._schedule_mask_update()
-        show_info(f"Created ROI crop layer from {image_layer.name}.")
+        show_info(f"Created ROI crop from {image_layer.name}.")
 
-    def use_otsu_threshold(self) -> None:
-        """現在の crop 画像から Otsu 閾値を推定して入力欄へ反映する。"""
+    def apply_gaussian_filter(self) -> None:
+        """Smooth the selected crop with the current Gaussian sigma."""
         crop_layer = self._active_crop_layer()
         if crop_layer is None:
-            self._warn("Create or select an ROI crop layer before using Otsu.")
+            self._warn("Create or select an ROI crop layer before smoothing.")
             return
 
         try:
-            threshold = otsu_threshold(np.asarray(crop_layer.data))
+            smoothed = smooth_image(
+                np.asarray(crop_layer.data),
+                self.gaussian_sigma_spinbox.value(),
+            )
         except ValueError as exc:
             self._warn(str(exc))
             return
 
-        self.threshold_spinbox.setValue(threshold)
-        self._schedule_mask_update()
+        self._mask_updates_enabled.discard(id(crop_layer))
+        self._clear_mask_layer(crop_layer)
+        smoothed_layer = self._create_or_update_smoothed_layer(crop_layer, smoothed)
+        self._set_threshold_range_from_image(smoothed)
+        self._set_threshold_controls_enabled(True)
+        self._move_layer_to_top(smoothed_layer)
+        self._activate_layer(smoothed_layer)
         self._set_status(
-            f"Set Otsu threshold for {crop_layer.name}: {threshold:.6g}."
+            f"Applied Gaussian sigma={self.gaussian_sigma_spinbox.value():.3g}. "
+            "Click Apply Otsu, then tune the threshold slider."
+        )
+        show_info(f"Applied Gaussian smoothing to {crop_layer.name}.")
+
+    def use_otsu_threshold(self) -> None:
+        """Estimate Otsu threshold from the smoothed crop and update vein_mask."""
+        intensity_layer = self._active_intensity_layer()
+        if intensity_layer is None:
+            self._warn("Apply Gaussian smoothing before Otsu thresholding.")
+            return
+
+        try:
+            threshold = otsu_threshold(np.asarray(intensity_layer.data))
+        except ValueError as exc:
+            self._warn(str(exc))
+            return
+
+        self._set_threshold_range_from_image(np.asarray(intensity_layer.data))
+        self._set_threshold_value(threshold, update_mask=False)
+        crop_layer = self._active_crop_layer()
+        if crop_layer is not None:
+            self._mask_updates_enabled.add(id(crop_layer))
+        self._update_mask_from_controls(force=True)
+        self._set_status(
+            f"Applied Otsu threshold {threshold:.6g}. "
+            f"{VEIN_MASK_LAYER_NAME} is editable in paint mode."
         )
 
-    def _schedule_mask_update(self, *args) -> None:
-        """閾値 UI の連続変更を少し待ってから mask に反映する。"""
-        if self._active_crop_layer() is None:
+    def clean_mask(self) -> None:
+        """Clean the current vein mask after explicit morphology settings."""
+        mask_layer = self._active_mask_layer()
+        if mask_layer is None:
+            self._warn(f"Create or select {VEIN_MASK_LAYER_NAME} before cleaning.")
             return
-        self._mask_update_timer.start()
 
-    def _update_mask_from_controls(self) -> None:
-        """現在の crop 画像から二値 mask Labels レイヤーを作成または更新する。"""
+        try:
+            cleaned = postprocess_mask(
+                np.asarray(mask_layer.data),
+                small_object_size=self.min_object_size_spinbox.value(),
+                max_hole_size=self.max_hole_size_spinbox.value(),
+                closing_radius=self.closing_radius_spinbox.value(),
+                opening_radius=self.opening_radius_spinbox.value(),
+            )
+        except ValueError as exc:
+            self._warn(str(exc))
+            return
+
+        mask_layer.data = cleaned
+        crop_layer = self._mask_to_crop.get(id(mask_layer))
+        if crop_layer is not None:
+            self._mask_updates_enabled.discard(id(crop_layer))
+
+        self._move_layer_to_top(mask_layer)
+        self._activate_layer(mask_layer)
+        try:
+            mask_layer.mode = "paint"
+        except ValueError:
+            pass
+
+        self._set_status(
+            f"Cleaned {VEIN_MASK_LAYER_NAME}. Paint on this Labels layer to make "
+            "manual corrections."
+        )
+        show_info(f"Cleaned {VEIN_MASK_LAYER_NAME}.")
+
+    def _create_or_update_smoothed_layer(
+        self,
+        crop_layer: Image,
+        smoothed: np.ndarray,
+    ) -> Image:
+        existing = self._crop_to_smoothed.get(id(crop_layer))
+        if existing is not None and self._layer_is_present(existing):
+            existing.data = smoothed
+            existing.translate = tuple(crop_layer.translate)
+            return existing
+
+        smoothed_layer = self.viewer.add_image(
+            smoothed,
+            name=self._unique_layer_name(SMOOTHED_LAYER_NAME),
+            translate=tuple(crop_layer.translate),
+            opacity=1.0,
+            metadata={
+                ROLE_KEY: ROLE_SMOOTHED_IMAGE,
+                SOURCE_IMAGE_KEY: crop_layer.metadata.get(SOURCE_IMAGE_KEY),
+                SOURCE_CROP_KEY: crop_layer.name,
+            },
+        )
+        self._crop_to_smoothed[id(crop_layer)] = smoothed_layer
+        self._smoothed_to_crop[id(smoothed_layer)] = crop_layer
+        return smoothed_layer
+
+    def _update_mask_from_controls(self, *, force: bool = False) -> None:
+        intensity_layer = self._active_intensity_layer()
+        if intensity_layer is None:
+            return
+
         crop_layer = self._active_crop_layer()
         if crop_layer is None:
             return
 
+        if not force and id(crop_layer) not in self._mask_updates_enabled:
+            return
+
         try:
             mask = threshold_image(
-                np.asarray(crop_layer.data),
+                np.asarray(intensity_layer.data),
                 self.threshold_spinbox.value(),
                 invert=self.invert_threshold_checkbox.isChecked(),
             ).astype(np.uint8)
@@ -348,250 +417,285 @@ class CropWidget(QWidget):
             self._warn(str(exc))
             return
 
-        existing_mask = self._crop_to_mask.get(id(crop_layer))
-        if existing_mask is not None and self._layer_is_present(existing_mask):
-            existing_mask.data = mask
-            existing_mask.translate = tuple(crop_layer.translate)
-            self._move_layer_to_top(existing_mask)
-            self.create_skeleton_button.setEnabled(True)
-            self._set_status(f"Updated vein mask from {crop_layer.name}.")
+        mask_layer = self._create_or_update_mask_layer(crop_layer, mask)
+        if mask_layer is None:
             return
 
-        mask_layer = self.viewer.add_labels(
-            mask,
-            name=self._unique_layer_name(f"{crop_layer.name} vein mask"),
-            translate=tuple(crop_layer.translate),
-            opacity=0.5,
-            metadata={
-                ROLE_KEY: ROLE_VEIN_MASK,
-                SOURCE_IMAGE_KEY: crop_layer.metadata.get(SOURCE_IMAGE_KEY),
-                SOURCE_CROP_KEY: crop_layer.name,
-            },
+        self._set_cleanup_controls_enabled(True)
+        self._move_layer_to_top(mask_layer)
+        self._activate_layer(mask_layer)
+        try:
+            mask_layer.mode = "paint"
+        except ValueError:
+            pass
+
+        self._set_status(
+            f"Updated {VEIN_MASK_LAYER_NAME}. Paint on this Labels layer to fix "
+            "remaining threshold errors."
         )
+
+    def _create_or_update_mask_layer(
+        self,
+        crop_layer: Image,
+        mask: np.ndarray,
+    ) -> Labels | None:
+        existing = self._crop_to_mask.get(id(crop_layer))
+        if existing is None or not self._layer_is_present(existing):
+            named_layer = self._layer_by_name(VEIN_MASK_LAYER_NAME)
+            if named_layer is not None:
+                if not isinstance(named_layer, Labels):
+                    self._warn(f"{VEIN_MASK_LAYER_NAME} exists but is not a Labels layer.")
+                    return None
+                if named_layer.data.shape != mask.shape:
+                    self._warn(
+                        f"{VEIN_MASK_LAYER_NAME} exists but has a different shape."
+                    )
+                    return None
+                existing = named_layer
+
+        metadata = {
+            ROLE_KEY: ROLE_VEIN_MASK,
+            SOURCE_IMAGE_KEY: crop_layer.metadata.get(SOURCE_IMAGE_KEY),
+            SOURCE_CROP_KEY: crop_layer.name,
+        }
+
+        if existing is not None and self._layer_is_present(existing):
+            existing.data = mask
+            existing.translate = tuple(crop_layer.translate)
+            existing.opacity = 0.65
+            existing.metadata.update(metadata)
+            mask_layer = existing
+        else:
+            mask_layer = self.viewer.add_labels(
+                mask,
+                name=VEIN_MASK_LAYER_NAME,
+                translate=tuple(crop_layer.translate),
+                opacity=0.65,
+                metadata=metadata,
+            )
 
         self._crop_to_mask[id(crop_layer)] = mask_layer
         self._mask_to_crop[id(mask_layer)] = crop_layer
-        self.create_skeleton_button.setEnabled(True)
-        self._set_status(f"Created vein mask from {crop_layer.name}.")
-        show_info(f"Created vein mask from {crop_layer.name}.")
+        return mask_layer
 
-    def create_skeleton(self) -> None:
-        """現在の vein mask から skeleton と手動分類用 label レイヤーを作る。"""
-        mask_layer = self._active_mask_layer()
-        if mask_layer is None:
-            self._warn("Create or select a vein mask layer before skeletonizing.")
+    def _clear_mask_products(self, crop_layer: Image) -> None:
+        self._mask_updates_enabled.discard(id(crop_layer))
+
+        smoothed_layer = self._crop_to_smoothed.pop(id(crop_layer), None)
+        if smoothed_layer is not None:
+            self._smoothed_to_crop.pop(id(smoothed_layer), None)
+            if self._layer_is_present(smoothed_layer):
+                self.viewer.layers.remove(smoothed_layer)
+
+        self._clear_mask_layer(crop_layer)
+
+    def _clear_mask_layer(self, crop_layer: Image) -> None:
+        mask_layer = self._crop_to_mask.pop(id(crop_layer), None)
+        if mask_layer is not None:
+            self._mask_to_crop.pop(id(mask_layer), None)
+            if self._layer_is_present(mask_layer):
+                self.viewer.layers.remove(mask_layer)
+        self._set_cleanup_controls_enabled(False)
+
+    def _schedule_mask_update(self, *args) -> None:
+        if self._syncing_threshold_controls:
             return
 
-        try:
-            skeleton = skeletonize_mask(np.asarray(mask_layer.data))
-        except ValueError as exc:
-            self._warn(str(exc))
+        crop_layer = self._active_crop_layer()
+        if crop_layer is None:
             return
 
-        skeleton_layer = self._create_or_update_skeleton_layer(
-            mask_layer,
-            skeleton,
-        )
-        order_layer = self._create_or_reuse_order_labels_layer(mask_layer)
-        self._move_layer_to_top(order_layer)
-        self._move_layer_to_top(skeleton_layer)
-        self._activate_layer(order_layer)
-        self._set_status(
-            f"Created skeleton and manual order labels from {mask_layer.name}."
-        )
-        show_info(f"Created skeleton and manual order labels from {mask_layer.name}.")
+        if id(crop_layer) not in self._mask_updates_enabled:
+            return
 
-    def _create_or_update_skeleton_layer(
-        self,
-        mask_layer: Labels,
-        skeleton: np.ndarray,
-    ) -> Labels:
-        """Mask に対応する skeleton Labels レイヤーを作成または更新する。"""
-        existing_skeleton = self._mask_to_skeleton.get(id(mask_layer))
-        if (
-            existing_skeleton is not None
-            and self._layer_is_present(existing_skeleton)
-        ):
-            existing_skeleton.data = skeleton
-            existing_skeleton.translate = tuple(mask_layer.translate)
-            return existing_skeleton
+        if self._active_intensity_layer() is None:
+            return
+        self._mask_update_timer.start()
 
-        skeleton_layer = self.viewer.add_labels(
-            skeleton,
-            name=self._unique_layer_name(f"{mask_layer.name} skeleton"),
-            translate=tuple(mask_layer.translate),
-            opacity=0.75,
-            metadata={
-                ROLE_KEY: ROLE_VEIN_SKELETON,
-                SOURCE_IMAGE_KEY: mask_layer.metadata.get(SOURCE_IMAGE_KEY),
-                SOURCE_CROP_KEY: mask_layer.metadata.get(SOURCE_CROP_KEY),
-                SOURCE_MASK_KEY: mask_layer.name,
-            },
+    def _on_threshold_spinbox_changed(self, value: float) -> None:
+        if self._syncing_threshold_controls:
+            return
+
+        self._syncing_threshold_controls = True
+        self.threshold_slider.setValue(self._threshold_to_slider(value))
+        self._syncing_threshold_controls = False
+        self._schedule_mask_update()
+
+    def _on_threshold_slider_changed(self, value: int) -> None:
+        if self._syncing_threshold_controls:
+            return
+
+        threshold = self._slider_to_threshold(value)
+        self._syncing_threshold_controls = True
+        self.threshold_spinbox.setValue(threshold)
+        self._syncing_threshold_controls = False
+        self._schedule_mask_update()
+
+    def _set_threshold_range_from_image(self, image: np.ndarray) -> None:
+        grayscale = to_grayscale(image)
+        minimum = float(np.min(grayscale))
+        maximum = float(np.max(grayscale))
+        if minimum == maximum:
+            minimum -= 0.5
+            maximum += 0.5
+
+        self._threshold_min = minimum
+        self._threshold_max = maximum
+        was_syncing = self._syncing_threshold_controls
+        self._syncing_threshold_controls = True
+        self.threshold_spinbox.setRange(minimum, maximum)
+        self.threshold_spinbox.setSingleStep((maximum - minimum) / 100.0)
+        self._syncing_threshold_controls = was_syncing
+        self._set_threshold_value(
+            float(np.clip(self.threshold_spinbox.value(), minimum, maximum)),
+            update_mask=False,
         )
-        self._mask_to_skeleton[id(mask_layer)] = skeleton_layer
-        return skeleton_layer
 
-    def _create_or_reuse_order_labels_layer(self, mask_layer: Labels) -> Labels:
-        """手動編集済み order labels を保ったまま、必要なら新規作成する。"""
-        existing_order_labels = self._mask_to_order_labels.get(id(mask_layer))
-        if (
-            existing_order_labels is not None
-            and self._layer_is_present(existing_order_labels)
-            and existing_order_labels.data.shape == mask_layer.data.shape
-        ):
-            existing_order_labels.translate = tuple(mask_layer.translate)
-            return existing_order_labels
+    def _set_threshold_value(self, value: float, *, update_mask: bool) -> None:
+        self._syncing_threshold_controls = True
+        self.threshold_spinbox.setValue(value)
+        self.threshold_slider.setValue(self._threshold_to_slider(value))
+        self._syncing_threshold_controls = False
+        if update_mask:
+            self._schedule_mask_update()
 
-        order_labels = np.zeros_like(np.asarray(mask_layer.data), dtype=np.uint8)
-        order_layer = self.viewer.add_labels(
-            order_labels,
-            name=self._unique_layer_name(f"{mask_layer.name} order labels"),
-            translate=tuple(mask_layer.translate),
-            opacity=0.65,
-            metadata={
-                ROLE_KEY: ROLE_ORDER_LABELS,
-                SOURCE_IMAGE_KEY: mask_layer.metadata.get(SOURCE_IMAGE_KEY),
-                SOURCE_CROP_KEY: mask_layer.metadata.get(SOURCE_CROP_KEY),
-                SOURCE_MASK_KEY: mask_layer.name,
-                "label_0": "unclassified/background",
-                "label_1": "primary",
-                "label_2": "secondary",
-                "label_3": "tertiary",
-                "label_4": "higher order/minor",
-            },
+    def _threshold_to_slider(self, value: float) -> int:
+        if self._threshold_max <= self._threshold_min:
+            return 0
+        fraction = (float(value) - self._threshold_min) / (
+            self._threshold_max - self._threshold_min
         )
-        self._mask_to_order_labels[id(mask_layer)] = order_layer
-        return order_layer
+        return int(np.clip(round(fraction * 1000), 0, 1000))
+
+    def _slider_to_threshold(self, value: int) -> float:
+        fraction = float(value) / 1000.0
+        return self._threshold_min + fraction * (
+            self._threshold_max - self._threshold_min
+        )
 
     def _active_roi_layer(self) -> Shapes | None:
-        """現在選択されているレイヤーが本プラグインの ROI なら返す。"""
         layer = self.viewer.layers.selection.active
-        if (
-            isinstance(layer, Shapes)
-            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES
-        ):
+        if isinstance(layer, Shapes) and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES:
             return layer
         return None
 
     def _active_crop_layer(self) -> Image | None:
-        """現在の選択状態から、本プラグインの crop Image レイヤーを返す。"""
         layer = self.viewer.layers.selection.active
 
-        if (
-            isinstance(layer, Image)
-            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_CROP
-        ):
+        if isinstance(layer, Image) and layer.metadata.get(ROLE_KEY) == ROLE_ROI_CROP:
             return layer
 
-        if (
-            isinstance(layer, Shapes)
-            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES
-        ):
-            crop_layer = self._roi_to_crop.get(id(layer))
+        if isinstance(layer, Image) and layer.metadata.get(ROLE_KEY) == ROLE_SMOOTHED_IMAGE:
+            crop_layer = self._smoothed_to_crop.get(id(layer))
             if crop_layer is not None and self._layer_is_present(crop_layer):
                 return crop_layer
 
-        if (
-            isinstance(layer, Labels)
-            and layer.metadata.get(ROLE_KEY) == ROLE_VEIN_MASK
-        ):
+        if isinstance(layer, Labels) and layer.metadata.get(ROLE_KEY) == ROLE_VEIN_MASK:
             crop_layer = self._mask_to_crop.get(id(layer))
             if crop_layer is not None and self._layer_is_present(crop_layer):
                 return crop_layer
 
-        return None
-
-    def _active_mask_layer(self) -> Labels | None:
-        """現在の選択状態から、本プラグインの vein mask レイヤーを返す。"""
-        layer = self.viewer.layers.selection.active
-
-        if (
-            isinstance(layer, Labels)
-            and layer.metadata.get(ROLE_KEY) == ROLE_VEIN_MASK
-        ):
-            return layer
-
-        if (
-            isinstance(layer, Image)
-            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_CROP
-        ):
-            mask_layer = self._crop_to_mask.get(id(layer))
-            if mask_layer is not None and self._layer_is_present(mask_layer):
-                return mask_layer
-
-        if (
-            isinstance(layer, Shapes)
-            and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES
-        ):
+        if isinstance(layer, Shapes) and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES:
             crop_layer = self._roi_to_crop.get(id(layer))
             if crop_layer is not None and self._layer_is_present(crop_layer):
-                mask_layer = self._crop_to_mask.get(id(crop_layer))
-                if mask_layer is not None and self._layer_is_present(mask_layer):
-                    return mask_layer
+                return crop_layer
+
+        return None
+
+    def _active_intensity_layer(self) -> Image | None:
+        crop_layer = self._active_crop_layer()
+        if crop_layer is None:
+            return None
+
+        smoothed_layer = self._crop_to_smoothed.get(id(crop_layer))
+        if smoothed_layer is not None and self._layer_is_present(smoothed_layer):
+            return smoothed_layer
+
+        return crop_layer
+
+    def _active_mask_layer(self) -> Labels | None:
+        layer = self.viewer.layers.selection.active
+        if isinstance(layer, Labels) and layer.metadata.get(ROLE_KEY) == ROLE_VEIN_MASK:
+            return layer
+
+        crop_layer = self._active_crop_layer()
+        if crop_layer is None:
+            return None
+
+        mask_layer = self._crop_to_mask.get(id(crop_layer))
+        if mask_layer is not None and self._layer_is_present(mask_layer):
+            return mask_layer
 
         return None
 
     def _activate_rectangle_mode(self, roi_layer: Shapes) -> None:
-        """ROI レイヤーを選択し、長方形を追加するモードに切り替える。"""
-        # napari の選択状態をいったん空にしてから ROI レイヤーだけを選択する。
-        # これにより、ユーザーがそのまま画像上で長方形を描ける状態になる。
         self._activate_layer(roi_layer)
         roi_layer.mode = "add_rectangle"
 
     def _activate_layer(self, layer) -> None:
-        """指定したレイヤーだけを選択状態にする。"""
         self.viewer.layers.selection.clear()
         self.viewer.layers.selection.add(layer)
         self.viewer.layers.selection.active = layer
 
     def _unique_layer_name(self, base_name: str) -> str:
-        """既存レイヤーと衝突しない名前を返す。"""
         existing = {layer.name for layer in self.viewer.layers}
         if base_name not in existing:
             return base_name
 
-        # napari のレイヤー名は重複しないほうが扱いやすいので、
-        # `name 2`, `name 3` のように番号を付ける。
         index = 2
         while f"{base_name} {index}" in existing:
             index += 1
         return f"{base_name} {index}"
 
+    def _layer_by_name(self, name: str):
+        try:
+            return self.viewer.layers[name]
+        except KeyError:
+            return None
+
+    def _set_gaussian_controls_enabled(self, enabled: bool) -> None:
+        self.gaussian_sigma_label.setEnabled(enabled)
+        self.gaussian_sigma_spinbox.setEnabled(enabled)
+        self.apply_gaussian_button.setEnabled(enabled)
+
+    def _set_threshold_controls_enabled(self, enabled: bool) -> None:
+        self.otsu_button.setEnabled(enabled)
+        self.invert_threshold_checkbox.setEnabled(enabled)
+        self.threshold_label.setEnabled(enabled)
+        self.threshold_spinbox.setEnabled(enabled)
+        self.threshold_slider.setEnabled(enabled)
+
+    def _set_cleanup_controls_enabled(self, enabled: bool) -> None:
+        self.min_object_size_label.setEnabled(enabled)
+        self.min_object_size_spinbox.setEnabled(enabled)
+        self.max_hole_size_label.setEnabled(enabled)
+        self.max_hole_size_spinbox.setEnabled(enabled)
+        self.closing_radius_label.setEnabled(enabled)
+        self.closing_radius_spinbox.setEnabled(enabled)
+        self.opening_radius_label.setEnabled(enabled)
+        self.opening_radius_spinbox.setEnabled(enabled)
+        self.clean_mask_button.setEnabled(enabled)
+
     def _set_status(self, message: str) -> None:
         self.status_label.setText(message)
 
-    def _set_mask_controls_enabled(self, enabled: bool) -> None:
-        self.threshold_label.setEnabled(enabled)
-        self.threshold_spinbox.setEnabled(enabled)
-        self.invert_threshold_checkbox.setEnabled(enabled)
-        self.otsu_button.setEnabled(enabled)
-
     def _warn(self, message: str) -> None:
-        """ステータス表示と napari 通知の両方で警告を出す。"""
         self._set_status(message)
         show_warning(message)
 
     @staticmethod
     def _single_shape_type(layer: Shapes) -> str | None:
-        """Shapes レイヤーに 1 種類だけ入っている shape_type を返す。"""
         shape_type = layer.shape_type
-
-        # napari の状態によって、shape_type は文字列の場合と配列状の場合がある。
-        # 文字列ならそのまま返す。
         if isinstance(shape_type, str):
             return shape_type
-
-        # 複数図形がある場合は shape_type も複数になるため、MVP では扱わない。
         if len(shape_type) != 1:
             return None
         return str(shape_type[0])
 
     def _layer_is_present(self, target_layer) -> bool:
-        """対象レイヤーがまだ viewer に存在するかを確認する。"""
         return any(layer is target_layer for layer in self.viewer.layers)
 
     def _move_layer_to_top(self, layer) -> None:
-        """指定したレイヤーをレイヤー一覧の一番上へ移動する。"""
         current_index = self.viewer.layers.index(layer)
         top_index = len(self.viewer.layers) - 1
         if current_index != top_index:

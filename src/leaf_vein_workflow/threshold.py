@@ -3,6 +3,14 @@
 from typing import SupportsFloat
 
 import numpy as np
+from skimage.filters import gaussian
+from skimage.morphology import (
+    closing,
+    disk,
+    opening,
+    remove_small_holes,
+    remove_small_objects,
+)
 
 
 def to_grayscale(image: np.ndarray) -> np.ndarray:
@@ -71,6 +79,25 @@ def otsu_threshold(image: np.ndarray, bins: int = 256) -> float:
     return float(centers[int(np.argmax(between_class_variance))])
 
 
+def smooth_image(image: np.ndarray, sigma: SupportsFloat) -> np.ndarray:
+    """Return a Gaussian-smoothed 2D grayscale image."""
+    grayscale = to_grayscale(image)
+    sigma_value = float(sigma)
+
+    if sigma_value < 0:
+        raise ValueError("Gaussian sigma must be non-negative.")
+
+    if sigma_value == 0:
+        return grayscale.copy()
+
+    return gaussian(
+        grayscale,
+        sigma=sigma_value,
+        preserve_range=True,
+        channel_axis=None,
+    ).astype(float, copy=False)
+
+
 def threshold_image(
     image: np.ndarray,
     threshold: SupportsFloat,
@@ -84,3 +111,51 @@ def threshold_image(
     if invert:
         return grayscale <= threshold_value
     return grayscale >= threshold_value
+
+
+def postprocess_mask(
+    mask: np.ndarray,
+    *,
+    small_object_size: SupportsFloat = 100,
+    max_hole_size: SupportsFloat = 500,
+    closing_radius: SupportsFloat = 1,
+    opening_radius: SupportsFloat = 0,
+) -> np.ndarray:
+    """Return a cleaned 0/1 mask after explicit morphology settings."""
+    mask_array = np.asarray(mask)
+    if mask_array.ndim != 2:
+        raise ValueError("Only 2D masks can be postprocessed.")
+
+    if mask_array.size == 0:
+        raise ValueError("Mask is empty.")
+
+    small_object_size_value = _nonnegative_int(
+        small_object_size,
+        "Small object size",
+    )
+    max_hole_size_value = _nonnegative_int(max_hole_size, "Hole size")
+    closing_radius_value = _nonnegative_int(closing_radius, "Closing radius")
+    opening_radius_value = _nonnegative_int(opening_radius, "Opening radius")
+
+    clean = mask_array > 0
+
+    if small_object_size_value > 0:
+        clean = remove_small_objects(clean, max_size=small_object_size_value)
+
+    if max_hole_size_value > 0:
+        clean = remove_small_holes(clean, max_size=max_hole_size_value)
+
+    if closing_radius_value > 0:
+        clean = closing(clean, footprint=disk(closing_radius_value))
+
+    if opening_radius_value > 0:
+        clean = opening(clean, footprint=disk(opening_radius_value))
+
+    return clean.astype(np.uint8)
+
+
+def _nonnegative_int(value: SupportsFloat, name: str) -> int:
+    int_value = int(value)
+    if int_value < 0:
+        raise ValueError(f"{name} must be non-negative.")
+    return int_value
