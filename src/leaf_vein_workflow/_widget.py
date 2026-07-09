@@ -130,9 +130,9 @@ class CropWidget(QWidget):
         if not isinstance(layer, Image):
             return
 
-        # 自分で作った crop 結果も Image レイヤーなので、そのままだと
-        # crop 結果にさらに ROI レイヤーを作ってしまう。metadata で除外する。
-        if layer.metadata.get(ROLE_KEY) == ROLE_ROI_CROP:
+        # 自分で作った crop や helper 結果も Image レイヤーなので、そのままだと
+        # さらに ROI レイヤーを作ってしまう。metadata で除外する。
+        if layer.metadata.get(ROLE_KEY) is not None:
             return
 
         # すでに ROI レイヤーを作った元画像には、二重に ROI を作らない。

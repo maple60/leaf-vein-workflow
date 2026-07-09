@@ -40,8 +40,10 @@ def test_widget_module_imports_when_qt_backend_is_available(monkeypatch, tmp_pat
     pytest.importorskip("napari")
 
     import leaf_vein_workflow._widget as widget
+    import leaf_vein_workflow._order_widget as order_widget
 
     assert widget.CropWidget is not None
+    assert order_widget.OrderLabelWidget is not None
 
 
 def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
@@ -146,6 +148,65 @@ def test_widget_auto_creates_roi_layers_for_loaded_image(monkeypatch, tmp_path):
         app.processEvents()
         assert not np.any(mask_layer.data == 1)
         assert widget is not None
+    finally:
+        viewer.close()
+        del app
+
+
+def test_order_widget_creates_helper_and_order_layers(monkeypatch, tmp_path):
+    if not _has_qt_backend():
+        pytest.skip("No Qt backend is installed.")
+
+    _patch_napari_dirs(monkeypatch, tmp_path)
+    import napari
+    from qtpy.QtWidgets import QApplication
+
+    from leaf_vein_workflow._order_widget import (
+        LAYER_BRANCHPOINTS,
+        LAYER_DIAMETER,
+        LAYER_ENDPOINTS,
+        LAYER_ORDER_LABELS,
+        LAYER_SKELETON,
+        LAYER_SPURS,
+        OrderLabelWidget,
+        ROLE_ORDER_HELPER,
+    )
+    from leaf_vein_workflow._widget import ROLE_KEY
+
+    app = QApplication.instance() or QApplication([])
+    try:
+        viewer = napari.Viewer(show=False)
+    except Exception as exc:
+        pytest.skip(f"napari Viewer is not available: {exc}")
+
+    try:
+        widget = OrderLabelWidget(viewer)
+        mask = np.zeros((7, 7), dtype=np.uint8)
+        mask[3, 1:6] = 1
+        mask[1:4, 3] = 1
+        viewer.add_labels(mask, name="vein_mask")
+        app.processEvents()
+
+        assert widget.vein_mask_combo.currentData() == "vein_mask"
+
+        widget.create_skeleton_helpers()
+        assert viewer.layers[LAYER_SKELETON].metadata[ROLE_KEY] == ROLE_ORDER_HELPER
+        assert viewer.layers[LAYER_DIAMETER].metadata[ROLE_KEY] == ROLE_ORDER_HELPER
+        assert viewer.layers[LAYER_ENDPOINTS].metadata[ROLE_KEY] == ROLE_ORDER_HELPER
+        assert viewer.layers[LAYER_BRANCHPOINTS].metadata[ROLE_KEY] == ROLE_ORDER_HELPER
+        assert viewer.layers[LAYER_SPURS].metadata[ROLE_KEY] == ROLE_ORDER_HELPER
+        assert viewer.layers[LAYER_SKELETON].data.shape == mask.shape
+        assert viewer.layers[LAYER_DIAMETER].data.shape == mask.shape
+
+        widget.create_order_label_layer()
+        order_layer = viewer.layers[LAYER_ORDER_LABELS]
+        assert order_layer.data.dtype == np.uint8
+        assert order_layer.data.shape == mask.shape
+        assert widget.order_labels_combo.currentData() == LAYER_ORDER_LABELS
+
+        order_layer.data[3, 1:4] = 1
+        widget.validate_labels()
+        assert widget.status_label.text()
     finally:
         viewer.close()
         del app

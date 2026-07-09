@@ -5,6 +5,11 @@ contributions:
     - id: leaf-vein-workflow.make_crop_widget
       title: Make ROI Crop Widget
       python_name: leaf_vein_workflow._widget:CropWidget
+    - id: leaf-vein-workflow.make_order_label_widget
+      title: Make Order Label Widget
+      python_name: leaf_vein_workflow._order_widget:OrderLabelWidget
   widgets:
     - command: leaf-vein-workflow.make_crop_widget
       display_name: Leaf Vein Workflow
+    - command: leaf-vein-workflow.make_order_label_widget
+      display_name: Leaf Vein Order Labeling
