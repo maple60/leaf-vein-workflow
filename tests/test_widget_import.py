@@ -55,7 +55,10 @@ def test_widget_runs_explicit_mask_refinement_flow(monkeypatch, tmp_path):
 
     from leaf_vein_workflow._widget import (
         CropWidget,
+        ORDER_LABEL_COLORS,
+        ORDER_LABELS_LAYER_NAME,
         ROLE_KEY,
+        ROLE_ORDER_LABELS,
         ROLE_SMOOTHED_IMAGE,
         ROLE_VEIN_MASK,
         SMOOTHED_LAYER_NAME,
@@ -118,9 +121,11 @@ def test_widget_runs_explicit_mask_refinement_flow(monkeypatch, tmp_path):
         assert widget.otsu_button.isEnabled()
         assert widget.threshold_slider.isEnabled()
         assert not widget.clean_mask_button.isEnabled()
+        assert not widget.create_order_labels_button.isEnabled()
         QTest.qWait(250)
         app.processEvents()
         assert all(layer.name != VEIN_MASK_LAYER_NAME for layer in viewer.layers)
+        assert all(layer.name != ORDER_LABELS_LAYER_NAME for layer in viewer.layers)
 
         widget.threshold_slider.setValue(1000)
         QTest.qWait(250)
@@ -138,6 +143,7 @@ def test_widget_runs_explicit_mask_refinement_flow(monkeypatch, tmp_path):
         assert viewer.layers.selection.active is mask_layer
         assert mask_layer.mode == "paint"
         assert widget.clean_mask_button.isEnabled()
+        assert widget.create_order_labels_button.isEnabled()
 
         mask_layer.data = np.array([[1, 0, 0], [0, 0, 0]], dtype=np.uint8)
         widget.min_object_size_spinbox.setValue(2)
@@ -150,13 +156,58 @@ def test_widget_runs_explicit_mask_refinement_flow(monkeypatch, tmp_path):
         assert viewer.layers.selection.active is mask_layer
         assert mask_layer.mode == "paint"
 
+        mask_layer.data = np.array([[1, 0, 1], [1, 1, 1]], dtype=np.uint8)
+        widget.create_order_labels()
+        order_layer = viewer.layers[ORDER_LABELS_LAYER_NAME]
+        assert order_layer.metadata[ROLE_KEY] == ROLE_ORDER_LABELS
+        assert mask_layer.visible is False
+        assert order_layer.colormap is not mask_layer.colormap
+        assert set(ORDER_LABEL_COLORS).issubset(order_layer.colormap.color_dict)
+        assert order_layer.data.shape == mask_layer.data.shape
+        np.testing.assert_array_equal(
+            order_layer.data,
+            np.array([[0, 4, 0], [0, 0, 0]], dtype=np.uint8),
+        )
+        np.testing.assert_allclose(order_layer.translate, [1.0, 1.0])
+        assert viewer.layers.selection.active is order_layer
+        assert order_layer.mode == "paint"
+
+        order_layer.brush_size = 1
+        order_layer.paint((0, 0), 2)
+        app.processEvents()
+        np.testing.assert_array_equal(
+            order_layer.data,
+            np.array([[0, 4, 0], [0, 0, 0]], dtype=np.uint8),
+        )
+
+        order_layer.paint((0, 1), 2)
+        app.processEvents()
+        assert int(np.asarray(order_layer.data)[0, 1]) == 2
+
+        order_layer.data = np.array([[1, 2, 0], [3, 0, 4]], dtype=np.uint8)
+        app.processEvents()
+        np.testing.assert_array_equal(
+            order_layer.data,
+            np.array([[0, 2, 0], [0, 0, 0]], dtype=np.uint8),
+        )
+
+        widget.create_order_labels()
+        assert viewer.layers[ORDER_LABELS_LAYER_NAME] is order_layer
+        assert int(np.asarray(order_layer.data)[0, 1]) == 2
+
+        mask_layer.data = np.ones_like(mask_layer.data)
+        app.processEvents()
+        assert np.count_nonzero(order_layer.data) == 0
+
         viewer.layers.selection.active = roi_layer
         widget.add_roi()
         assert viewer.layers.selection.active is crop_layer
         assert image_layer.visible is False
         assert all(layer.name != SMOOTHED_LAYER_NAME for layer in viewer.layers)
         assert all(layer.name != VEIN_MASK_LAYER_NAME for layer in viewer.layers)
+        assert all(layer.name != ORDER_LABELS_LAYER_NAME for layer in viewer.layers)
         assert not widget.clean_mask_button.isEnabled()
+        assert not widget.create_order_labels_button.isEnabled()
 
         widget.apply_gaussian_filter()
         smoothed_layer = viewer.layers[SMOOTHED_LAYER_NAME]

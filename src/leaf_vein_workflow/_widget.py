@@ -3,6 +3,7 @@
 import numpy as np
 from napari.layers import Image, Labels, Shapes
 from napari.utils.notifications import show_info, show_warning
+from napari.utils.colormaps import direct_colormap
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import (
     QCheckBox,
@@ -31,11 +32,23 @@ ROLE_ROI_SHAPES = "roi_shapes"
 ROLE_ROI_CROP = "roi_crop"
 ROLE_SMOOTHED_IMAGE = "smoothed_image"
 ROLE_VEIN_MASK = "vein_mask"
+ROLE_ORDER_LABELS = "order_labels"
 SOURCE_IMAGE_KEY = "source_image"
 SOURCE_CROP_KEY = "source_crop"
+SOURCE_MASK_KEY = "source_mask"
 
 SMOOTHED_LAYER_NAME = "smoothed_image"
 VEIN_MASK_LAYER_NAME = "vein_mask"
+ORDER_LABELS_LAYER_NAME = "order_labels"
+ORDER_UNCERTAIN_LABEL = 4
+ORDER_LABEL_COLORS = {
+    0: "transparent",
+    1: "#e41a1c",
+    2: "#377eb8",
+    3: "#4daf4a",
+    4: "#984ea3",
+    None: "#ff7f00",
+}
 
 
 class CropWidget(QWidget):
@@ -51,6 +64,12 @@ class CropWidget(QWidget):
         self._smoothed_to_crop: dict[int, Image] = {}
         self._crop_to_mask: dict[int, Labels] = {}
         self._mask_to_crop: dict[int, Image] = {}
+        self._mask_to_order_labels: dict[int, Labels] = {}
+        self._order_labels_to_mask: dict[int, Labels] = {}
+        self._order_label_data_setitems: dict[int, object] = {}
+        self._order_label_clip_connected: set[int] = set()
+        self._mask_clip_connected: set[int] = set()
+        self._clipping_order_labels: set[int] = set()
         self._mask_updates_enabled: set[int] = set()
 
         self._threshold_min = 0.0
@@ -68,6 +87,7 @@ class CropWidget(QWidget):
         self.otsu_button = QPushButton("Apply Otsu")
         self.invert_threshold_checkbox = QCheckBox("Invert threshold")
         self.clean_mask_button = QPushButton("Clean Mask")
+        self.create_order_labels_button = QPushButton("Create Order Labels")
 
         self.gaussian_sigma_label = QLabel("Gaussian sigma")
         self.gaussian_sigma_spinbox = QDoubleSpinBox()
@@ -140,6 +160,7 @@ class CropWidget(QWidget):
         layout.addWidget(self.opening_radius_label)
         layout.addWidget(self.opening_radius_spinbox)
         layout.addWidget(self.clean_mask_button)
+        layout.addWidget(self.create_order_labels_button)
         layout.addWidget(self.status_label)
         self.setLayout(layout)
 
@@ -147,6 +168,7 @@ class CropWidget(QWidget):
         self.apply_gaussian_button.clicked.connect(self.apply_gaussian_filter)
         self.otsu_button.clicked.connect(self.use_otsu_threshold)
         self.clean_mask_button.clicked.connect(self.clean_mask)
+        self.create_order_labels_button.clicked.connect(self.create_order_labels)
         self.invert_threshold_checkbox.toggled.connect(self._schedule_mask_update)
         self.threshold_spinbox.valueChanged.connect(self._on_threshold_spinbox_changed)
         self.threshold_slider.valueChanged.connect(self._on_threshold_slider_changed)
@@ -369,6 +391,45 @@ class CropWidget(QWidget):
         )
         show_info(f"Cleaned {VEIN_MASK_LAYER_NAME}.")
 
+    def create_order_labels(self) -> None:
+        """Create an empty order-label layer from the confirmed vein mask."""
+        mask_layer = self._active_mask_layer()
+        if mask_layer is None:
+            self._warn(f"Create or select {VEIN_MASK_LAYER_NAME} before order labels.")
+            return
+
+        mask_data = np.asarray(mask_layer.data)
+        if not np.any(mask_data == 0):
+            self._warn(f"{VEIN_MASK_LAYER_NAME} has no white-out pixels.")
+            return
+
+        if mask_data.ndim != 2:
+            self._warn("Order labels require a 2D vein mask.")
+            return
+        labels = np.where(mask_data == 0, ORDER_UNCERTAIN_LABEL, 0).astype(np.uint8)
+
+        order_layer = self._create_or_select_order_labels_layer(mask_layer, labels)
+        if order_layer is None:
+            return
+
+        crop_layer = self._mask_to_crop.get(id(mask_layer))
+        if crop_layer is not None:
+            self._mask_updates_enabled.discard(id(crop_layer))
+
+        mask_layer.visible = False
+        self._move_layer_to_top(order_layer)
+        self._activate_layer(order_layer)
+        try:
+            order_layer.mode = "paint"
+        except ValueError:
+            pass
+
+        self._set_status(
+            f"Created {ORDER_LABELS_LAYER_NAME}. Paint labels inside the confirmed "
+            f"{VEIN_MASK_LAYER_NAME}."
+        )
+        show_info(f"Created {ORDER_LABELS_LAYER_NAME}.")
+
     def _create_or_update_smoothed_layer(
         self,
         crop_layer: Image,
@@ -478,6 +539,176 @@ class CropWidget(QWidget):
         self._mask_to_crop[id(mask_layer)] = crop_layer
         return mask_layer
 
+    def _create_or_select_order_labels_layer(
+        self,
+        mask_layer: Labels,
+        labels: np.ndarray,
+    ) -> Labels | None:
+        existing = self._mask_to_order_labels.get(id(mask_layer))
+        if existing is None or not self._layer_is_present(existing):
+            named_layer = self._layer_by_name(ORDER_LABELS_LAYER_NAME)
+            if named_layer is not None:
+                if not isinstance(named_layer, Labels):
+                    self._warn(
+                        f"{ORDER_LABELS_LAYER_NAME} exists but is not a Labels layer."
+                    )
+                    return None
+                if named_layer.data.shape != labels.shape:
+                    self._warn(
+                        f"{ORDER_LABELS_LAYER_NAME} exists but has a different shape."
+                    )
+                    return None
+                existing = named_layer
+
+        metadata = {
+            ROLE_KEY: ROLE_ORDER_LABELS,
+            SOURCE_IMAGE_KEY: mask_layer.metadata.get(SOURCE_IMAGE_KEY),
+            SOURCE_CROP_KEY: mask_layer.metadata.get(SOURCE_CROP_KEY),
+            SOURCE_MASK_KEY: mask_layer.name,
+        }
+
+        if existing is not None and self._layer_is_present(existing):
+            existing.translate = tuple(mask_layer.translate)
+            existing.opacity = 0.8
+            existing.colormap = direct_colormap(ORDER_LABEL_COLORS)
+            existing.metadata.update(metadata)
+            order_layer = existing
+        else:
+            order_layer = self.viewer.add_labels(
+                labels,
+                name=ORDER_LABELS_LAYER_NAME,
+                translate=tuple(mask_layer.translate),
+                opacity=0.8,
+                colormap=direct_colormap(ORDER_LABEL_COLORS),
+                metadata=metadata,
+            )
+
+        self._mask_to_order_labels[id(mask_layer)] = order_layer
+        self._order_labels_to_mask[id(order_layer)] = mask_layer
+        self._install_masked_order_label_paint(order_layer)
+        self._connect_order_label_mask_clip(mask_layer, order_layer)
+        self._clip_order_labels_to_mask(order_layer)
+        return order_layer
+
+    def _install_masked_order_label_paint(self, order_layer: Labels) -> None:
+        order_id = id(order_layer)
+        if order_id in self._order_label_data_setitems:
+            return
+
+        original_data_setitem = order_layer.data_setitem
+        self._order_label_data_setitems[order_id] = original_data_setitem
+
+        def masked_data_setitem(indices, value, refresh=True):
+            filtered = self._filter_order_label_indices(order_layer, indices, value)
+            if filtered is None:
+                return None
+            filtered_indices, filtered_value = filtered
+            return original_data_setitem(filtered_indices, filtered_value, refresh)
+
+        order_layer.data_setitem = masked_data_setitem
+
+    def _filter_order_label_indices(
+        self,
+        order_layer: Labels,
+        indices,
+        value,
+    ):
+        if self._is_background_label_value(value):
+            return indices, value
+
+        mask_layer = self._order_labels_to_mask.get(id(order_layer))
+        if mask_layer is None or not self._layer_is_present(mask_layer):
+            return indices, value
+
+        mask = np.asarray(mask_layer.data) == 0
+        try:
+            keep = np.asarray(mask[indices], dtype=bool)
+        except (IndexError, TypeError, ValueError):
+            return indices, value
+
+        if keep.shape == ():
+            return (indices, value) if bool(keep) else None
+
+        if np.all(keep):
+            return indices, value
+
+        if not np.any(keep):
+            return None
+
+        try:
+            filtered_indices = tuple(np.asarray(axis_indices)[keep] for axis_indices in indices)
+        except (TypeError, ValueError):
+            return indices, value
+
+        value_array = np.asarray(value)
+        if value_array.shape == keep.shape:
+            return filtered_indices, value_array[keep]
+        return filtered_indices, value
+
+    @staticmethod
+    def _is_background_label_value(value) -> bool:
+        value_array = np.asarray(value)
+        return value_array.shape == () and int(value_array) == 0
+
+    def _connect_order_label_mask_clip(
+        self,
+        mask_layer: Labels,
+        order_layer: Labels,
+    ) -> None:
+        order_id = id(order_layer)
+        if order_id not in self._order_label_clip_connected:
+            order_layer.events.data.connect(
+                lambda event, order_layer=order_layer: self._clip_order_labels_to_mask(
+                    order_layer
+                )
+            )
+            order_layer.events.labels_update.connect(
+                lambda event, order_layer=order_layer: self._clip_order_labels_to_mask(
+                    order_layer
+                )
+            )
+            self._order_label_clip_connected.add(order_id)
+
+        mask_id = id(mask_layer)
+        if mask_id not in self._mask_clip_connected:
+            mask_layer.events.data.connect(
+                lambda event, mask_layer=mask_layer: self._clip_order_labels_for_mask(
+                    mask_layer
+                )
+            )
+            self._mask_clip_connected.add(mask_id)
+
+    def _clip_order_labels_for_mask(self, mask_layer: Labels) -> None:
+        order_layer = self._mask_to_order_labels.get(id(mask_layer))
+        if order_layer is not None and self._layer_is_present(order_layer):
+            self._clip_order_labels_to_mask(order_layer)
+
+    def _clip_order_labels_to_mask(self, order_layer: Labels) -> None:
+        order_id = id(order_layer)
+        if order_id in self._clipping_order_labels:
+            return
+
+        mask_layer = self._order_labels_to_mask.get(order_id)
+        if mask_layer is None or not self._layer_is_present(mask_layer):
+            return
+
+        labels = np.asarray(order_layer.data)
+        mask = np.asarray(mask_layer.data) == 0
+        if labels.shape != mask.shape:
+            return
+
+        outside_mask = ~mask
+        if not np.any((labels > 0) & outside_mask):
+            return
+
+        clipped = labels.copy()
+        clipped[outside_mask] = 0
+        self._clipping_order_labels.add(order_id)
+        try:
+            order_layer.data = clipped
+        finally:
+            self._clipping_order_labels.discard(order_id)
+
     def _clear_mask_products(self, crop_layer: Image) -> None:
         self._mask_updates_enabled.discard(id(crop_layer))
 
@@ -493,9 +724,21 @@ class CropWidget(QWidget):
         mask_layer = self._crop_to_mask.pop(id(crop_layer), None)
         if mask_layer is not None:
             self._mask_to_crop.pop(id(mask_layer), None)
+            self._clear_order_labels_layer(mask_layer)
             if self._layer_is_present(mask_layer):
                 self.viewer.layers.remove(mask_layer)
         self._set_cleanup_controls_enabled(False)
+
+    def _clear_order_labels_layer(self, mask_layer: Labels) -> None:
+        order_layer = self._mask_to_order_labels.pop(id(mask_layer), None)
+        if order_layer is not None:
+            self._order_labels_to_mask.pop(id(order_layer), None)
+            self._order_label_data_setitems.pop(id(order_layer), None)
+            self._order_label_clip_connected.discard(id(order_layer))
+            self._clipping_order_labels.discard(id(order_layer))
+            if self._layer_is_present(order_layer):
+                self.viewer.layers.remove(order_layer)
+        self._mask_clip_connected.discard(id(mask_layer))
 
     def _schedule_mask_update(self, *args) -> None:
         if self._syncing_threshold_controls:
@@ -595,6 +838,13 @@ class CropWidget(QWidget):
             if crop_layer is not None and self._layer_is_present(crop_layer):
                 return crop_layer
 
+        if isinstance(layer, Labels) and layer.metadata.get(ROLE_KEY) == ROLE_ORDER_LABELS:
+            mask_layer = self._order_labels_to_mask.get(id(layer))
+            if mask_layer is not None and self._layer_is_present(mask_layer):
+                crop_layer = self._mask_to_crop.get(id(mask_layer))
+                if crop_layer is not None and self._layer_is_present(crop_layer):
+                    return crop_layer
+
         if isinstance(layer, Shapes) and layer.metadata.get(ROLE_KEY) == ROLE_ROI_SHAPES:
             crop_layer = self._roi_to_crop.get(id(layer))
             if crop_layer is not None and self._layer_is_present(crop_layer):
@@ -617,6 +867,11 @@ class CropWidget(QWidget):
         layer = self.viewer.layers.selection.active
         if isinstance(layer, Labels) and layer.metadata.get(ROLE_KEY) == ROLE_VEIN_MASK:
             return layer
+
+        if isinstance(layer, Labels) and layer.metadata.get(ROLE_KEY) == ROLE_ORDER_LABELS:
+            mask_layer = self._order_labels_to_mask.get(id(layer))
+            if mask_layer is not None and self._layer_is_present(mask_layer):
+                return mask_layer
 
         crop_layer = self._active_crop_layer()
         if crop_layer is None:
@@ -675,6 +930,7 @@ class CropWidget(QWidget):
         self.opening_radius_label.setEnabled(enabled)
         self.opening_radius_spinbox.setEnabled(enabled)
         self.clean_mask_button.setEnabled(enabled)
+        self.create_order_labels_button.setEnabled(enabled)
 
     def _set_status(self, message: str) -> None:
         self.status_label.setText(message)
