@@ -43,11 +43,11 @@ ORDER_LABELS_LAYER_NAME = "order_labels"
 ORDER_UNCERTAIN_LABEL = 4
 ORDER_LABEL_COLORS = {
     0: "transparent",
-    1: "#e41a1c",
-    2: "#377eb8",
-    3: "#4daf4a",
-    4: "#984ea3",
-    None: "#ff7f00",
+    1: "#ff4b00",
+    2: "#005aff",
+    3: "#03af7a",
+    4: "#990099",
+    None: "#f6aa00",
 }
 
 
