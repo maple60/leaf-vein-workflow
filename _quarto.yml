@@ -7,6 +7,7 @@ project:
     - notebooks/napari_plugin_development.qmd
     - notebooks/skeletonization.qmd
     - notebooks/data_source.qmd
+    - notebooks/zotero_leaf_vein_literature.qmd
     - notebooks/prometheus_leaf_vein_protocol.qmd
     - notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd
     - notebooks/葉脈形質の測定法と既存ツールの比較報告.qmd
@@ -32,6 +33,8 @@ website:
             text: サンプルデータセット
       - text: Reports
         menu:
+          - href: notebooks/zotero_leaf_vein_literature.qmd
+            text: Zotero文献から見る葉脈研究
           - href: notebooks/prometheus_leaf_vein_protocol.qmd
             text: "参考プロトコル: 葉脈形質の定量"
           - href: notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd
@@ -49,6 +52,7 @@ website:
           - notebooks/data_source.qmd
       - section: Reports
         contents:
+          - notebooks/zotero_leaf_vein_literature.qmd
           - notebooks/prometheus_leaf_vein_protocol.qmd
           - notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd
           - notebooks/葉脈形質の測定法と既存ツールの比較報告.qmd
