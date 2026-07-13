@@ -15,6 +15,7 @@ title: "leaf-vein-workflow"
 
 ## Reports
 
+- [Zotero文献から見る葉脈研究](notebooks/zotero_leaf_vein_literature.qmd)
 - [参考プロトコル: 葉脈形質の定量](notebooks/prometheus_leaf_vein_protocol.qmd)
 - [生態学研究における葉脈形質の測定方法とツール比較](notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd)
 - [葉脈形質の測定法と既存ツールの比較報告](notebooks/葉脈形質の測定法と既存ツールの比較報告.qmd)

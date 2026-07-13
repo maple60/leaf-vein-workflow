@@ -1,0 +1,154 @@
+---
+title: "Zotero文献から見る葉脈研究"
+bibliography: zotero_leaf_vein_library.bib
+link-citations: true
+---
+
+このページは、2026年7月14日にローカルZoteroライブラリを検索し、葉脈研究に関係する文献を整理したものである。引用はZoteroから書き出したBibTeXを用い、Quartoの引用記法で管理している。
+
+## 調査範囲
+
+Zoteroの `Leaf vein` コレクション（collection key: `4NXIFW4C`）には65件の文献レコードがあった。DOIまたは完全一致するタイトルで重複をまとめると56文献であった。さらにライブラリ全体のタイトル・抄録・タグを検索し、タイトルから葉脈を直接扱うと判断できる4文献を追加した。
+
+したがって、本ページでは次の82文献を扱う。
+
+| 区分 | 文献数 | 判定基準 |
+|---|---:|---|
+| 中核文献 | 60 | `Leaf vein` コレクションの文献、またはタイトルが葉脈・葉脈網・主脈を直接扱う文献 |
+| 周辺文献 | 22 | 抄録中で葉脈との関係が確認できるが、主題が葉水理、葉構造、葉力学などに置かれる文献 |
+| 合計 | 82 | 重複レコードを統合した文献数 |
+
+ここでいう「すべて」は、この再現可能な検索基準に該当したZotero所蔵文献を指す。一般的な `vein` だけの一致は動物・医学文献を拾うため採用せず、`leaf`、`leaves`、`foliar` と `vein`、`venation`、`midvein`、`areole` の組み合わせ、および既存タグを用いた。
+
+## 葉脈研究の全体像
+
+### 葉脈網は多機能な階層ネットワークである
+
+葉脈は、水・光合成産物・シグナルを運ぶ輸送系であると同時に、葉身を支持し、損傷時にも機能を維持するネットワークである。総説では、構造、発生、可塑性、進化、生態、応用を一つの枠組みで扱う必要性が示されている [@sack2013a; @roth-nebelsick2001]。近年の比較研究は、細脈・中間径・太い葉脈で機能への寄与が異なり、単一の最適解ではなく複数の設計が成立することを示している [@matos2024; @blonder2020]。約4億年の進化史を扱った研究でも、葉脈密度やループ構造の変化が葉脈サイズ階級ごとに異なることが示された [@matos2025]。
+
+### 水理・光合成・乾燥耐性との関係
+
+葉脈密度や葉脈配置は、葉内の水輸送距離を通じて葉の水理伝導度と最大光合成速度に関係する [@brodribb2007]。ただし、葉脈形質を葉経済スペクトル全体の単純な「起源」とみなすのは支持されず、葉脈密度は独立した水理的な経路を通じて気孔コンダクタンスや光合成に影響すると整理されている [@sack2013]。また、major vein と minor vein は同じ役割ではなく、少なくとも温帯落葉樹では minor vein の形質が水欠乏耐性や葉構造とより強く関連した [@kawai2018]。葉脈閉塞、bundle sheath、道管外経路、塞栓などを扱う研究も、葉脈網だけでなく周辺組織を含めて水理機能を評価する必要性を示す [@harayama2019; @ohtsuka2018; @buckley2015; @brodribb2016]。
+
+### 輸送と力学のトレードオフ
+
+主脈や高次脈は葉身を平坦に保ちつつ、風や乾燥に応じて変形できる支持構造でもある。主脈の三次元構造と材料特性は、曲げ、ねじり、座屈、破壊様式に影響する [@pierantoni2019]。多種比較と理論モデルを組み合わせた研究では、葉先側では輸送効率、基部側では力学的支持が主脈形態を強く規定するという軸方向のトレードオフが示された [@hong2025]。葉脈分布・葉脈角度・乾燥時の主脈も、変形や破壊、葉形形成に関与する [@liu2020a; @kobayashi2002b; @guo2026]。
+
+### 画像取得・セグメンテーション・ネットワーク計測
+
+再現性の高い葉脈研究には、透明化、染色、封入、撮像、保存までを一続きのプロトコルとして管理する必要がある [@niewiadomski2025]。解析では、LEAF GUIが対話的な閾値処理とクリーニングから葉脈・areoleの位置、形状、接続性を計測する枠組みを示した [@price2011]。phenoVeinは背景むらの補正、自動セグメンテーション、幅推定、骨格グラフ統計、手動修正を統合している [@buhler_phenoveintool_2015]。その後、深層学習によるマスク抽出と無向グラフ化を組み合わせ、未処理葉から葉脈ネットワークの形態空間を再構成する方法が提案された [@iwamasa2023]。
+
+葉脈次数を扱う場合、単なる二値セグメンテーションだけでは不十分である。HALVSはprimary、secondary、tertiaryの3階層を注釈したデータセットと、少ない注釈から細脈の連結性を回復する方法を提示している [@liu2026]。この方向は、`leaf-vein-workflow` で目指す「自動候補生成、次数の確認、手動修正」という流れに最も近い。
+
+## このプロジェクトへの示唆
+
+Zotero文献群から見ると、実装上の優先順位は次のように整理できる。
+
+1. 入力画像の品質とスケールを記録し、透明化標本・透過画像・通常撮影を区別する。
+2. 二値maskだけでなく、骨格、分岐点、端点、edge、areoleを再利用できる形で保持する。
+3. major/minorや次数は線幅だけで決めず、接続関係と階層を含めて候補提示する。
+4. 自動処理後の手動修正を正式な工程として残す。
+5. セグメンテーション精度と、VLA・幅・次数など最終形質の測定誤差を分けて検証する。
+
+これは文献から導いた実装上の整理であり、個々の論文がこのソフトウェア設計を直接推奨しているという意味ではない。
+
+## 中核文献一覧
+
+以下は、Zoteroの `Leaf vein` コレクションと、ライブラリ全体から追加した直接該当文献である。同一DOIまたは完全一致タイトルの重複は、情報量の多い1レコードにまとめた。
+
+- *106 Mechanical Characteristics of Vein Network in Butterbur Leaves* [@sakuma2001] — Zotero item `I325IECF`
+- *617 Vein Structure and Mechanical Properties of a Leaf of Santa Cruz Water Lily (Victoria cruziana)* [@kobayashi2009] — Zotero item `DMATMNJW`
+- *A 3D study of the relationship between leaf vein structure and mechanical function* [@pierantoni2019] — Zotero item `JYGBNA8W`
+- *A comprehensive illustrated protocol for clearing, mounting, and imaging leaf venation networks* [@niewiadomski2025] — Zotero item `TVMTI32J`
+- *A high-resolution model of the grapevine leaf morphospace predicts synthetic leaves* [@chitwood2025] — Zotero item `TA2IN3DW`
+- *A Modern Ampelography: A Genetic Basis for Leaf Shape and Venation Patterning in Grape* [@chitwood2014] — Zotero item `HLRWCWY2`
+- *A trade-off between transport and mechanics determines plant leaf vein architecture* [@hong2025] — Zotero item `HR2VCZ4Q`
+- *Aridity-dependent regulation of water-use efficiency by leaf vein traits across grassland communities* [@han_aridity-dependent_nodate] — Zotero item `SAQM6IGT`
+- *Axial anatomy of the leaf midrib provides new insights into the hydraulic architecture and cavitation patterns of Acer pseudoplatanus leaves* [@lechthaler2019] — Zotero item `Q6HIK3ZD`
+- *Branching Pattern of Veins and Structural Stiffness in Butterbur Leaf* [@kobayashi2003a] — Zotero item `MVGRM54F`
+- *Bundle sheath lignification mediates the linkage of leaf hydraulics and venation* [@ohtsuka2018] — Zotero item `N7RR7AQY`
+- *Causes of ecological gradients in leaf margin entirety: Evaluating the roles of biomechanics, hydraulics, vein geometry, and bud packing* [@givnish2017] — Zotero item `VPU74D6V`
+- *Computer vision cracks the leaf code* [@wilf2016] — Zotero item `HKP4PPEH`
+- *CUDU-Net: Collaborative up-sampling decoder U-Net for leaf vein segmentation* [@cai2024] — Zotero item `VBDAWK9M`
+- *Decline of Leaf Hydraulic Conductance with Dehydration: Relationship to Leaf Size and Venation Architecture* [@scoffoni2011] — Zotero item `IBAPWKXC`
+- *Decoding Leaf Hydraulics with a Spatially Explicit Model: Principles of Venation Architecture and Implications for Its Evolution.* [@mckown2010] — Zotero item `ZLXEJRQC`
+- *Effects of major vein blockage and aquaporin inhibition on leaf hydraulics and stomatal conductance* [@harayama2019] — Zotero item `97UPQS5L`
+- *Evolution and Function of Leaf Venation Architecture: A Review* [@roth-nebelsick2001] — Zotero item `ZFK7R2B2`
+- *Examining the support–supply and bud-packing hypotheses for the increase in toothed leaf margins in northern deciduous floras* [@zohner2019a] — Zotero item `HM4LS29P`
+- *Functional consequences of light intensity on soybean leaf hydraulic conductance: Coordinated variations in leaf venation architecture and mesophyll structure* [@gao2023] — Zotero item `H8MCECWR`
+- *Higher PEPC activity and vein density contribute to improve cotton leaf water use efficiency under water stress* [@lei2025] — Zotero item `28TYNHMC`
+- *How are leaf mechanical properties and water-use traits coordinated by vein traits? A case study in Fagaceae* [@kawai2016] — Zotero item `3H6Z9MW2`
+- *How do leaf veins influence the worldwide leaf economic spectrum? Review and synthesis* [@sack2013] — Zotero item `IZYAVRKQ`
+- *How Does Leaf Anatomy Influence Water Transport outside the Xylem?* [@buckley2015] — Zotero item `6YYSFX4I`
+- *Hybrid network of leaf veins observed in tree species* [@muraleedharan2026b] — Zotero item `ZE3YSYSC`
+- *Improved mesophyll–bundle sheath connectivity is achieved via different mechanisms in C2 vs C4 Alternanthera* [@roberts] — Zotero item `N5BL3NCS`
+- *Investigating the Functional and Architectural Diversity of Leaf Venation Networks* [@matos2025a] — Zotero item `NE6KUEDL`
+- *Kinetics of recovery of leaf hydraulic conductance and vein functionality from cavitation‐induced embolism in sunflower* [@trifilo2003] — Zotero item `AXZMIFGW`
+- *Leaf architecture and functional traits for 122 species at the University of California Botanical Garden at Berkeley* [@matos2024a] — Zotero item `EH58HWAG`
+- *Leaf Extraction and Analysis Framework Graphical User Interface: Segmenting and Analyzing the Structure of Leaf Veins and Areoles* [@price2011] — Zotero item `I7PTR295`
+- *Leaf Maximum Photosynthetic Rate and Venation Are Linked by Hydraulics* [@brodribb2007] — Zotero item `X4IRNXJK`
+- *Leaf morphology correlates with water and light availability: What consequences for simple and compound leaves?* [@xu2009] — Zotero item `BK4FKI2M`
+- *Leaf shape and venation pattern alter the support investments within leaf lamina in temperate species: a neglected source of leaf physiological differentiation?* [@niinemets2007] — Zotero item `LJPSJY7X`
+- *Leaf Shrinkage with Dehydration: Coordination with Hydraulic Vulnerability and Drought Tolerance* [@scoffoni2014] — Zotero item `DINNFMSB`
+- *Leaf venation network architecture coordinates functional trade-offs across vein spatial scales: evidence for multiple alternative designs* [@matos2024] — Zotero item `9396YNTW`
+- *Leaf venation network evolution across clades and scales* [@matos2025] — Zotero item `7W9C6BPS`
+- *Leaf venation networks of Bornean trees: images and hand-traced segmentations* [@blonder_leaf_2019] — Zotero item `JSIRCDG9`
+- *Leaf venation: structure, function, development, evolution, ecology and applications in the past, present and future* [@sack2013a] — Zotero item `3QMH67CL`
+- *Linking functional traits to multiscale statistics of leaf venation networks* [@blonder2020] — Zotero item `AVEX3RL8`
+- *Mechanical Contribution of Laminar Angle in Plant Leaves with Pinnate Venation(Biomimetics & Innovative Design)* [@kobayashi2004] — Zotero item `FYLGTJHR`
+- *Mechanical evaluation of London plane leaves with pedate venation* [@kobayashi2001] — Zotero item `K72URVE9`
+- *Mechanical Properties of Lamina and Veins in Butterbur Leaf and Its Venation Pattern* [@kobayashi2002] — Zotero item `MP67BIT2`
+- *Midveins regulate the shape formation of drying leaves* [@guo2026] — Zotero item `97ILEZZM`
+- *Morphological Response of Eight Quercus Species to Simulated Wind Load* [@wu2016] — Zotero item `3FSR8L7Q`
+- *Network feature-based phenotyping of leaf venation robustly reconstructs the latent space* [@iwamasa2023] — Zotero item `WK7NZZQ7`
+- *OS1008 Unique Vein Structure and Buoyancy Observed in Leaf of Prickly Water Lily* [@morishita2009] — Zotero item `N7WGNNFL`
+- *phenoVein—A Tool for Leaf Vein Segmentation and Analysis* [@buhler_phenoveintool_2015] — Zotero item `YBT3UA9Z`
+- *Plasticity in Hydraulic Architecture: Riparian Trees Respond to Increased Temperatures With Genotype-Specific Adjustments to Leaf Traits* [@garthwaite2024] — Zotero item `9879KAWP`
+- *Revealing Hierarchical Structure of Leaf Venations via Diffusion-Refined Label-Efficient Segmentation: Dataset and Method* [@liu2026] — Zotero item `DRJW7RG3`
+- *Role of hydraulic traits in stomatal regulation of transpiration under different vapour pressure deficits across five Mediterranean tree crops* [@hernandez-santana2023] — Zotero item `YANDPUES`
+- *Roles of major and minor vein in leaf water deficit tolerance and structural properties in 11 temperate deciduous woody species* [@kawai2018] — Zotero item `YJNKJJGK`
+- *Scaling relationships of leaf vein and areole traits versus leaf size for nine Magnoliaceae species differing in venation density* [@shi2022] — Zotero item `DMZB9ZZ7`
+- *Tansley Review No. 22 What becomes of the transpiration stream?* [@canny1990] — Zotero item `UVKFTWCS`
+- *The Functional Significance of Leaf Shape Lies in Water Relations Over Thermoregulation: A Case Study With an Arid Legume Herb* [@wang2026b] — Zotero item `7WCU52PX`
+- *The Heterogeneity and Spatial Patterning of Structure and Physiology across the Leaf Surface in Giant Leaves of Alocasia macrorrhiza* [@li2013] — Zotero item `S8RM63G2`
+- *The mechanical principles behind the golden ratio distribution of veins in plant leaves* [@sun2018] — Zotero item `WMCPRYZ2`
+- *Vein Angle and Growing/Deployable Speed of Tree Leaves with Corrugation Folding* [@kobayashi2002b] — Zotero item `QBYRNXFH`
+- *Vein Distribution on the Deformation Behavior and Fracture Mechanisms of Typical Plant Leaves by Quasi In Situ Tensile Test under a Digital Microscope* [@liu2020a] — Zotero item `PNPESZQ6`
+- *Venation Pattern of Butterbur Leaf and Its Mechanical Contribution* [@kobayashi2000] — Zotero item `DDKREUMY`
+- *Visual quantification of embolism reveals leaf vulnerability to hydraulic failure* [@brodribb2016] — Zotero item `MTELLV3C`
+
+## 周辺文献一覧
+
+以下は、抄録内で葉脈との関係が確認できた文献である。葉水理、葉構造、葉力学の背景として有用だが、タイトル上の主題は葉脈そのものではないため中核文献と分けた。
+
+- *Allometry of cells and tissues within leaves* [@john2013] — Zotero item `7EQRS9M5`
+- *Anatomical determinants of gas exchange and hydraulics vary with leaf shape in soybean* [@tamang2022] — Zotero item `9HX4HLT5`
+- *Classification of the Architecture of Dicotyledonous Leaves* [@hickey1973] — Zotero item `ZCFLWGY6`
+- *Effect of Crease Interval on Unfolding Manner of Corrugated Tree Leaves* [@kobayashi1999] — Zotero item `BM5P63BQ`
+- *Evolution of leaf structure and drought tolerance in species of Californian Ceanothus* [@fletcher2018] — Zotero item `3V4B4J58`
+- *Hard and tough: the coordination between leaf mechanical resistance and drought tolerance* [@nardini2022] — Zotero item `GJJCKUTI`
+- *Hydraulic architecture of leaf blades: where is the main resistance?* [@cochard2004] — Zotero item `8IWI3RPA`
+- *Leaf biomechanical traits predict litter decomposability* [@wang2025c] — Zotero item `ULFEUXXR`
+- *Leaf biomechanics, morphology, and anatomy of the deciduous mesophyte Prunus serrulata (Rosaceae) and the evergreen sclerophyllous shrub Heteromeles arbutifolia (Rosaceae)* [@balsamo2003] — Zotero item `7NMYKDT3`
+- *Leaf hydraulic vulnerability triggers the decline in stomatal and mesophyll conductance during drought in rice* [@wang2018] — Zotero item `BKH3JJZ2`
+- *Leaf mesophyll conductance and leaf hydraulic conductance: an introduction to their measurement and coordination* [@flexas2013a] — Zotero item `GK9PH72M`
+- *Leaf Structural Diversity Is Related to Hydraulic Capacity in Tropical Rain Forest Trees* [@sack2006] — Zotero item `436NLEIC`
+- *Measurement of Leaf Hydraulic Conductance and Stomatal Conductance and Their Responses to Irradiance and Dehydration Using the Evaporative Flux Method (EFM)* [@sack2012] — Zotero item `3SLBS4UE`
+- *Non-destructive acoustic measurement of elastic modulus of plant leaves* [@yoshitsugu2017] — Zotero item `MDVRP8QL`
+- *Outside-Xylem Vulnerability, Not Xylem Embolism, Controls Leaf Hydraulic Decline during Dehydration* [@scoffoni2017a] — Zotero item `YPFRTP3U`
+- *Petiole mechanics, leaf inclination, morphology, and investment in support in relation to light availability in the canopy of Liriodendron tulipifera* [@niinemets2002] — Zotero item `N4W9Q2XG`
+- *Researches into Structure and Motion of Plants from Mechanical View Point* [@kobayashi2019] — Zotero item `PTB32FSC`
+- *Structural organization of the spongy mesophyll* [@borsuk2022] — Zotero item `HLNVR9VV`
+- *The geometry of unfolding tree leaves* [@kobayashi1998] — Zotero item `S6KDT7EE`
+- *Thresholds for persistent leaf photochemical damage predict plant drought resilience in a tropical rainforest* [@fortunel2023] — Zotero item `7GEHMJAH`
+- *Tissue-level leaf toughness, but not lamina thickness, predicts sapling leaf lifespan and shade tolerance of tropical tree species* [@kitajima2010] — Zotero item `L985AZE2`
+- *Unfolding Manners of Corrugated Plant Leaves* [@kobayashi1998a] — Zotero item `8GNXXLEW`
+
+## データ品質と限界
+
+- まとめはZoteroの書誌情報、タグ、抄録に基づく。全82文献の本文精読を行ったレビューではない。
+- 中核60文献のうち4文献は抄録がなく、2文献は年情報がない。該当項目の解釈には書誌情報の補完が必要である。
+- 同一研究のプレプリント版と出版版、和文・英文の重複は、DOIまたは完全一致タイトルで統合した。近い内容でも別研究である文献は統合していない。
+- Zoteroコレクションやタグは変更していない。このページ用BibTeXでは、引用に不要な長い抄録・ノート・注釈だけを除いた。
+
+## 参考文献
