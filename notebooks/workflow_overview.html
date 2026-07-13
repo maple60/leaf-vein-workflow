@@ -284,7 +284,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#crop_to_rectangle" id="toc-crop_to_rectangle" class="nav-link" data-scroll-target="#crop_to_rectangle"><code>crop_to_rectangle()</code></a></li>
   <li><a href="#crop-レイヤーの作成と更新" id="toc-crop-レイヤーの作成と更新" class="nav-link" data-scroll-target="#crop-レイヤーの作成と更新">crop レイヤーの作成と更新</a></li>
   <li><a href="#mask-レイヤーの作成と更新" id="toc-mask-レイヤーの作成と更新" class="nav-link" data-scroll-target="#mask-レイヤーの作成と更新">mask レイヤーの作成と更新</a></li>
-  <li><a href="#skeleton-レイヤーと-order-labels-レイヤーの作成" id="toc-skeleton-レイヤーと-order-labels-レイヤーの作成" class="nav-link" data-scroll-target="#skeleton-レイヤーと-order-labels-レイヤーの作成">skeleton レイヤーと order labels レイヤーの作成</a></li>
+  <li><a href="#order-labels-レイヤーの作成" id="toc-order-labels-レイヤーの作成" class="nav-link" data-scroll-target="#order-labels-レイヤーの作成">order labels レイヤーの作成</a></li>
   <li><a href="#エラーや警告になる例" id="toc-エラーや警告になる例" class="nav-link" data-scroll-target="#エラーや警告になる例">エラーや警告になる例</a></li>
   <li><a href="#テストで確認していること" id="toc-テストで確認していること" class="nav-link" data-scroll-target="#テストで確認していること">テストで確認していること</a></li>
   <li><a href="#開発時に見る順番" id="toc-開発時に見る順番" class="nav-link" data-scroll-target="#開発時に見る順番">開発時に見る順番</a></li>
@@ -317,11 +317,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="このノートの目的" class="level2">
 <h2 class="anchored" data-anchor-id="このノートの目的">このノートの目的</h2>
 <p>このノートは、<code>leaf-vein-workflow</code> の現在の MVP 実装について、人間が読んで流れを理解するための説明です。</p>
-<p>このプラグインが今やることは、次の 2 点に絞られています。</p>
+<p>このプラグインが今やることは、次の 3 段階に絞られています。</p>
 <ul>
 <li>napari で画像を開き、長方形 ROI を 1 つ描き、<code>Add ROI</code> ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。</li>
-<li>切り抜き画像から、手動閾値または Otsu 閾値で葉脈候補の mask Labels レイヤーを作る。</li>
-<li>mask Labels レイヤーから骨格化 Labels レイヤーと、手動分類用の order labels レイヤーを作る。</li>
+<li>切り抜き画像に Gaussian smoothing を適用し、Otsu 閾値で葉脈候補の mask Labels レイヤーを作り、形態学的処理と手作業で整える。</li>
+<li>確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。</li>
 </ul>
 <p>まだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、骨格のセグメンテーション、VLA の計算、major/minor の自動分離です。</p>
 </section>
@@ -336,16 +336,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>画像上に長方形を 1 つ描く。</li>
 <li><code>Add ROI</code> ボタンを押す。</li>
 <li>長方形の範囲だけを切り抜いた Image レイヤーが追加される。</li>
-<li>crop 画像から二値 mask の Labels レイヤーが自動で追加または更新される。</li>
-<li>必要なら <code>Use Otsu</code>、<code>Invert threshold</code>、<code>Mask threshold</code> を調整する。</li>
-<li>変更後、少し待つと同じ mask レイヤーが自動更新される。</li>
-<li>mask がよければ <code>Create Skeleton</code> を押し、骨格レイヤーと手動分類用 order labels レイヤーを作る。</li>
+<li><code>Gaussian sigma</code> を確認して <code>Apply Gaussian</code> を押す。</li>
+<li>平滑化した <code>smoothed_image</code> Image レイヤーだけが作られる。</li>
+<li><code>Apply Otsu</code> を押すと、初めて <code>vein_mask</code> Labels レイヤーが作られる。</li>
+<li>必要なら <code>Invert threshold</code> と <code>Mask threshold</code> を調整する。変更後、少し待つと同じ mask レイヤーが更新される。</li>
+<li>形態学的処理の値を確認して <code>Clean Mask</code> を押す。</li>
+<li>paint mode の <code>vein_mask</code> を手作業で修正する。</li>
+<li>mask を確認した後に <code>Create Order Labels</code> を押す。</li>
+<li><code>order_labels</code> Labels レイヤー上で葉脈次数を塗り分ける。</li>
 </ol>
-<p>重要なのは、長方形を描いただけでは切り抜きレイヤーは作られない点です。切り抜きは必ず <code>Add ROI</code> を押した後に実行されます。</p>
+<p>重要なのは、各工程がユーザーの操作で明示的に区切られている点です。長方形を描いただけでは crop は作られず、<code>Apply Gaussian</code> を押しても <code>vein_mask</code> は作られません。mask が初めて作られるのは <code>Apply Otsu</code> を押したときです。</p>
 </section>
 <section id="全体像" class="level2">
 <h2 class="anchored" data-anchor-id="全体像">全体像</h2>
-<p>実装は、大きく 2 つに分かれています。</p>
+<p>napari 上では 1 つの dock widget ですが、実装は人間が担当範囲を追いやすいように責務別に分かれています。</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -360,7 +364,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td><code>src/leaf_vein_workflow/_widget.py</code></td>
-<td>napari の画面、レイヤー、ボタン、通知を扱う</td>
+<td>manifest と既存 import のために <code>CropWidget</code> と定数を再公開する入口</td>
+</tr>
+<tr class="even">
+<td><code>src/leaf_vein_workflow/widgets/crop_widget.py</code></td>
+<td>1 つの widget を組み立て、signal を接続し、公開メソッドを各担当へ委譲する</td>
+</tr>
+<tr class="odd">
+<td><code>src/leaf_vein_workflow/widgets/controls.py</code></td>
+<td>ボタンや入力欄を作り、工程ごとの有効・無効を管理する</td>
+</tr>
+<tr class="even">
+<td><code>src/leaf_vein_workflow/widgets/layers.py</code></td>
+<td>metadata、レイヤー間の対応、検索、選択、削除を一元管理する</td>
+</tr>
+<tr class="odd">
+<td><code>src/leaf_vein_workflow/widgets/roi.py</code></td>
+<td>画像の検出、ROI Shapes レイヤー、crop の作成を担当する</td>
+</tr>
+<tr class="even">
+<td><code>src/leaf_vein_workflow/widgets/mask.py</code></td>
+<td>Gaussian、Otsu、閾値更新、<code>Clean Mask</code> を担当する</td>
+</tr>
+<tr class="odd">
+<td><code>src/leaf_vein_workflow/widgets/order_labels.py</code></td>
+<td>order labels の作成と mask 外への描画防止を担当する</td>
 </tr>
 <tr class="even">
 <td><code>src/leaf_vein_workflow/crop.py</code></td>
@@ -368,15 +396,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td><code>src/leaf_vein_workflow/threshold.py</code></td>
-<td>画像配列を grayscale 化し、閾値で二値 mask を作る</td>
+<td>grayscale 化、Gaussian、閾値、mask cleanup を NumPy 配列に対して計算する</td>
 </tr>
 <tr class="even">
-<td><code>src/leaf_vein_workflow/skeleton.py</code></td>
-<td>二値 mask から骨格画像を作る</td>
+<td><code>src/leaf_vein_workflow/order.py</code></td>
+<td>order labels の検証、集計、export に使う napari 非依存の処理を置く</td>
 </tr>
 </tbody>
 </table>
-<p>初心者向けに言うと、<code>_widget.py</code> は「画面の係」、<code>crop.py</code> と <code>threshold.py</code> は「計算の係」です。</p>
+<p>初心者向けに言うと、<code>_widget.py</code> は変わらない「玄関」、<code>crop_widget.py</code> は全体をつなぐ「進行係」、<code>widgets/</code> の残りは工程別の「担当者」です。<code>crop.py</code>、<code>threshold.py</code>、<code>order.py</code> は napari の画面を直接触らない「計算の係」です。</p>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
 <div>
@@ -396,27 +424,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="cropwidget-の初期化" class="level2">
 <h2 class="anchored" data-anchor-id="cropwidget-の初期化"><code>CropWidget</code> の初期化</h2>
-<p><code>CropWidget</code> は、プラグインの本体です。</p>
+<p><code>CropWidget</code> は、napari に渡す 1 つの dock widget です。実際のクラスは <code>widgets/crop_widget.py</code> にあり、<code>_widget.py</code> は従来と同じ import 先を保つためにそれを再公開します。</p>
 <p>作られた直後に、主に次の準備をします。</p>
 <ul>
 <li>napari viewer を <code>self.viewer</code> に保存する。</li>
-<li>ROI レイヤーと元画像レイヤーの対応表を作る。</li>
-<li>ROI レイヤーと crop レイヤーの対応表を作る。</li>
-<li>crop レイヤーと mask レイヤーの対応表を作る。</li>
-<li><code>Add ROI</code> ボタンとステータス表示を作る。</li>
-<li><code>Use Otsu</code>、<code>Invert threshold</code>、閾値入力を作る。</li>
-<li><code>Add ROI</code> ボタンが押されたら <code>add_roi()</code> が動くようにする。</li>
-<li><code>Use Otsu</code> が押されたら <code>use_otsu_threshold()</code> が動くようにする。</li>
-<li>閾値や <code>Invert threshold</code> が変わったら、少し待って mask が自動更新されるようにする。</li>
-<li>新しいレイヤーが追加されたら <code>_on_layer_inserted()</code> が動くようにする。</li>
-<li>すでに開かれている画像があれば、それにも ROI レイヤーを準備する。</li>
+<li><code>controls.py</code> でボタン、入力欄、ステータス表示を作る。</li>
+<li><code>layers.py</code> で ROI、crop、smoothed image、mask、order labels の対応関係を管理する。</li>
+<li>ROI、mask、order labels の各担当に、共有する controls とレイヤー管理を明示的に渡す。</li>
+<li><code>crop_widget.py</code> でボタンや Qt signal を各担当の処理へ接続する。</li>
+<li>新しく追加された画像と、すでに開かれている画像の両方を ROI 担当に渡す。</li>
 </ul>
-<p>ここでのポイントは、プラグイン起動後に画像を開いた場合だけでなく、すでに画像が開いている状態でプラグインを起動した場合にも対応していることです。</p>
+<p><code>CropWidget</code> の <code>add_roi()</code>、<code>apply_gaussian_filter()</code>、<code>use_otsu_threshold()</code>、<code>clean_mask()</code>、<code>create_order_labels()</code> は、既存コードやテストから同じ名前で呼べます。ただし実処理は対応する工程モジュールへ委譲されます。これにより、画面は 1 つのままでも、修正時に読む範囲を絞れます。</p>
 </section>
 <section id="画像が追加されたとき" class="level2">
 <h2 class="anchored" data-anchor-id="画像が追加されたとき">画像が追加されたとき</h2>
-<p>画像レイヤーが追加されると、<code>_on_layer_inserted()</code> から <code>_prepare_image_layer()</code> が呼ばれます。</p>
-<p><code>_prepare_image_layer()</code> は、次の確認をします。</p>
+<p>画像レイヤーが追加されると、<code>crop_widget.py</code> がその event を <code>roi.py</code> の画像準備処理へ渡します。</p>
+<p>ROI 担当は、次の確認をします。</p>
 <ol type="1">
 <li>追加されたレイヤーが napari の <code>Image</code> レイヤーか。</li>
 <li>その画像が、プラグイン自身が作った crop レイヤーではないか。</li>
@@ -446,11 +469,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-<p>さらに、内部の辞書 <code>_roi_to_image</code> によって、ROI レイヤーと元画像レイヤーの対応を保存します。</p>
+<p>さらに、<code>layers.py</code> のレイヤー管理が、ROI レイヤーと元画像レイヤーの対応を保存します。各工程が個別の対応表を持たないため、派生レイヤーを探す規則や削除する順序を 1 箇所で確認できます。</p>
 </section>
 <section id="roi-が編集されたとき" class="level2">
 <h2 class="anchored" data-anchor-id="roi-が編集されたとき">ROI が編集されたとき</h2>
-<p>ユーザーが ROI を描いたり編集したりすると、<code>_on_roi_data_changed()</code> が呼ばれます。</p>
+<p>ユーザーが ROI を描いたり編集したりすると、<code>roi.py</code> の ROI 確認処理が呼ばれます。</p>
 <p>ここで確認しているのは、主に次の 2 点です。</p>
 <ul>
 <li>ROI が 1 つだけあるか。</li>
@@ -461,8 +484,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="add-roi-を押したとき" class="level2">
 <h2 class="anchored" data-anchor-id="add-roi-を押したとき"><code>Add ROI</code> を押したとき</h2>
-<p><code>Add ROI</code> ボタンを押すと、<code>add_roi()</code> が動きます。</p>
-<p><code>add_roi()</code> は、まず次の順番でチェックします。</p>
+<p><code>Add ROI</code> ボタンを押すと、公開メソッド <code>CropWidget.add_roi()</code> が <code>roi.py</code> の切り抜き処理へ委譲します。</p>
+<p>ROI 担当は、まず次の順番でチェックします。</p>
 <ol type="1">
 <li>現在選択されているレイヤーが ROI 用 Shapes レイヤーか。</li>
 <li>その ROI レイヤーが元画像と結びついているか。</li>
@@ -541,7 +564,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="crop-レイヤーの作成と更新" class="level2">
 <h2 class="anchored" data-anchor-id="crop-レイヤーの作成と更新">crop レイヤーの作成と更新</h2>
-<p><code>add_roi()</code> は、切り抜いた画像を napari の Image レイヤーとして追加します。</p>
+<p>ROI 担当は、切り抜いた画像を napari の Image レイヤーとして追加します。</p>
 <p>新規作成時には、次の情報を指定します。</p>
 <ul>
 <li>レイヤー名は <code>元画像名 ROI</code></li>
@@ -551,21 +574,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
 <p><code>translate</code> を設定する理由は、切り抜き画像を元画像上の ROI 位置に重ねて表示しやすくするためです。</p>
 <p>同じ ROI レイヤーからすでに crop レイヤーが作られている場合は、新しいレイヤーを増やさず、既存レイヤーの <code>data</code> と <code>translate</code> を更新します。</p>
+<p>crop を作り直した場合は、古い crop から派生した <code>smoothed_image</code>、<code>vein_mask</code>、<code>order_labels</code> を削除します。新しい範囲に古い解析結果が残らないようにするためです。その後、crop を active layer にし、元画像を非表示にします。</p>
 </section>
 <section id="mask-レイヤーの作成と更新" class="level2">
 <h2 class="anchored" data-anchor-id="mask-レイヤーの作成と更新">mask レイヤーの作成と更新</h2>
-<p><code>Add ROI</code> 後、または閾値 UI を変更した後に、現在の crop Image レイヤーから二値 mask を作ります。</p>
-<p>入力として使えるのは、本プラグインが <code>Add ROI</code> で作った crop レイヤーです。crop レイヤーそのものを選択していても、対応する ROI レイヤーを選択していても、その crop を使います。</p>
-<p>二値化では、まず <code>threshold.py</code> の <code>to_grayscale()</code> で画像を 2D grayscale に変換します。RGB/RGBA 画像の場合は RGB だけを使い、alpha は無視します。その後、<code>threshold_image()</code> が閾値以上の画素を 1、その他を 0 とする mask を返します。</p>
+<p>mask 処理は <code>widgets/mask.py</code> が担当し、<code>Apply Gaussian</code>、<code>Apply Otsu</code>、<code>Clean Mask</code> という明示的な工程に分かれています。</p>
+<p><code>Apply Gaussian</code> は、現在の crop Image レイヤーに <code>threshold.py</code> の <code>smooth_image()</code> を適用し、<code>smoothed_image</code> Image レイヤーだけを作成または更新します。この時点では <code>vein_mask</code> を作りません。Gaussian sigma の初期値は 1 で、必要に応じて実行前に変更できます。</p>
+<p><code>Apply Otsu</code> は、平滑化済み画像から <code>otsu_threshold()</code> で閾値を推定します。その閾値を使って <code>threshold_image()</code> を実行し、ここで初めて <code>vein_mask</code> Labels レイヤーを作成します。二値化の前には <code>to_grayscale()</code> で画像を 2D grayscale に変換し、RGB/RGBA 画像では alpha を無視します。</p>
 <p><code>Invert threshold</code> が有効な場合は、閾値以下の画素を 1 として扱います。これは、葉脈が背景より暗い画像で使う想定です。</p>
-<p><code>Use Otsu</code> ボタンは、現在の crop 画像から <code>otsu_threshold()</code> で閾値を推定し、閾値入力欄に入れます。閾値入力欄や <code>Invert threshold</code> が変わると、すぐには再計算せず、短い待ち時間の後にまとめて mask を更新します。</p>
-<p>mask は napari の Labels レイヤーとして作られます。レイヤー名は <code>crop レイヤー名 vein mask</code> です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの <code>data</code> と <code>translate</code> を更新します。</p>
+<p>一度 <code>Apply Otsu</code> を実行した後は、閾値入力欄、slider、<code>Invert threshold</code> の変更に応じて同じ mask を更新します。連続した UI signal ごとに重い処理を繰り返さないよう、短い待ち時間を置く single-shot timer で更新をまとめます。この timer にも「Otsu 実行済み」の確認があり、control の初期化や <code>Apply Gaussian</code> だけで mask が作られることを防ぎます。</p>
+<p>mask は napari の Labels レイヤーとして作られます。レイヤー名は <code>vein_mask</code> です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの <code>data</code> と <code>translate</code> を更新します。</p>
+<p><code>Clean Mask</code> は、small object removal、hole filling、closing、opening の設定を <code>postprocess_mask()</code> に渡し、現在の mask を明示的に整えます。cleanup 後は自動の閾値更新を止め、<code>vein_mask</code> を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。</p>
 </section>
-<section id="skeleton-レイヤーと-order-labels-レイヤーの作成" class="level2">
-<h2 class="anchored" data-anchor-id="skeleton-レイヤーと-order-labels-レイヤーの作成">skeleton レイヤーと order labels レイヤーの作成</h2>
-<p><code>Create Skeleton</code> を押すと、現在の vein mask Labels レイヤーから骨格画像を作ります。</p>
-<p>骨格化では、<code>skeleton.py</code> の <code>skeletonize_mask()</code> が mask の 0 より大きい画素を前景として扱い、<code>scikit-image</code> の <code>skeletonize()</code> で 1 pixel 幅の骨格にします。</p>
-<p>結果は <code>mask レイヤー名 skeleton</code> という Labels レイヤーとして追加または更新されます。さらに、手動分類用に <code>mask レイヤー名 order labels</code> という空の Labels レイヤーも作ります。</p>
+<section id="order-labels-レイヤーの作成" class="level2">
+<h2 class="anchored" data-anchor-id="order-labels-レイヤーの作成">order labels レイヤーの作成</h2>
+<p>手作業を含む mask の確認が終わった後に <code>Create Order Labels</code> を押すと、<code>widgets/order_labels.py</code> が現在の <code>vein_mask</code> と同じ shape の <code>order_labels</code> Labels レイヤーを作ります。現在の widget フローでは、この操作時に skeleton レイヤーは作りません。</p>
+<p>作成後は <code>vein_mask</code> を非表示にし、<code>order_labels</code> を active な paint mode にします。order labels への描画は確認済み mask の対象領域内だけに制限され、mask が後から変わった場合も領域外のラベルを 0 に戻します。</p>
+<p>現在の実装では、<code>vein_mask == 0</code> の white-out 領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは <code>order_labels.py</code> 側も一緒に確認する必要があります。</p>
 <p>order labels の値は、次の用途を想定しています。</p>
 <table class="caption-top table">
 <thead>
@@ -577,7 +602,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td>0</td>
-<td>未分類または背景</td>
+<td>背景または分類対象外</td>
 </tr>
 <tr class="even">
 <td>1</td>
@@ -589,15 +614,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td>3</td>
-<td>tertiary</td>
+<td>minor</td>
 </tr>
 <tr class="odd">
 <td>4</td>
-<td>higher order / minor</td>
+<td>uncertain / 未分類</td>
 </tr>
 </tbody>
 </table>
-<p>同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きしません。mask の shape が変わった場合は、既存の手動分類を壊さないため、新しい order labels レイヤーを作ります。</p>
+<p>同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きせず、そのレイヤーを再利用します。</p>
 </section>
 <section id="エラーや警告になる例" class="level2">
 <h2 class="anchored" data-anchor-id="エラーや警告になる例">エラーや警告になる例</h2>
@@ -639,8 +664,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>MVP の対応範囲外</td>
 </tr>
 <tr class="odd">
-<td>crop レイヤーがまだない状態で <code>Use Otsu</code> を押す</td>
-<td>二値化する画像がない</td>
+<td>crop レイヤーがまだない状態で <code>Apply Gaussian</code> を押す</td>
+<td>平滑化する画像がない</td>
+</tr>
+<tr class="even">
+<td><code>Apply Gaussian</code> 前</td>
+<td><code>Apply Otsu</code> control がまだ無効になっている</td>
+</tr>
+<tr class="odd">
+<td><code>vein_mask</code> 作成前に <code>Clean Mask</code> または <code>Create Order Labels</code> を押す</td>
+<td>処理対象の mask がない</td>
 </tr>
 <tr class="even">
 <td>crop 画像に NaN や inf が含まれる</td>
@@ -663,17 +696,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>grayscale 画像をそのまま float の 2D 配列として扱えること。</li>
 <li>RGB/RGBA 画像を grayscale に変換できること。</li>
+<li>Gaussian smoothing が入力と同じ shape の 2D 画像を返すこと。</li>
 <li>手動閾値で明るい前景と暗い前景の両方を mask にできること。</li>
 <li>Otsu 閾値が単純な二峰性画像を分けられること。</li>
+<li>small object removal、hole filling、closing、opening で mask を整えられること。</li>
 <li>未対応の画像 shape がエラーになること。</li>
 </ul>
-<p><code>tests/test_skeleton.py</code> では、napari に依存しない骨格化計算を確認しています。</p>
+<p>現在の widget フローからは骨格化を呼びませんが、独立した計算 helper の回帰確認として <code>tests/test_skeleton.py</code> は残っています。</p>
 <ul>
 <li>2D mask から骨格画像を作れること。</li>
 <li>Labels 形式の整数 mask でも、0 より大きい画素を前景として扱うこと。</li>
 <li>空 mask や 2D 以外の入力がエラーになること。</li>
 </ul>
-<p><code>tests/test_widget_import.py</code> では、Qt backend がある環境で widget を import できることと、画像追加から ROI レイヤー作成、<code>Add ROI</code> による crop レイヤー作成までを確認しています。 現在はさらに、crop レイヤーから mask Labels レイヤーが自動作成され、Otsu 閾値や手動閾値の変更で自動更新されることも確認しています。 また、mask から skeleton Labels レイヤーと手動分類用 order labels レイヤーが作られ、既存の order labels が上書きされないことも確認しています。</p>
+<p><code>tests/test_widget_import.py</code> では、Qt backend がある環境で <code>_widget.py</code> から widget を import できることと、画像追加から order labels までの工程を確認しています。</p>
+<ul>
+<li><code>Add ROI</code> 後に crop が active になり、元画像が非表示になること。</li>
+<li><code>Apply Gaussian</code> では <code>smoothed_image</code> だけが作られ、<code>vein_mask</code> はまだ存在しないこと。</li>
+<li><code>Apply Otsu</code> 後に初めて mask が作られ、閾値 UI で更新できること。</li>
+<li><code>Clean Mask</code> 後も mask が active な paint mode に保たれること。</li>
+<li>order labels が mask 外に描けず、既存の手動ラベルが再作成時に上書きされないこと。</li>
+<li>ROI を切り直すと古い派生レイヤーが削除されること。</li>
+</ul>
 </section>
 <section id="開発時に見る順番" class="level2">
 <h2 class="anchored" data-anchor-id="開発時に見る順番">開発時に見る順番</h2>
@@ -681,20 +724,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ol type="1">
 <li><code>README.md</code> でユーザー操作を確認する。</li>
 <li><code>src/leaf_vein_workflow/napari.yaml</code> で widget 登録を確認する。</li>
-<li><code>src/leaf_vein_workflow/_widget.py</code> の <code>CropWidget.__init__()</code> を見る。</li>
-<li><code>_prepare_image_layer()</code> で画像追加時の動きを見る。</li>
-<li><code>_on_roi_data_changed()</code> で ROI 編集時の確認を見る。</li>
-<li><code>add_roi()</code> でボタン押下時の処理を見る。</li>
-<li><code>src/leaf_vein_workflow/crop.py</code> で切り抜き計算を見る。</li>
-<li><code>use_otsu_threshold()</code>、<code>_schedule_mask_update()</code>、<code>_update_mask_from_controls()</code> で二値化 UI の処理を見る。</li>
-<li><code>src/leaf_vein_workflow/threshold.py</code> で grayscale 化と二値化計算を見る。</li>
-<li><code>create_skeleton()</code> と <code>src/leaf_vein_workflow/skeleton.py</code> で骨格化と手動分類用レイヤー作成を見る。</li>
+<li><code>src/leaf_vein_workflow/_widget.py</code> で互換用の公開入口を確認する。</li>
+<li><code>widgets/crop_widget.py</code> で 1 つの widget の組み立て、signal 接続、各工程への委譲を見る。</li>
+<li><code>widgets/controls.py</code> で UI 部品と有効・無効の切り替えを見る。</li>
+<li><code>widgets/layers.py</code> で metadata、レイヤー間の対応、active/visible、削除の規則を見る。</li>
+<li><code>widgets/roi.py</code> と <code>crop.py</code> で画像追加、ROI 編集、切り抜き処理を見る。</li>
+<li><code>widgets/mask.py</code> と <code>threshold.py</code> で Gaussian、Otsu、timer、cleanup の流れを見る。</li>
+<li><code>widgets/order_labels.py</code> で order labels の作成と描画制限を見て、必要なら <code>order.py</code> で検証、集計、export 処理を見る。</li>
+<li><code>tests/test_widget_import.py</code> で、これらが 1 つの明示的な操作フローとして接続されていることを確認する。</li>
 </ol>
 </section>
 <section id="まとめ" class="level2">
 <h2 class="anchored" data-anchor-id="まとめ">まとめ</h2>
-<p>現在の実装は、葉脈解析そのものではなく、葉脈解析の前段階として「人が画像上で ROI を指定し、その範囲を切り出し、葉脈候補 mask をプレビューする」ための最小機能です。</p>
-<p>設計上は、napari 依存の GUI 部分と、NumPy ベースの計算部分が分かれています。このため、今後 ROI 管理や保存機能を足す場合は <code>_widget.py</code> を中心に、切り抜き仕様を変える場合は <code>crop.py</code> を中心に、二値化仕様を変える場合は <code>threshold.py</code> を中心に変更すればよい構造になっています。</p>
+<p>現在の実装は、葉脈解析そのものではなく、葉脈解析の前段階として「人が ROI を指定し、Gaussian と Otsu を明示的に適用し、mask を cleanup と手作業で確認してから、葉脈次数を塗り分ける」ための機能です。</p>
+<p>設計上は、napari 依存の処理も UI、レイヤー管理、ROI、mask、order labels に分かれ、NumPy ベースの計算処理とも分離されています。manifest 互換性は <code>_widget.py</code>、widget 全体の接続は <code>crop_widget.py</code>、個々の工程は対応する担当モジュールから読み始めればよく、1 ファイルの内部を端から探す必要はありません。</p>
 
 
 </section>

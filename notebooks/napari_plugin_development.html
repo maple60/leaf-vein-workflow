@@ -275,6 +275,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#pyproject.toml-で-napari-に見つけてもらう" id="toc-pyproject.toml-で-napari-に見つけてもらう" class="nav-link" data-scroll-target="#pyproject.toml-で-napari-に見つけてもらう"><code>pyproject.toml</code> で napari に見つけてもらう</a></li>
   <li><a href="#napari.yaml-で何を提供するかを書く" id="toc-napari.yaml-で何を提供するかを書く" class="nav-link" data-scroll-target="#napari.yaml-で何を提供するかを書く"><code>napari.yaml</code> で何を提供するかを書く</a></li>
   <li><a href="#widget-実装の考え方" id="toc-widget-実装の考え方" class="nav-link" data-scroll-target="#widget-実装の考え方">widget 実装の考え方</a></li>
+  <li><a href="#つの-widget-を責務別に分ける" id="toc-つの-widget-を責務別に分ける" class="nav-link" data-scroll-target="#つの-widget-を責務別に分ける">1 つの widget を責務別に分ける</a></li>
   <li><a href="#contribution-の種類を選ぶ" id="toc-contribution-の種類を選ぶ" class="nav-link" data-scroll-target="#contribution-の種類を選ぶ">contribution の種類を選ぶ</a></li>
   <li><a href="#dependency-の注意点" id="toc-dependency-の注意点" class="nav-link" data-scroll-target="#dependency-の注意点">dependency の注意点</a></li>
   <li><a href="#テスト方針" id="toc-テスト方針" class="nav-link" data-scroll-target="#テスト方針">テスト方針</a></li>
@@ -345,7 +346,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-<p><code>leaf-vein-workflow</code> は、このうち widget plugin です。画像の読み込み自体は napari 標準機能に任せ、plugin は ROI、mask、skeleton、order labels の作成を担当します。</p>
+<p><code>leaf-vein-workflow</code> は、このうち widget plugin です。画像の読み込み自体は napari 標準機能に任せ、plugin は ROI、Gaussian smoothing、mask の作成と cleanup、order labels の作成を担当します。</p>
 </section>
 <section id="最小構成" class="level2">
 <h2 class="anchored" data-anchor-id="最小構成">最小構成</h2>
@@ -356,6 +357,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ol>
 <p>この repo では、それぞれ次のファイルが対応しています。</p>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>役割</th>
@@ -372,8 +377,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>src/leaf_vein_workflow/napari.yaml</code></td>
 </tr>
 <tr class="odd">
-<td>widget 実装</td>
+<td>manifest から参照する互換用入口</td>
 <td><code>src/leaf_vein_workflow/_widget.py</code></td>
+</tr>
+<tr class="even">
+<td>1 つの widget の組み立て</td>
+<td><code>src/leaf_vein_workflow/widgets/crop_widget.py</code></td>
+</tr>
+<tr class="odd">
+<td>工程別の widget 実装</td>
+<td><code>src/leaf_vein_workflow/widgets/</code> 以下の各モジュール</td>
 </tr>
 </tbody>
 </table>
@@ -435,23 +448,73 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-<p>この設定により、napari の <code>Plugins</code> menu から <code>Leaf Vein Workflow</code> を選ぶと、<code>leaf_vein_workflow._widget:CropWidget</code> が作られます。</p>
+<p>この設定により、napari の <code>Plugins</code> menu から <code>Leaf Vein Workflow</code> を選ぶと、<code>leaf_vein_workflow._widget:CropWidget</code> が作られます。<code>_widget.py</code> は <code>widgets/crop_widget.py</code> の <code>CropWidget</code> を再公開する薄い入口なので、内部を分割しても manifest の <code>python_name</code> と既存の import は変わりません。</p>
 </section>
 <section id="widget-実装の考え方" class="level2">
 <h2 class="anchored" data-anchor-id="widget-実装の考え方">widget 実装の考え方</h2>
 <p>widget contribution は、napari の画面に独自の操作パネルを追加する仕組みです。公式ドキュメントでは、widget は Qt の <code>QWidget</code>、magicgui の widget、または自動生成 widget として提供できます。</p>
-<p>この repo では Qt widget を直接使っています。</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> CropWidget(QWidget):</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, napari_viewer):</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>()</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.viewer <span class="op">=</span> napari_viewer</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>この repo では Qt widget を直接使っています。napari に提供する widget は 1 つのままですが、クラスの実装を 1 ファイルにまとめる必要はありません。</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># src/leaf_vein_workflow/_widget.py</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> .widgets.crop_widget <span class="im">import</span> CropWidget</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># src/leaf_vein_workflow/widgets/crop_widget.py</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> CropWidget(QWidget):</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, napari_viewer):</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>()</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.viewer <span class="op">=</span> napari_viewer</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>napari_viewer</code> を受け取ることで、widget から viewer の layer list にアクセスできます。現在の実装では、次の処理を viewer API 経由で行います。</p>
 <ul>
 <li>新しい Image layer を見つける</li>
 <li>ROI 用 Shapes layer を追加する</li>
 <li>crop Image layer を追加または更新する</li>
-<li>mask、skeleton、order labels の Labels layer を追加または更新する</li>
+<li><code>smoothed_image</code> Image layer を追加または更新する</li>
+<li><code>vein_mask</code> と <code>order_labels</code> の Labels layer を追加または更新する</li>
 </ul>
+</section>
+<section id="つの-widget-を責務別に分ける" class="level2">
+<h2 class="anchored" data-anchor-id="つの-widget-を責務別に分ける">1 つの widget を責務別に分ける</h2>
+<p><code>CropWidget</code> は全体を組み立てる場所として残し、具体的な処理は次のファイルに分けています。</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>ファイル</th>
+<th>主な責務</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>widgets/crop_widget.py</code></td>
+<td>widget の組み立て、Qt signal の接続、公開メソッドから各工程への委譲</td>
+</tr>
+<tr class="even">
+<td><code>widgets/controls.py</code></td>
+<td>UI 部品の生成、レイアウト、工程に応じた有効・無効の切り替え</td>
+</tr>
+<tr class="odd">
+<td><code>widgets/layers.py</code></td>
+<td>metadata 定数、レイヤー間の対応、検索、選択、削除</td>
+</tr>
+<tr class="even">
+<td><code>widgets/roi.py</code></td>
+<td>Image layer の検出、ROI の準備と確認、crop の作成</td>
+</tr>
+<tr class="odd">
+<td><code>widgets/mask.py</code></td>
+<td>Gaussian、Otsu、閾値 timer、mask cleanup</td>
+</tr>
+<tr class="even">
+<td><code>widgets/order_labels.py</code></td>
+<td>order labels の作成、再利用、mask 外への描画防止</td>
+</tr>
+</tbody>
+</table>
+<p>各工程の担当は互いを直接呼び合わず、共有する controls とレイヤー管理を <code>CropWidget</code> から受け取ります。たとえば order labels のコードが ROI 内部の辞書を直接読むことはありません。依存方向を単純にすることで、ある工程を修正するときに別工程の実装まで読み込まずに済みます。</p>
+<p>既存の <code>CropWidget.add_roi()</code>、<code>apply_gaussian_filter()</code>、<code>use_otsu_threshold()</code>、<code>clean_mask()</code>、<code>create_order_labels()</code> は薄い委譲メソッドとして残します。napari の見た目と外部からの呼び方を保ちながら、内部だけを分割するためです。</p>
+<p>コードを読むときは、まず <code>_widget.py</code> で公開入口を確認し、次に <code>crop_widget.py</code> で全体の接続を見ます。その後、UI なら <code>controls.py</code>、レイヤーの active/visible や削除なら <code>layers.py</code>、個別の操作なら <code>roi.py</code>、<code>mask.py</code>、<code>order_labels.py</code> の該当ファイルだけを読みます。配列計算の詳細は、そこから呼ばれる <code>crop.py</code>、<code>threshold.py</code>、<code>order.py</code> を確認します。</p>
 </section>
 <section id="contribution-の種類を選ぶ" class="level2">
 <h2 class="anchored" data-anchor-id="contribution-の種類を選ぶ">contribution の種類を選ぶ</h2>
@@ -523,16 +586,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>tests/test_crop.py</code> で NumPy 配列として直接テスト</td>
 </tr>
 <tr class="even">
-<td>threshold 計算</td>
+<td>Gaussian、threshold、cleanup 計算</td>
 <td><code>tests/test_threshold.py</code> で直接テスト</td>
 </tr>
 <tr class="odd">
-<td>skeleton 計算</td>
-<td><code>tests/test_skeleton.py</code> で直接テスト</td>
+<td>order labels の検証・集計</td>
+<td><code>tests/test_order.py</code> で直接テスト</td>
 </tr>
 <tr class="even">
 <td>widget と napari layer</td>
-<td><code>tests/test_widget_import.py</code> で最小限の統合確認</td>
+<td><code>tests/test_widget_import.py</code> で import 互換性と明示的な工程を統合確認</td>
 </tr>
 </tbody>
 </table>
@@ -547,7 +610,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ol type="1">
 <li><code>Plugins &gt; Leaf Vein Workflow &gt; Leaf Vein Workflow</code> から widget が開く。</li>
 <li>画像を開くと ROI 用 Shapes layer が作られる。</li>
-<li><code>Add ROI</code>、mask 更新、<code>Create Skeleton</code> が期待通り動く。</li>
+<li><code>Add ROI</code> で crop が作られる。</li>
+<li><code>Apply Gaussian</code> では <code>smoothed_image</code> だけが作られ、まだ <code>vein_mask</code> がない。</li>
+<li><code>Apply Otsu</code> で初めて <code>vein_mask</code> が作られ、閾値を調整できる。</li>
+<li><code>Clean Mask</code> 後も paint mode で手動修正できる。</li>
+<li>手動修正後の <code>Create Order Labels</code> で <code>order_labels</code> が作られ、mask 外には描画できない。</li>
 </ol>
 <p>自動テストは次で実行します。</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>uv run pytest</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
@@ -589,14 +656,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>src/leaf_vein_workflow/napari.yaml</code></td>
 </tr>
 <tr class="odd">
-<td>widget が layer を直接壊していないか</td>
+<td>manifest と import の互換性が保たれているか</td>
 <td><code>src/leaf_vein_workflow/_widget.py</code></td>
 </tr>
 <tr class="even">
-<td>計算処理が GUI から分離されているか</td>
-<td><code>crop.py</code>、<code>threshold.py</code>、<code>skeleton.py</code></td>
+<td>signal と工程の接続が明示されているか</td>
+<td><code>widgets/crop_widget.py</code></td>
 </tr>
 <tr class="odd">
+<td>layer の対応・選択・削除が一元管理されているか</td>
+<td><code>widgets/layers.py</code></td>
+</tr>
+<tr class="even">
+<td>各操作の修正範囲が工程別に分かれているか</td>
+<td><code>widgets/roi.py</code>、<code>widgets/mask.py</code>、<code>widgets/order_labels.py</code></td>
+</tr>
+<tr class="odd">
+<td>計算処理が GUI から分離されているか</td>
+<td><code>crop.py</code>、<code>threshold.py</code>、<code>order.py</code></td>
+</tr>
+<tr class="even">
 <td>napari なしで確認できる仕様がテストされているか</td>
 <td><code>tests/test_*.py</code></td>
 </tr>
