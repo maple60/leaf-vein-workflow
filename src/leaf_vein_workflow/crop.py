@@ -1,7 +1,7 @@
 """Image cropping helpers independent of napari.
 
 このファイルは napari や Qt には依存しない、NumPy 配列だけを扱う helper。
-GUI 側の処理は `_widget.py` に置き、ここでは「ROI 座標から画像を切り抜く」
+GUI 側の処理は `widgets/roi.py` に置き、ここでは「ROI 座標から画像を切り抜く」
 ための計算だけを担当する。
 """
 

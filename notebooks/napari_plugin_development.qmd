@@ -24,7 +24,7 @@ napari plugin は、napari の機能を Python package として拡張する仕�
 | sample data | `File > Open Sample` から開けるサンプルデータ |
 | theme | napari の見た目 |
 
-`leaf-vein-workflow` は、このうち widget plugin です。画像の読み込み自体は napari 標準機能に任せ、plugin は ROI、mask、skeleton、order labels の作成を担当します。
+`leaf-vein-workflow` は、このうち widget plugin です。画像の読み込み自体は napari 標準機能に任せ、plugin は ROI、Gaussian smoothing、mask の作成と cleanup、order labels の作成を担当します。
 
 ## 最小構成
 
@@ -39,7 +39,9 @@ napari plugin は、napari の機能を Python package として拡張する仕�
 |---|---|
 | package metadata と entry point | `pyproject.toml` |
 | plugin manifest | `src/leaf_vein_workflow/napari.yaml` |
-| widget 実装 | `src/leaf_vein_workflow/_widget.py` |
+| manifest から参照する互換用入口 | `src/leaf_vein_workflow/_widget.py` |
+| 1 つの widget の組み立て | `src/leaf_vein_workflow/widgets/crop_widget.py` |
+| 工程別の widget 実装 | `src/leaf_vein_workflow/widgets/` 以下の各モジュール |
 
 ## `pyproject.toml` で napari に見つけてもらう
 
@@ -91,15 +93,19 @@ contributions:
 | `widgets.command` | widget として開く command |
 | `display_name` | napari の plugin menu に表示される名前 |
 
-この設定により、napari の `Plugins` menu から `Leaf Vein Workflow` を選ぶと、`leaf_vein_workflow._widget:CropWidget` が作られます。
+この設定により、napari の `Plugins` menu から `Leaf Vein Workflow` を選ぶと、`leaf_vein_workflow._widget:CropWidget` が作られます。`_widget.py` は `widgets/crop_widget.py` の `CropWidget` を再公開する薄い入口なので、内部を分割しても manifest の `python_name` と既存の import は変わりません。
 
 ## widget 実装の考え方
 
 widget contribution は、napari の画面に独自の操作パネルを追加する仕組みです。公式ドキュメントでは、widget は Qt の `QWidget`、magicgui の widget、または自動生成 widget として提供できます。
 
-この repo では Qt widget を直接使っています。
+この repo では Qt widget を直接使っています。napari に提供する widget は 1 つのままですが、クラスの実装を 1 ファイルにまとめる必要はありません。
 
 ```python
+# src/leaf_vein_workflow/_widget.py
+from .widgets.crop_widget import CropWidget
+
+# src/leaf_vein_workflow/widgets/crop_widget.py
 class CropWidget(QWidget):
     def __init__(self, napari_viewer):
         super().__init__()
@@ -111,7 +117,27 @@ class CropWidget(QWidget):
 - 新しい Image layer を見つける
 - ROI 用 Shapes layer を追加する
 - crop Image layer を追加または更新する
-- mask、skeleton、order labels の Labels layer を追加または更新する
+- `smoothed_image` Image layer を追加または更新する
+- `vein_mask` と `order_labels` の Labels layer を追加または更新する
+
+## 1 つの widget を責務別に分ける
+
+`CropWidget` は全体を組み立てる場所として残し、具体的な処理は次のファイルに分けています。
+
+| ファイル | 主な責務 |
+|---|---|
+| `widgets/crop_widget.py` | widget の組み立て、Qt signal の接続、公開メソッドから各工程への委譲 |
+| `widgets/controls.py` | UI 部品の生成、レイアウト、工程に応じた有効・無効の切り替え |
+| `widgets/layers.py` | metadata 定数、レイヤー間の対応、検索、選択、削除 |
+| `widgets/roi.py` | Image layer の検出、ROI の準備と確認、crop の作成 |
+| `widgets/mask.py` | Gaussian、Otsu、閾値 timer、mask cleanup |
+| `widgets/order_labels.py` | order labels の作成、再利用、mask 外への描画防止 |
+
+各工程の担当は互いを直接呼び合わず、共有する controls とレイヤー管理を `CropWidget` から受け取ります。たとえば order labels のコードが ROI 内部の辞書を直接読むことはありません。依存方向を単純にすることで、ある工程を修正するときに別工程の実装まで読み込まずに済みます。
+
+既存の `CropWidget.add_roi()`、`apply_gaussian_filter()`、`use_otsu_threshold()`、`clean_mask()`、`create_order_labels()` は薄い委譲メソッドとして残します。napari の見た目と外部からの呼び方を保ちながら、内部だけを分割するためです。
+
+コードを読むときは、まず `_widget.py` で公開入口を確認し、次に `crop_widget.py` で全体の接続を見ます。その後、UI なら `controls.py`、レイヤーの active/visible や削除なら `layers.py`、個別の操作なら `roi.py`、`mask.py`、`order_labels.py` の該当ファイルだけを読みます。配列計算の詳細は、そこから呼ばれる `crop.py`、`threshold.py`、`order.py` を確認します。
 
 ## contribution の種類を選ぶ
 
@@ -154,9 +180,9 @@ plugin を作るときは、最初に「napari のどこを拡張したいのか
 | 対象 | テスト方針 |
 |---|---|
 | crop 計算 | `tests/test_crop.py` で NumPy 配列として直接テスト |
-| threshold 計算 | `tests/test_threshold.py` で直接テスト |
-| skeleton 計算 | `tests/test_skeleton.py` で直接テスト |
-| widget と napari layer | `tests/test_widget_import.py` で最小限の統合確認 |
+| Gaussian、threshold、cleanup 計算 | `tests/test_threshold.py` で直接テスト |
+| order labels の検証・集計 | `tests/test_order.py` で直接テスト |
+| widget と napari layer | `tests/test_widget_import.py` で import 互換性と明示的な工程を統合確認 |
 
 この分け方にすると、GUI や Qt の不安定さに引きずられず、画像処理の仕様を小さく確認できます。
 
@@ -173,7 +199,11 @@ napari が起動したら、次を確認します。
 
 1. `Plugins > Leaf Vein Workflow > Leaf Vein Workflow` から widget が開く。
 2. 画像を開くと ROI 用 Shapes layer が作られる。
-3. `Add ROI`、mask 更新、`Create Skeleton` が期待通り動く。
+3. `Add ROI` で crop が作られる。
+4. `Apply Gaussian` では `smoothed_image` だけが作られ、まだ `vein_mask` がない。
+5. `Apply Otsu` で初めて `vein_mask` が作られ、閾値を調整できる。
+6. `Clean Mask` 後も paint mode で手動修正できる。
+7. 手動修正後の `Create Order Labels` で `order_labels` が作られ、mask 外には描画できない。
 
 自動テストは次で実行します。
 
@@ -203,8 +233,11 @@ uv run pytest
 |---|---|
 | napari が plugin を発見できるか | `pyproject.toml` の `napari.manifest` |
 | menu に出る名前が適切か | `src/leaf_vein_workflow/napari.yaml` |
-| widget が layer を直接壊していないか | `src/leaf_vein_workflow/_widget.py` |
-| 計算処理が GUI から分離されているか | `crop.py`、`threshold.py`、`skeleton.py` |
+| manifest と import の互換性が保たれているか | `src/leaf_vein_workflow/_widget.py` |
+| signal と工程の接続が明示されているか | `widgets/crop_widget.py` |
+| layer の対応・選択・削除が一元管理されているか | `widgets/layers.py` |
+| 各操作の修正範囲が工程別に分かれているか | `widgets/roi.py`、`widgets/mask.py`、`widgets/order_labels.py` |
+| 計算処理が GUI から分離されているか | `crop.py`、`threshold.py`、`order.py` |
 | napari なしで確認できる仕様がテストされているか | `tests/test_*.py` |
 
 ## 参考リンク

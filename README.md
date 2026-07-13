@@ -1,6 +1,5 @@
 # Leaf Vein Workflow
 
-変更
 napari plugin for leaf vein image workflow development.
 
 ## MVP
@@ -9,10 +8,10 @@ napari plugin for leaf vein image workflow development.
 - Automatically create a rectangle ROI Shapes layer above the image.
 - Automatically switch that Shapes layer to rectangle drawing mode.
 - Add or update a cropped ROI Image layer only after clicking `Add ROI`.
-- Create or update a vein mask Labels layer from the ROI crop with a manual
-  threshold or an Otsu threshold estimate.
-- Create a skeleton Labels layer from the vein mask and an empty order labels
-  layer for manual vein-order annotation.
+- Create a smoothed Image layer only after clicking `Apply Gaussian`.
+- Create an editable vein mask Labels layer only after clicking `Apply Otsu`.
+- Clean the current mask with explicit morphology settings before manual edits.
+- Create an editable order labels layer from the confirmed vein mask.
 
 Saving cropped images, multiple ROIs, polygon ROIs, nD stacks, automatic vein
 order classification, skeleton segmentation, and VLA calculation are outside
@@ -44,13 +43,13 @@ Plugins > Leaf Vein Workflow > Leaf Vein Workflow
 With the widget open, use napari's normal image loading workflow. The plugin
 creates and activates the ROI drawing layer automatically when an image layer is
 added. Draw one rectangle, then click `Add ROI` in the widget to create the ROI
-crop layer. The plugin then creates a vein mask layer from the crop and updates
-it automatically when `Use Otsu`, `Invert threshold`, or `Mask threshold`
-changes.
+crop layer. Click `Apply Gaussian` to create `smoothed_image`, then click
+`Apply Otsu` to create `vein_mask`. After that explicit Otsu step, `Invert
+threshold` and `Mask threshold` update the current mask.
 
-After the mask looks acceptable, click `Create Skeleton` with the vein mask
-selected. The plugin creates a skeleton layer and a blank order-label layer for
-manual annotation.
+If needed, set the morphology controls and click `Clean Mask`. Correct the mask
+manually in paint mode, then click `Create Order Labels` to begin manual
+vein-order annotation inside the confirmed mask.
 
 Run tests:
 
