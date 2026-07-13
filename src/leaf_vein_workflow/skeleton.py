@@ -8,6 +8,8 @@ from skan import Skeleton
 from skan.csr import summarize
 from skimage.morphology import dilation, disk, medial_axis, skeletonize
 
+from .calibration import millimetres_per_pixel
+
 
 BRANCH_TYPE_LABELS = {
     0: "tip-tip",
@@ -49,6 +51,27 @@ NODE_TABLE_COLUMNS = [
     "node-type",
 ]
 
+BRANCH_MM_COLUMN_MAP = {
+    "branch-distance": "branch-distance-mm",
+    "euclidean-distance": "euclidean-distance-mm",
+    "mean-diameter-px": "mean-diameter-mm",
+    "median-diameter-px": "median-diameter-mm",
+    "max-diameter-px": "max-diameter-mm",
+    "image-coord-src-0": "image-coord-src-0-mm",
+    "image-coord-src-1": "image-coord-src-1-mm",
+    "image-coord-dst-0": "image-coord-dst-0-mm",
+    "image-coord-dst-1": "image-coord-dst-1-mm",
+    "coord-src-0": "coord-src-0-mm",
+    "coord-src-1": "coord-src-1-mm",
+    "coord-dst-0": "coord-dst-0-mm",
+    "coord-dst-1": "coord-dst-1-mm",
+}
+
+NODE_MM_COLUMN_MAP = {
+    "coord-y-px": "coord-y-mm",
+    "coord-x-px": "coord-x-mm",
+}
+
 
 @dataclass(slots=True)
 class SkeletonHelperResult:
@@ -78,6 +101,7 @@ def create_skeleton_helpers(
     mask: np.ndarray,
     spur_length_px: float = 20.0,
     display_radius: int = 3,
+    mm_per_pixel: float | None = None,
 ) -> SkeletonHelperResult:
     """Create skeleton, diameter, branch, node, and spur helper outputs."""
     foreground = _as_2d_foreground(mask)
@@ -109,8 +133,12 @@ def create_skeleton_helpers(
         skeleton_graph,
         diameter_px,
         spur_length_px=spur_length_px,
+        mm_per_pixel=mm_per_pixel,
     )
-    node_table = _make_node_table_from_graph(skeleton_graph)
+    node_table = _make_node_table_from_graph(
+        skeleton_graph,
+        mm_per_pixel=mm_per_pixel,
+    )
     spur_paths = _make_spur_paths(skeleton_graph, branch_table)
 
     endpoint_coordinates = _node_coordinates(node_table, "endpoint")
@@ -136,6 +164,7 @@ def make_branch_table(
     skeleton: np.ndarray,
     diameter_px: np.ndarray,
     spur_length_px: float = 20.0,
+    mm_per_pixel: float | None = None,
 ) -> pd.DataFrame:
     """Return a skan branch table with diameter and spur-candidate columns."""
     skeleton_bool = _as_2d_skeleton(skeleton)
@@ -148,14 +177,21 @@ def make_branch_table(
         skeleton_graph,
         diameter_array.astype(float, copy=False),
         spur_length_px=spur_length_px,
+        mm_per_pixel=mm_per_pixel,
     )
 
 
-def make_node_table(skeleton: np.ndarray) -> pd.DataFrame:
+def make_node_table(
+    skeleton: np.ndarray,
+    mm_per_pixel: float | None = None,
+) -> pd.DataFrame:
     """Return skeleton graph nodes with endpoint and branchpoint labels."""
     skeleton_bool = _as_2d_skeleton(skeleton)
     skeleton_graph = _make_skeleton_graph(skeleton_bool)
-    return _make_node_table_from_graph(skeleton_graph)
+    return _make_node_table_from_graph(
+        skeleton_graph,
+        mm_per_pixel=mm_per_pixel,
+    )
 
 
 def _as_2d_foreground(mask: np.ndarray) -> np.ndarray:
@@ -192,9 +228,18 @@ def _make_branch_table_from_graph(
     skeleton_graph: Skeleton | None,
     diameter_px: np.ndarray,
     spur_length_px: float,
+    mm_per_pixel: float | None,
 ) -> pd.DataFrame:
+    pixel_size = (
+        millimetres_per_pixel(mm_per_pixel)
+        if mm_per_pixel is not None
+        else None
+    )
     if skeleton_graph is None:
-        return pd.DataFrame(columns=BRANCH_TABLE_COLUMNS)
+        columns = list(BRANCH_TABLE_COLUMNS)
+        if pixel_size is not None:
+            columns.extend(BRANCH_MM_COLUMN_MAP.values())
+        return pd.DataFrame(columns=columns)
 
     branch_table = summarize(skeleton_graph, separator="-").copy()
     branch_table["branch_id"] = np.arange(len(branch_table), dtype=int)
@@ -228,12 +273,27 @@ def _make_branch_table_from_graph(
         & (branch_table["branch-distance"] <= float(spur_length_px))
     )
 
+    if pixel_size is not None:
+        for pixel_column, mm_column in BRANCH_MM_COLUMN_MAP.items():
+            branch_table[mm_column] = branch_table[pixel_column] * pixel_size
+
     return branch_table
 
 
-def _make_node_table_from_graph(skeleton_graph: Skeleton | None) -> pd.DataFrame:
+def _make_node_table_from_graph(
+    skeleton_graph: Skeleton | None,
+    mm_per_pixel: float | None,
+) -> pd.DataFrame:
+    pixel_size = (
+        millimetres_per_pixel(mm_per_pixel)
+        if mm_per_pixel is not None
+        else None
+    )
     if skeleton_graph is None:
-        return pd.DataFrame(columns=NODE_TABLE_COLUMNS)
+        columns = list(NODE_TABLE_COLUMNS)
+        if pixel_size is not None:
+            columns.extend(NODE_MM_COLUMN_MAP.values())
+        return pd.DataFrame(columns=columns)
 
     coordinates = np.asarray(skeleton_graph.coordinates)
     degrees = np.asarray(skeleton_graph.degrees)
@@ -248,6 +308,9 @@ def _make_node_table_from_graph(skeleton_graph: Skeleton | None) -> pd.DataFrame
     node_table["node-type"] = "path"
     node_table.loc[node_table["degree"] == 1, "node-type"] = "endpoint"
     node_table.loc[node_table["degree"] >= 3, "node-type"] = "branchpoint"
+    if pixel_size is not None:
+        for pixel_column, mm_column in NODE_MM_COLUMN_MAP.items():
+            node_table[mm_column] = node_table[pixel_column] * pixel_size
     return node_table
 
 

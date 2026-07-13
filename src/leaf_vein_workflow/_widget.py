@@ -5,6 +5,13 @@ and existing imports continue to resolve ``CropWidget`` from this module.
 """
 
 from .widgets.crop_widget import CropWidget
+from .calibration import (
+    CALIBRATION_INPUT_UNIT_KEY,
+    CALIBRATION_INPUT_VALUE_KEY,
+    CALIBRATION_METHOD_KEY,
+    CALIBRATION_MM_PER_PIXEL_KEY,
+    CALIBRATION_SCALE_BAR_PIXEL_LENGTH_KEY,
+)
 from .widgets.layers import (
     ORDER_LABEL_COLORS,
     ORDER_LABELS_LAYER_NAME,
@@ -13,6 +20,7 @@ from .widgets.layers import (
     ROLE_ORDER_LABELS,
     ROLE_ROI_CROP,
     ROLE_ROI_SHAPES,
+    ROLE_SCALE_BAR,
     ROLE_SMOOTHED_IMAGE,
     ROLE_VEIN_MASK,
     SMOOTHED_LAYER_NAME,
@@ -23,6 +31,11 @@ from .widgets.layers import (
 )
 
 __all__ = [
+    "CALIBRATION_INPUT_UNIT_KEY",
+    "CALIBRATION_INPUT_VALUE_KEY",
+    "CALIBRATION_METHOD_KEY",
+    "CALIBRATION_MM_PER_PIXEL_KEY",
+    "CALIBRATION_SCALE_BAR_PIXEL_LENGTH_KEY",
     "CropWidget",
     "ORDER_LABEL_COLORS",
     "ORDER_LABELS_LAYER_NAME",
@@ -31,6 +44,7 @@ __all__ = [
     "ROLE_ORDER_LABELS",
     "ROLE_ROI_CROP",
     "ROLE_ROI_SHAPES",
+    "ROLE_SCALE_BAR",
     "ROLE_SMOOTHED_IMAGE",
     "ROLE_VEIN_MASK",
     "SMOOTHED_LAYER_NAME",

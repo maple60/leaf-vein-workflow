@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from leaf_vein_workflow.order import (
     create_empty_order_labels,
@@ -63,6 +64,13 @@ def test_measure_order_labels_handles_empty_labels():
     assert all(row["skeleton_pixels"] == 0 for row in rows)
     assert all(row["length_px"] == 0.0 for row in rows)
     assert all(row["leaf_area_px"] is None for row in rows)
+
+
+def test_measure_order_labels_rejects_non_finite_pixel_size():
+    labels = np.zeros((4, 4), dtype=np.uint8)
+
+    with pytest.raises(ValueError, match="finite"):
+        measure_order_labels(labels, pixel_size_mm=np.nan)
 
 
 def test_validate_order_labels_detects_mask_outside_unlabeled_and_invalid_values():

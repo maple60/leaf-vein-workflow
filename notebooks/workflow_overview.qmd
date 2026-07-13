@@ -10,13 +10,14 @@ format:
 
 このノートは、`leaf-vein-workflow` の現在の MVP 実装について、人間が読んで流れを理解するための説明です。
 
-このプラグインが今やることは、次の 3 段階に絞られています。
+このプラグインが今やることは、次の 4 段階に絞られています。
 
+- DPI、µm/px、mm/px、または手動で引いたスケールバー線から、元画像ごとの mm/px を校正する。
 - napari で画像を開き、長方形 ROI を 1 つ描き、`Add ROI` ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。
 - 切り抜き画像に Gaussian smoothing を適用し、Otsu 閾値で葉脈候補の mask Labels レイヤーを作り、形態学的処理と手作業で整える。
 - 確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。
 
-まだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、骨格のセグメンテーション、VLA の計算、major/minor の自動分離です。
+まだ扱わないことは、スケールバーの OCR・自動検出、複数 ROI、ポリゴン ROI、画像の保存、nD stack、widget からの骨格計測・VLA export、major/minor の自動分離です。
 
 ## ユーザーから見た流れ
 
@@ -25,20 +26,27 @@ format:
 1. napari を起動する。
 2. `Plugins > Leaf Vein Workflow > Leaf Vein Workflow` から widget を開く。
 3. napari 標準の方法で葉画像を開く。
-4. プラグインが自動で ROI 用の Shapes レイヤーを作る。
-5. 画像上に長方形を 1 つ描く。
-6. `Add ROI` ボタンを押す。
-7. 長方形の範囲だけを切り抜いた Image レイヤーが追加される。
-8. `Gaussian sigma` を確認して `Apply Gaussian` を押す。
-9. 平滑化した `smoothed_image` Image レイヤーだけが作られる。
-10. `Apply Otsu` を押すと、初めて `vein_mask` Labels レイヤーが作られる。
-11. 必要なら `Invert threshold` と `Mask threshold` を調整する。変更後、少し待つと同じ mask レイヤーが更新される。
-12. 形態学的処理の値を確認して `Clean Mask` を押す。
-13. paint mode の `vein_mask` を手作業で修正する。
-14. mask を確認した後に `Create Order Labels` を押す。
-15. `order_labels` Labels レイヤー上で葉脈次数を塗り分ける。
+4. DPI、µm/px、mm/px の値を入力して `Apply Scale` を押す。または `Scale bar` を選び、`Draw Scale Bar Line` でバーに線を1本引き、実長を入力して校正する。校正しない場合は pixel 単位のまま続行できる。
+5. プラグインが自動で作った ROI 用 Shapes レイヤーに長方形を 1 つ描く。
+6. `Add ROI` ボタンを押し、切り抜いた Image レイヤーを作る。
+7. `Gaussian sigma` を確認して `Apply Gaussian` を押す。
+8. 平滑化した `smoothed_image` Image レイヤーだけが作られる。
+9. `Apply Otsu` を押すと、初めて `vein_mask` Labels レイヤーが作られる。
+10. 必要なら `Invert threshold` と `Mask threshold` を調整する。変更後、少し待つと同じ mask レイヤーが更新される。
+11. 形態学的処理の値を確認して `Clean Mask` を押す。
+12. paint mode の `vein_mask` を手作業で修正する。
+13. mask を確認した後に `Create Order Labels` を押す。
+14. `order_labels` Labels レイヤー上で葉脈次数を塗り分ける。
 
 重要なのは、各工程がユーザーの操作で明示的に区切られている点です。長方形を描いただけでは crop は作られず、`Apply Gaussian` を押しても `vein_mask` は作られません。mask が初めて作られるのは `Apply Otsu` を押したときです。
+
+## スケール校正
+
+どの入力方法でも、内部では `mm_per_pixel` に統一します。DPI の場合は `25.4 / DPI`、µm/px の場合は値を 1000 で割って mm/px に変換します。スケールバー方式では、専用の Shapes レイヤーに引いた2点の線の pixel 長と、入力した実長から mm/px を求めます。線がない、2本以上ある、実長が0以下である場合は校正を確定しません。
+
+確定した値、入力方法、元の入力値と単位は元画像の metadata に保存され、crop、`smoothed_image`、`vein_mask`、`order_labels` に引き継がれます。再校正すると既存の派生レイヤーも更新されます。ステータスには入力方法に関係なく µm/px、mm/px、mm/px から逆算した等価 DPI を併記します。表示座標と ROI の切り抜き計算を壊さないため、napari の layer `scale` 自体は変更しません。
+
+校正済みの `skeleton.py` helperには、従来のpx列に加えて長さ・直径・局所座標のmm列が追加されます。未校正なら従来どおりpx列だけです。次数別計測の `order.py` は既存の `pixel_size_mm` 引数で、長さmm、葉面積mm²、VLA（mm mm\(^{-2}\)）を計算します。
 
 ## 全体像
 
@@ -50,10 +58,12 @@ napari 上では 1 つの dock widget ですが、実装は人間が担当範囲
 | `src/leaf_vein_workflow/widgets/crop_widget.py` | 1 つの widget を組み立て、signal を接続し、公開メソッドを各担当へ委譲する |
 | `src/leaf_vein_workflow/widgets/controls.py` | ボタンや入力欄を作り、工程ごとの有効・無効を管理する |
 | `src/leaf_vein_workflow/widgets/layers.py` | metadata、レイヤー間の対応、検索、選択、削除を一元管理する |
+| `src/leaf_vein_workflow/widgets/calibration.py` | 校正UIの操作、スケールバー線、元画像ごとのmetadata反映を担当する |
 | `src/leaf_vein_workflow/widgets/roi.py` | 画像の検出、ROI Shapes レイヤー、crop の作成を担当する |
 | `src/leaf_vein_workflow/widgets/mask.py` | Gaussian、Otsu、閾値更新、`Clean Mask` を担当する |
 | `src/leaf_vein_workflow/widgets/order_labels.py` | order labels の作成と mask 外への描画防止を担当する |
 | `src/leaf_vein_workflow/crop.py` | 画像配列をどこで切るかを計算する |
+| `src/leaf_vein_workflow/calibration.py` | DPI・直接値・スケールバーを mm/px に変換する |
 | `src/leaf_vein_workflow/threshold.py` | grayscale 化、Gaussian、閾値、mask cleanup を NumPy 配列に対して計算する |
 | `src/leaf_vein_workflow/order.py` | order labels の検証、集計、export に使う napari 非依存の処理を置く |
 
@@ -62,6 +72,7 @@ napari 上では 1 つの dock widget ですが、実装は人間が担当範囲
 ```{mermaid}
 flowchart TD
   A["ユーザーが napari で画像を開く"] --> B["roi.py が画像を検出"]
+  A -.-> A2["任意: 前後どちらでも scale calibration を確定"]
   B --> C["ROI Shapes レイヤーを自動作成"]
   C --> D["長方形描画モードに切り替え"]
   D --> E["ユーザーが長方形 ROI を描く"]
@@ -97,8 +108,8 @@ napari は `src/leaf_vein_workflow/napari.yaml` を読んで、このパッケ�
 
 - napari viewer を `self.viewer` に保存する。
 - `controls.py` でボタン、入力欄、ステータス表示を作る。
-- `layers.py` で ROI、crop、smoothed image、mask、order labels の対応関係を管理する。
-- ROI、mask、order labels の各担当に、共有する controls とレイヤー管理を明示的に渡す。
+- `layers.py` で scale bar、ROI、crop、smoothed image、mask、order labels の対応関係を管理する。
+- calibration、ROI、mask、order labels の各担当に、共有する controls とレイヤー管理を明示的に渡す。
 - `crop_widget.py` でボタンや Qt signal を各担当の処理へ接続する。
 - 新しく追加された画像と、すでに開かれている画像の両方を ROI 担当に渡す。
 
@@ -260,6 +271,8 @@ order labels の値は、次の用途を想定しています。
 
 | 状況 | 理由 |
 |---|---|
+| 校正値が0以下、NaN、inf | 実単位へ安全に換算できない |
+| スケールバー線がない、または2本以上ある | どの線長を使うか決められない |
 | ROI レイヤー以外を選択している | どの ROI を使うか分からない |
 | ROI が 0 個 | 切り抜く範囲がない |
 | ROI が 2 個以上 | MVP では 1 個だけ対応 |
@@ -272,6 +285,8 @@ order labels の値は、次の用途を想定しています。
 | crop 画像に NaN や inf が含まれる | 閾値計算が信用できない |
 
 ## テストで確認していること
+
+`tests/test_calibration.py` では、DPI・µm/px・mm/px・手動スケールバーからの換算、無効値の拒否、校正metadataだけを派生レイヤー用にコピーできることを確認しています。
 
 `tests/test_crop.py` では、napari に依存しない切り抜き計算を確認しています。
 
@@ -296,6 +311,7 @@ order labels の値は、次の用途を想定しています。
 - 2D mask から骨格画像を作れること。
 - Labels 形式の整数 mask でも、0 より大きい画素を前景として扱うこと。
 - 空 mask や 2D 以外の入力がエラーになること。
+- 校正値を渡すと既存px列を変えずに長さ・直径・局所座標のmm列が追加されること。
 
 `tests/test_widget_import.py` では、Qt backend がある環境で `_widget.py` から widget を import できることと、画像追加から order labels までの工程を確認しています。
 
@@ -305,6 +321,7 @@ order labels の値は、次の用途を想定しています。
 - `Clean Mask` 後も mask が active な paint mode に保たれること。
 - order labels が mask 外に描けず、既存の手動ラベルが再作成時に上書きされないこと。
 - ROI を切り直すと古い派生レイヤーが削除されること。
+- 数値入力と手動スケールバーの校正値が派生レイヤーへ継承され、再校正で置き換わること。
 
 ## 開発時に見る順番
 
@@ -316,10 +333,11 @@ order labels の値は、次の用途を想定しています。
 4. `widgets/crop_widget.py` で 1 つの widget の組み立て、signal 接続、各工程への委譲を見る。
 5. `widgets/controls.py` で UI 部品と有効・無効の切り替えを見る。
 6. `widgets/layers.py` で metadata、レイヤー間の対応、active/visible、削除の規則を見る。
-7. `widgets/roi.py` と `crop.py` で画像追加、ROI 編集、切り抜き処理を見る。
-8. `widgets/mask.py` と `threshold.py` で Gaussian、Otsu、timer、cleanup の流れを見る。
-9. `widgets/order_labels.py` で order labels の作成と描画制限を見て、必要なら `order.py` で検証、集計、export 処理を見る。
-10. `tests/test_widget_import.py` で、これらが 1 つの明示的な操作フローとして接続されていることを確認する。
+7. `widgets/calibration.py` と `calibration.py` で校正UI、metadata、mm/px換算を見る。
+8. `widgets/roi.py` と `crop.py` で画像追加、ROI 編集、切り抜き処理を見る。
+9. `widgets/mask.py` と `threshold.py` で Gaussian、Otsu、timer、cleanup の流れを見る。
+10. `widgets/order_labels.py` で order labels の作成と描画制限を見て、必要なら `order.py` で検証、集計、export 処理を見る。
+11. `tests/test_widget_import.py` で、これらが 1 つの明示的な操作フローとして接続されていることを確認する。
 
 ## まとめ
 

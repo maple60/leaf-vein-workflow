@@ -100,6 +100,7 @@ class OrderLabelsWorkflow:
             SOURCE_IMAGE_KEY: mask_layer.metadata.get(SOURCE_IMAGE_KEY),
             SOURCE_CROP_KEY: mask_layer.metadata.get(SOURCE_CROP_KEY),
             SOURCE_MASK_KEY: mask_layer.name,
+            **self.layers.inherited_calibration(mask_layer),
         }
 
         if existing is not None and self.layers.is_present(existing):

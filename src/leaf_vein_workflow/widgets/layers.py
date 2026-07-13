@@ -8,6 +8,8 @@ from typing import Any
 
 from napari.layers import Image, Labels, Shapes
 
+from ..calibration import CALIBRATION_METADATA_KEYS, calibration_metadata_from
+
 
 ROLE_KEY = "leaf_vein_workflow_role"
 ROLE_ROI_SHAPES = "roi_shapes"
@@ -15,6 +17,7 @@ ROLE_ROI_CROP = "roi_crop"
 ROLE_SMOOTHED_IMAGE = "smoothed_image"
 ROLE_VEIN_MASK = "vein_mask"
 ROLE_ORDER_LABELS = "order_labels"
+ROLE_SCALE_BAR = "scale_bar"
 SOURCE_IMAGE_KEY = "source_image"
 SOURCE_CROP_KEY = "source_crop"
 SOURCE_MASK_KEY = "source_mask"
@@ -41,6 +44,8 @@ class WorkflowLayers:
 
         self.roi_to_image: dict[int, Image] = {}
         self.roi_to_crop: dict[int, Image] = {}
+        self.scale_bar_to_image: dict[int, Image] = {}
+        self.image_to_scale_bar: dict[int, Shapes] = {}
         self.crop_to_smoothed: dict[int, Image] = {}
         self.smoothed_to_crop: dict[int, Image] = {}
         self.crop_to_mask: dict[int, Labels] = {}
@@ -56,6 +61,86 @@ class WorkflowLayers:
 
         # Otsuを明示的に実行したcropだけ、閾値UIからmask更新を許可する。
         self.mask_updates_enabled: set[int] = set()
+
+    def active_source_image(self) -> Image | None:
+        """Resolve the selected workflow layer back to its source image."""
+        layer = self.viewer.layers.selection.active
+
+        if isinstance(layer, Image) and layer.metadata.get(ROLE_KEY) is None:
+            return layer
+
+        if isinstance(layer, Shapes):
+            source = self.roi_to_image.get(id(layer))
+            if source is None:
+                source = self.scale_bar_to_image.get(id(layer))
+            if source is not None and self.is_present(source):
+                return source
+
+        crop_layer = self.active_crop_layer()
+        if crop_layer is None:
+            return None
+        for roi_id, candidate_crop in self.roi_to_crop.items():
+            if candidate_crop is crop_layer:
+                source = self.roi_to_image.get(roi_id)
+                if source is not None and self.is_present(source):
+                    return source
+        return None
+
+    def propagate_calibration(
+        self,
+        source_image: Image,
+        metadata: dict[str, object],
+    ) -> None:
+        """Update calibration fields on existing layers derived from an image."""
+        self._replace_calibration(source_image, metadata)
+
+        scale_bar = self.image_to_scale_bar.get(id(source_image))
+        if scale_bar is not None and self.is_present(scale_bar):
+            self._replace_calibration(scale_bar, metadata)
+
+        for roi_id, candidate_source in self.roi_to_image.items():
+            if candidate_source is not source_image:
+                continue
+            roi_layer = next(
+                (
+                    layer
+                    for layer in self.viewer.layers
+                    if id(layer) == roi_id
+                ),
+                None,
+            )
+            if roi_layer is not None:
+                self._replace_calibration(roi_layer, metadata)
+
+            crop_layer = self.roi_to_crop.get(roi_id)
+            if crop_layer is None or not self.is_present(crop_layer):
+                continue
+            self._replace_calibration(crop_layer, metadata)
+
+            smoothed_layer = self.crop_to_smoothed.get(id(crop_layer))
+            if smoothed_layer is not None and self.is_present(smoothed_layer):
+                self._replace_calibration(smoothed_layer, metadata)
+
+            mask_layer = self.crop_to_mask.get(id(crop_layer))
+            if mask_layer is None or not self.is_present(mask_layer):
+                continue
+            self._replace_calibration(mask_layer, metadata)
+
+            order_layer = self.mask_to_order_labels.get(id(mask_layer))
+            if order_layer is not None and self.is_present(order_layer):
+                self._replace_calibration(order_layer, metadata)
+
+    @staticmethod
+    def inherited_calibration(layer: Any) -> dict[str, object]:
+        """Return calibration metadata ready to copy to a derived layer."""
+        return calibration_metadata_from(layer.metadata)
+
+    @staticmethod
+    def _replace_calibration(layer: Any, metadata: dict[str, object]) -> None:
+        """Replace, rather than merge, one layer's calibration record."""
+        for key in CALIBRATION_METADATA_KEYS:
+            layer.metadata.pop(key, None)
+        layer.metadata.update(metadata)
 
     def active_roi_layer(self) -> Shapes | None:
         """Return the selected ROI Shapes layer, if any."""

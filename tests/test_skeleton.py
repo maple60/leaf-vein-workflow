@@ -100,3 +100,48 @@ def test_branch_and_node_table_helpers_accept_existing_skeleton():
     assert list(branch_table["branch_id"]) == [0]
     assert branch_table.loc[0, "branch-distance"] == 2.0
     assert set(node_table["node-type"]) == {"endpoint", "path"}
+
+
+def test_metric_calibration_adds_mm_columns_without_changing_pixel_columns():
+    skeleton = np.zeros((5, 5), dtype=np.uint8)
+    skeleton[2, 1:4] = 1
+    diameter = np.where(skeleton > 0, 2.0, 0.0)
+
+    branch_table = make_branch_table(
+        skeleton,
+        diameter,
+        spur_length_px=20,
+        mm_per_pixel=0.01,
+    )
+    node_table = make_node_table(skeleton, mm_per_pixel=0.01)
+
+    assert branch_table.loc[0, "branch-distance"] == 2.0
+    assert branch_table.loc[0, "branch-distance-mm"] == pytest.approx(0.02)
+    assert branch_table.loc[0, "mean-diameter-mm"] == pytest.approx(
+        branch_table.loc[0, "mean-diameter-px"] * 0.01
+    )
+    np.testing.assert_allclose(
+        node_table["coord-y-mm"],
+        node_table["coord-y-px"] * 0.01,
+    )
+
+
+def test_uncalibrated_tables_remain_pixel_only():
+    skeleton = np.zeros((5, 5), dtype=np.uint8)
+    skeleton[2, 1:4] = 1
+    diameter = np.where(skeleton > 0, 2.0, 0.0)
+
+    branch_table = make_branch_table(skeleton, diameter)
+    node_table = make_node_table(skeleton)
+
+    assert "branch-distance-mm" not in branch_table
+    assert "coord-y-mm" not in node_table
+
+
+def test_metric_calibration_rejects_non_finite_pixel_size():
+    skeleton = np.zeros((5, 5), dtype=np.uint8)
+    skeleton[2, 1:4] = 1
+    diameter = np.where(skeleton > 0, 2.0, 0.0)
+
+    with pytest.raises(ValueError, match="finite"):
+        make_branch_table(skeleton, diameter, mm_per_pixel=np.nan)

@@ -155,6 +155,7 @@ class MaskWorkflow:
         if existing is not None and self.layers.is_present(existing):
             existing.data = smoothed
             existing.translate = tuple(crop_layer.translate)
+            existing.metadata.update(self.layers.inherited_calibration(crop_layer))
             return existing
 
         smoothed_layer = self.layers.viewer.add_image(
@@ -166,6 +167,7 @@ class MaskWorkflow:
                 ROLE_KEY: ROLE_SMOOTHED_IMAGE,
                 SOURCE_IMAGE_KEY: crop_layer.metadata.get(SOURCE_IMAGE_KEY),
                 SOURCE_CROP_KEY: crop_layer.name,
+                **self.layers.inherited_calibration(crop_layer),
             },
         )
         self.layers.crop_to_smoothed[id(crop_layer)] = smoothed_layer
@@ -238,6 +240,7 @@ class MaskWorkflow:
             ROLE_KEY: ROLE_VEIN_MASK,
             SOURCE_IMAGE_KEY: crop_layer.metadata.get(SOURCE_IMAGE_KEY),
             SOURCE_CROP_KEY: crop_layer.name,
+            **self.layers.inherited_calibration(crop_layer),
         }
 
         if existing is not None and self.layers.is_present(existing):

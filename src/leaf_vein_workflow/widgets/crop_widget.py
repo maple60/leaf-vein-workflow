@@ -6,6 +6,7 @@ layer operations live in ``roi.py``, ``mask.py``, and ``order_labels.py``.
 
 from qtpy.QtWidgets import QWidget
 
+from .calibration import CalibrationWorkflow
 from .controls import WorkflowControls
 from .layers import WorkflowLayers
 from .mask import MaskWorkflow
@@ -22,6 +23,10 @@ class CropWidget(QWidget):
 
         self._controls = WorkflowControls.create()
         self._layers = WorkflowLayers(napari_viewer)
+        self._calibration_workflow = CalibrationWorkflow(
+            self._layers,
+            self._controls,
+        )
         self._roi_workflow = RoiWorkflow(self._layers, self._controls)
         self._mask_workflow = MaskWorkflow(self._layers, self._controls, self)
         self._order_labels_workflow = OrderLabelsWorkflow(
@@ -31,6 +36,12 @@ class CropWidget(QWidget):
 
         # 既存利用コードが同じ属性名でQt controlへアクセスできるよう明示的に公開する。
         self.status_label = self._controls.status_label
+        self.calibration_status_label = self._controls.calibration_status_label
+        self.calibration_method_combo = self._controls.calibration_method_combo
+        self.calibration_value_spinbox = self._controls.calibration_value_spinbox
+        self.calibration_unit_combo = self._controls.calibration_unit_combo
+        self.draw_scale_bar_button = self._controls.draw_scale_bar_button
+        self.apply_scale_button = self._controls.apply_scale_button
         self.add_roi_button = self._controls.add_roi_button
         self.apply_gaussian_button = self._controls.apply_gaussian_button
         self.otsu_button = self._controls.otsu_button
@@ -57,6 +68,8 @@ class CropWidget(QWidget):
         # 旧実装で保持していた対応表も同じobjectへのaliasとして残す。
         self._roi_to_image = self._layers.roi_to_image
         self._roi_to_crop = self._layers.roi_to_crop
+        self._scale_bar_to_image = self._layers.scale_bar_to_image
+        self._image_to_scale_bar = self._layers.image_to_scale_bar
         self._crop_to_smoothed = self._layers.crop_to_smoothed
         self._smoothed_to_crop = self._layers.smoothed_to_crop
         self._crop_to_mask = self._layers.crop_to_mask
@@ -73,6 +86,11 @@ class CropWidget(QWidget):
 
     def _connect_signals(self) -> None:
         """Wire UI and viewer events at one visible composition point."""
+        self.calibration_method_combo.currentIndexChanged.connect(
+            self._calibration_workflow.on_method_changed
+        )
+        self.draw_scale_bar_button.clicked.connect(self.draw_scale_bar_line)
+        self.apply_scale_button.clicked.connect(self.apply_scale)
         self.add_roi_button.clicked.connect(self.add_roi)
         self.apply_gaussian_button.clicked.connect(self.apply_gaussian_filter)
         self.otsu_button.clicked.connect(self.use_otsu_threshold)
@@ -87,6 +105,17 @@ class CropWidget(QWidget):
         )
         self._mask_update_timer.timeout.connect(self._update_mask_from_controls)
         self.viewer.layers.events.inserted.connect(self._on_layer_inserted)
+        self.viewer.layers.selection.events.active.connect(
+            self._calibration_workflow.on_active_layer_changed
+        )
+
+    def draw_scale_bar_line(self) -> None:
+        """Create or select the manual scale-bar line for the active image."""
+        self._calibration_workflow.draw_scale_bar_line()
+
+    def apply_scale(self) -> None:
+        """Apply the selected pixel-to-metric calibration method."""
+        self._calibration_workflow.apply_scale()
 
     def add_roi(self) -> None:
         """Delegate explicit ROI confirmation to the ROI workflow."""
@@ -109,9 +138,10 @@ class CropWidget(QWidget):
         self._order_labels_workflow.create_order_labels()
 
     def _on_layer_inserted(self, event) -> None:
-        self._roi_workflow.on_layer_inserted(event)
+        self._prepare_image_layer(event.value)
 
     def _prepare_image_layer(self, layer) -> None:
+        self._calibration_workflow.prepare_image_layer(layer)
         self._roi_workflow.prepare_image_layer(layer)
 
     def _schedule_mask_update(self, *args) -> None:

@@ -128,17 +128,145 @@ def test_widget_module_reexports_public_api(monkeypatch, tmp_path):
     import leaf_vein_workflow._widget as widget
 
     public_names = (
+        "CALIBRATION_MM_PER_PIXEL_KEY",
         "CropWidget",
         "ORDER_LABEL_COLORS",
         "ORDER_LABELS_LAYER_NAME",
         "ROLE_KEY",
         "ROLE_ORDER_LABELS",
+        "ROLE_SCALE_BAR",
         "ROLE_SMOOTHED_IMAGE",
         "ROLE_VEIN_MASK",
         "SMOOTHED_LAYER_NAME",
         "VEIN_MASK_LAYER_NAME",
     )
     assert all(getattr(widget, name, None) is not None for name in public_names)
+
+
+def test_dpi_calibration_is_inherited_by_derived_layers(widget_flow):
+    flow = widget_flow
+    dpi_index = flow.widget.calibration_method_combo.findData("dpi")
+    flow.widget.calibration_method_combo.setCurrentIndex(dpi_index)
+    flow.widget.calibration_value_spinbox.setValue(254.0)
+
+    flow.widget.apply_scale()
+
+    key = flow.module.CALIBRATION_MM_PER_PIXEL_KEY
+    assert flow.image_layer.metadata[key] == pytest.approx(0.1)
+    np.testing.assert_allclose(flow.image_layer.scale, [1.0, 1.0])
+
+    crop_layer, smoothed_layer, mask_layer = _advance_to_mask(flow)
+    for layer in (flow.roi_layer, crop_layer, smoothed_layer, mask_layer):
+        assert layer.metadata[key] == pytest.approx(0.1)
+
+    mm_index = flow.widget.calibration_method_combo.findData("mm_per_pixel")
+    flow.widget.calibration_method_combo.setCurrentIndex(mm_index)
+    flow.widget.calibration_value_spinbox.setValue(0.025)
+    flow.widget.apply_scale()
+
+    for layer in (flow.image_layer, flow.roi_layer, crop_layer, smoothed_layer, mask_layer):
+        assert layer.metadata[key] == pytest.approx(0.025)
+
+
+def test_manual_scale_bar_calibration_and_method_replacement(widget_flow):
+    flow = widget_flow
+    crop_layer, _, mask_layer = _advance_to_mask(flow)
+    flow.widget.create_order_labels()
+    order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
+    assert not flow.image_layer.visible
+
+    scale_bar_index = flow.widget.calibration_method_combo.findData("scale_bar")
+    flow.widget.calibration_method_combo.setCurrentIndex(scale_bar_index)
+    flow.widget.draw_scale_bar_line()
+
+    line_layer = flow.viewer.layers["leaf scale bar"]
+    assert flow.image_layer.visible
+    assert flow.viewer.layers.selection.active is line_layer
+    line_layer.add_lines(np.array([[[0.0, 0.0], [0.0, 10.0]]]))
+    flow.widget.calibration_value_spinbox.setValue(1.0)
+    mm_index = flow.widget.calibration_unit_combo.findData("mm")
+    flow.widget.calibration_unit_combo.setCurrentIndex(mm_index)
+
+    flow.widget.apply_scale()
+
+    key = flow.module.CALIBRATION_MM_PER_PIXEL_KEY
+    bar_key = flow.module.CALIBRATION_SCALE_BAR_PIXEL_LENGTH_KEY
+    assert line_layer.mode == "select"
+    assert flow.image_layer.metadata[key] == pytest.approx(0.1)
+    assert crop_layer.metadata[key] == pytest.approx(0.1)
+    assert mask_layer.metadata[key] == pytest.approx(0.1)
+    assert order_layer.metadata[key] == pytest.approx(0.1)
+    assert flow.image_layer.metadata[bar_key] == pytest.approx(10.0)
+
+    dpi_index = flow.widget.calibration_method_combo.findData("dpi")
+    flow.widget.calibration_method_combo.setCurrentIndex(dpi_index)
+    flow.widget.calibration_value_spinbox.setValue(254.0)
+    flow.widget.apply_scale()
+
+    assert flow.image_layer.metadata[key] == pytest.approx(0.1)
+    for layer in (
+        flow.image_layer,
+        line_layer,
+        crop_layer,
+        mask_layer,
+        order_layer,
+    ):
+        assert bar_key not in layer.metadata
+
+
+def test_manual_scale_bar_requires_exactly_one_line(widget_flow):
+    flow = widget_flow
+    scale_bar_index = flow.widget.calibration_method_combo.findData("scale_bar")
+    flow.widget.calibration_method_combo.setCurrentIndex(scale_bar_index)
+
+    flow.widget.apply_scale()
+    assert flow.module.CALIBRATION_MM_PER_PIXEL_KEY not in flow.image_layer.metadata
+
+    flow.widget.draw_scale_bar_line()
+    line_layer = flow.viewer.layers["leaf scale bar"]
+    line_layer.add_lines(
+        np.array(
+            [
+                [[0.0, 0.0], [0.0, 10.0]],
+                [[1.0, 0.0], [1.0, 10.0]],
+            ]
+        )
+    )
+    flow.widget.calibration_value_spinbox.setValue(1.0)
+
+    flow.widget.apply_scale()
+
+    assert len(line_layer.data) == 2
+    assert flow.module.CALIBRATION_MM_PER_PIXEL_KEY not in flow.image_layer.metadata
+
+
+def test_calibration_status_tracks_the_active_source_image(widget_flow):
+    flow = widget_flow
+    mm_index = flow.widget.calibration_method_combo.findData("mm_per_pixel")
+    flow.widget.calibration_method_combo.setCurrentIndex(mm_index)
+    flow.widget.calibration_value_spinbox.setValue(0.1)
+    flow.widget.apply_scale()
+
+    second_image = flow.viewer.add_image(SOURCE_IMAGE.copy(), name="leaf2")
+    flow.app.processEvents()
+    second_roi = flow.viewer.layers["leaf2 ROI rectangle"]
+    flow.widget.calibration_value_spinbox.setValue(0.02)
+    flow.widget.apply_scale()
+
+    flow.viewer.layers.selection.active = flow.roi_layer
+    flow.app.processEvents()
+    assert "Scale for leaf:" in flow.widget.calibration_status_label.text()
+    assert "100 µm" in flow.widget.calibration_status_label.text()
+    assert "equivalent DPI ≈ 254" in flow.widget.calibration_status_label.text()
+
+    flow.viewer.layers.selection.active = second_roi
+    flow.app.processEvents()
+    assert "Scale for leaf2:" in flow.widget.calibration_status_label.text()
+    assert "20 µm" in flow.widget.calibration_status_label.text()
+    assert "equivalent DPI ≈ 1270" in flow.widget.calibration_status_label.text()
+    assert second_image.metadata[
+        flow.module.CALIBRATION_MM_PER_PIXEL_KEY
+    ] == pytest.approx(0.02)
 
 
 def test_image_prepares_roi_and_add_roi_creates_crop(widget_flow):

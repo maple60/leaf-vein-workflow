@@ -16,6 +16,8 @@ from skan.csr import summarize
 from skimage.io import imsave
 from skimage.morphology import skeletonize
 
+from .calibration import millimetres_per_pixel
+
 
 ORDER_DEFINITIONS = (
     ("primary", "1", (1,)),
@@ -112,8 +114,8 @@ def measure_order_labels(
 ) -> list[dict[str, Any]]:
     """Measure skeleton length and VLA for each order-label class."""
     labels = _as_2d_array(order_labels, "order_labels")
-    if pixel_size_mm is not None and pixel_size_mm <= 0:
-        raise ValueError("pixel_size_mm must be positive when provided.")
+    if pixel_size_mm is not None:
+        pixel_size_mm = millimetres_per_pixel(pixel_size_mm)
 
     leaf_area_px: int | None = None
     if leaf_mask is not None:
