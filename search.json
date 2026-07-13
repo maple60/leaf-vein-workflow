@@ -276,160 +276,236 @@
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html",
-    "href": "notebooks/skeletonization.html",
-    "title": "葉脈の抽出",
+    "objectID": "notebooks/data_source.html",
+    "href": "notebooks/data_source.html",
+    "title": "サンプルデータセット",
     "section": "",
-    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
+    "text": "Leaf venation networks of Bornean trees: images and hand‐traced segmentations - Blonder - 2019 - Ecology - Wiley Online Library\n\nLeaf venation networks of Bornean trees: images and hand-traced segmentations - ORA - Oxford University Research Archive",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "サンプルデータセット"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#ライブラリのインポート",
-    "href": "notebooks/skeletonization.html#ライブラリのインポート",
-    "title": "葉脈の抽出",
+    "objectID": "notebooks/data_source.html#まとめ",
+    "href": "notebooks/data_source.html#まとめ",
+    "title": "サンプルデータセット",
+    "section": "まとめ",
+    "text": "まとめ\n\n\n\nデータ\n使いどころ\n注意\n\n\n\n\nLeaf venation networks of Bornean trees / LeafVeinCNN Images\n葉脈セグメンテーション、VLA計算、手動トレースとの比較に最も近い\nBornean tree species の高解像度画像と手動トレース。元画像は約50–70 MP、複数百種規模。LeafVeinCNN用にダウンサンプル画像・ground truth・処理結果もZenodoにある。(Macrosystems Ecology Laboratory)\n\n\nUCBG 122 species venation dataset\n多様な系統の葉脈形質データ、既存の形質値との照合\nDryadに LeafVeinCNN.zip, UCBG_venation_form_images.zip, UCBG_venation_anatomy.csv などがあるが、全体はかなり大きい。122種の葉脈・機能形質データ。(Dryad)\n\n\nCleared / x-rayed / fossil leaves dataset\n透明化葉・X線葉画像を大量に見たい、分類・探索用\n30,252画像、うち26,176画像が cleared / x-rayed leaves。葉脈標本そのものに近いが、基本は分類・参照用で、VLA用のマスクやスケール情報は期待しすぎない方がよい。(EurekAlert!)\n\n\nHALVS dataset\n葉脈の次数別セグメンテーションモデルのテスト\n5,057枚、 soybean / sweet cherry / London planetree の3種、1–3次脈のアノテーションあり。ただし「透明化標本」ではなく高解像度スキャン葉画像。(IJCAI)\n\n\nLeafVeinCNN software / results\n既存ツールの挙動確認、出力形式の参考\nMATLAB/Windows向け。ソフト自体と学習済みCNNモデルが公開されている。(Zenodo)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "サンプルデータセット"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html",
+    "href": "notebooks/napari_plugin_development.html",
+    "title": "napari プラグイン作成の要点",
     "section": "",
-    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
+    "text": "このノートは、napari 公式ドキュメントの Building a plugin をもとに、leaf-vein-workflow のような napari plugin を作るときの基本構造を整理したものです。\n対象は、現在の leaf-vein-workflow と同じく、napari のメニューから dock widget を開いて画像処理ワークフローを進めるタイプの plugin です。",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#画像の読み込み",
-    "href": "notebooks/skeletonization.html#画像の読み込み",
-    "title": "葉脈の抽出",
-    "section": "画像の読み込み",
-    "text": "画像の読み込み\n解析に使用する画像を読み込みます。\n\n# 画像読み込み\nfile_path = \"data/BEL-T44-BS_img.png\"\nimg = imread(file_path)\n\nprint(type(img))\nprint(img.shape)\nprint(img.dtype)\n\n画像を確認してみます。\n\nfig, ax = plt.subplots()\nif img.ndim == 2:\n    ax.imshow(img, cmap=\"gray\")\nelse:\n    ax.imshow(img)\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "objectID": "notebooks/napari_plugin_development.html#このノートの目的",
+    "href": "notebooks/napari_plugin_development.html#このノートの目的",
+    "title": "napari プラグイン作成の要点",
+    "section": "",
+    "text": "このノートは、napari 公式ドキュメントの Building a plugin をもとに、leaf-vein-workflow のような napari plugin を作るときの基本構造を整理したものです。\n対象は、現在の leaf-vein-workflow と同じく、napari のメニューから dock widget を開いて画像処理ワークフローを進めるタイプの plugin です。",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#グレースケール化",
-    "href": "notebooks/skeletonization.html#グレースケール化",
-    "title": "葉脈の抽出",
-    "section": "グレースケール化",
-    "text": "グレースケール化\nもし RGB/RGBA 画像の場合は、グレースケール化します。 ここでは GUI 側でも使っている to_grayscale() を使います。 RGBA 画像では alpha channel は無視します。\n\ngray = to_grayscale(img)\n\n# 値域をざっくり 0-1 にそろえる\nif gray.max() &gt; 1:\n    gray = gray / 255",
+    "objectID": "notebooks/napari_plugin_development.html#公式ドキュメント上の位置づけ",
+    "href": "notebooks/napari_plugin_development.html#公式ドキュメント上の位置づけ",
+    "title": "napari プラグイン作成の要点",
+    "section": "公式ドキュメント上の位置づけ",
+    "text": "公式ドキュメント上の位置づけ\nnapari plugin は、napari の機能を Python package として拡張する仕組みです。公式ドキュメントでは、主に次のような拡張が想定されています。\n\n\n\n種類\n何を追加するか\n\n\n\n\nreader\n新しいファイル形式の読み込み\n\n\nwriter\nnapari レイヤーの保存\n\n\nwidget\n独自の UI や処理パネル\n\n\nsample data\nFile &gt; Open Sample から開けるサンプルデータ\n\n\ntheme\nnapari の見た目\n\n\n\nleaf-vein-workflow は、このうち widget plugin です。画像の読み込み自体は napari 標準機能に任せ、plugin は ROI、Gaussian smoothing、mask の作成と cleanup、order labels の作成を担当します。",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#切り取り",
-    "href": "notebooks/skeletonization.html#切り取り",
-    "title": "葉脈の抽出",
-    "section": "切り取り",
-    "text": "切り取り\nROIを指定して、画像を切り取ります。 ここでは例として、(ymin, xmin, ymax, xmax) = (2000, 2000, 5000, 5000) の範囲を切り取ります。\n\nbbox = (2000, 2000, 5000, 5000) # (ymin, xmin, ymax, xmax)\n\nfig, ax = plt.subplots()\nax.imshow(gray, cmap=\"gray\")\nrect = plt.Rectangle((bbox[1], bbox[0]), bbox[3]-bbox[1], bbox[2]-bbox[0], edgecolor=\"red\", facecolor=\"none\", lw=2)\nax.add_patch(rect)\nfig.tight_layout()\nplt.show()\nplt.close(fig)\nimg_crop = gray[bbox[0]:bbox[2], bbox[1]:bbox[3]]",
+    "objectID": "notebooks/napari_plugin_development.html#最小構成",
+    "href": "notebooks/napari_plugin_development.html#最小構成",
+    "title": "napari プラグイン作成の要点",
+    "section": "最小構成",
+    "text": "最小構成\n公式チュートリアルでは、現在の新しい plugin 形式として npe2 を対象にしています。napari plugin は通常の Python package ですが、少なくとも次の 2 つが必要です。\n\nplugin の貢献内容を静的に書いた manifest ファイル\nnapari が manifest を見つけるための napari.manifest entry point\n\nこの repo では、それぞれ次のファイルが対応しています。\n\n\n\n\n\n\n\n役割\nこの repo のファイル\n\n\n\n\npackage metadata と entry point\npyproject.toml\n\n\nplugin manifest\nsrc/leaf_vein_workflow/napari.yaml\n\n\nmanifest から参照する互換用入口\nsrc/leaf_vein_workflow/_widget.py\n\n\n1 つの widget の組み立て\nsrc/leaf_vein_workflow/widgets/crop_widget.py\n\n\n工程別の widget 実装\nsrc/leaf_vein_workflow/widgets/ 以下の各モジュール",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#ガウシアンフィルタによる平滑化",
-    "href": "notebooks/skeletonization.html#ガウシアンフィルタによる平滑化",
-    "title": "葉脈の抽出",
-    "section": "ガウシアンフィルタによる平滑化",
-    "text": "ガウシアンフィルタによる平滑化\nガウシアンフィルタで平滑化します。 sigma は 1 に設定します。\n\nimg_smooth = gaussian(img_crop, sigma=1)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_smooth, cmap=\"gray\")\naxes[1].set_title(\"smoothed image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "objectID": "notebooks/napari_plugin_development.html#pyproject.toml-で-napari-に見つけてもらう",
+    "href": "notebooks/napari_plugin_development.html#pyproject.toml-で-napari-に見つけてもらう",
+    "title": "napari プラグイン作成の要点",
+    "section": "pyproject.toml で napari に見つけてもらう",
+    "text": "pyproject.toml で napari に見つけてもらう\nnapari は、インストール済み Python package の entry point を見て plugin を発見します。この repo では次の部分が対応しています。\n[project.entry-points.\"napari.manifest\"]\nleaf-vein-workflow = \"leaf_vein_workflow:napari.yaml\"\n左辺の leaf-vein-workflow は plugin の配布名です。右辺は、Python package leaf_vein_workflow の中にある napari.yaml を manifest として読む、という意味です。\nまた、PyPI や napari hub 上で napari plugin として認識されやすくするため、package metadata には次の classifier を入れます。\nclassifiers = [\n    \"Framework :: napari\",\n]\nこの repo ではすでに Framework :: napari が入っています。",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#二値化",
-    "href": "notebooks/skeletonization.html#二値化",
-    "title": "葉脈の抽出",
-    "section": "二値化",
-    "text": "二値化\n解析前の二値化を行います。 ここでは Otsu の方法で閾値を決定します。 napariでの二値化では、調整できるようにします。 現在の画像では葉脈が背景より暗いため、img_smooth &lt; threshold を前景として扱います。 GUI ではこの条件が Invert threshold を有効にした状態に相当します。\n\nthreshold = threshold_otsu(img_smooth)\nimg_binary = img_smooth &lt; threshold\n\nprint(f\"Otsu threshold: {threshold:.6f}\")\nprint(f\"Binary foreground pixels: {np.count_nonzero(img_binary)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_binary, cmap=\"gray\")\naxes[1].set_title(\"binary image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "objectID": "notebooks/napari_plugin_development.html#napari.yaml-で何を提供するかを書く",
+    "href": "notebooks/napari_plugin_development.html#napari.yaml-で何を提供するかを書く",
+    "title": "napari プラグイン作成の要点",
+    "section": "napari.yaml で何を提供するかを書く",
+    "text": "napari.yaml で何を提供するかを書く\nmanifest には、plugin が napari に提供する機能を書きます。公式ドキュメントでは、まず commands を定義し、その command を widget、reader、writer、menu などから参照する形が基本です。\nこの repo の napari.yaml は、widget を 1 つ提供します。\nname: leaf-vein-workflow\ndisplay_name: Leaf Vein Workflow\ncontributions:\n  commands:\n    - id: leaf-vein-workflow.make_crop_widget\n      title: Make ROI Crop Widget\n      python_name: leaf_vein_workflow._widget:CropWidget\n  widgets:\n    - command: leaf-vein-workflow.make_crop_widget\n      display_name: Leaf Vein Workflow\nここで重要なのは、commands と widgets の対応です。\n\n\n\n項目\n意味\n\n\n\n\nid\ncommand の一意な ID。plugin 名から始める\n\n\ntitle\ncommand の説明名\n\n\npython_name\n実際に呼び出す Python オブジェクト\n\n\nwidgets.command\nwidget として開く command\n\n\ndisplay_name\nnapari の plugin menu に表示される名前\n\n\n\nこの設定により、napari の Plugins menu から Leaf Vein Workflow を選ぶと、leaf_vein_workflow._widget:CropWidget が作られます。_widget.py は widgets/crop_widget.py の CropWidget を再公開する薄い入口なので、内部を分割しても manifest の python_name と既存の import は変わりません。",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#後処理",
-    "href": "notebooks/skeletonization.html#後処理",
-    "title": "葉脈の抽出",
-    "section": "後処理",
-    "text": "後処理\n小さい穴やゴミを除去します。\n\n# 小さいゴミ除去\nmax_size = 100\nvein_mask = remove_small_objects(img_binary, max_size=max_size)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n葉脈内部の穴埋めや境界の整形を行います。\n\n# 太い葉脈内部の穴埋め\nvein_mask = remove_small_holes(vein_mask, max_size=500)\n# 境界を少し整える\nvein_mask = closing(vein_mask, footprint=disk(2))\nvein_mask = opening(vein_mask, footprint=disk(1))\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "objectID": "notebooks/napari_plugin_development.html#widget-実装の考え方",
+    "href": "notebooks/napari_plugin_development.html#widget-実装の考え方",
+    "title": "napari プラグイン作成の要点",
+    "section": "widget 実装の考え方",
+    "text": "widget 実装の考え方\nwidget contribution は、napari の画面に独自の操作パネルを追加する仕組みです。公式ドキュメントでは、widget は Qt の QWidget、magicgui の widget、または自動生成 widget として提供できます。\nこの repo では Qt widget を直接使っています。napari に提供する widget は 1 つのままですが、クラスの実装を 1 ファイルにまとめる必要はありません。\n# src/leaf_vein_workflow/_widget.py\nfrom .widgets.crop_widget import CropWidget\n\n# src/leaf_vein_workflow/widgets/crop_widget.py\nclass CropWidget(QWidget):\n    def __init__(self, napari_viewer):\n        super().__init__()\n        self.viewer = napari_viewer\nnapari_viewer を受け取ることで、widget から viewer の layer list にアクセスできます。現在の実装では、次の処理を viewer API 経由で行います。\n\n新しい Image layer を見つける\nROI 用 Shapes layer を追加する\ncrop Image layer を追加または更新する\nsmoothed_image Image layer を追加または更新する\nvein_mask と order_labels の Labels layer を追加または更新する",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#skeletonize",
-    "href": "notebooks/skeletonization.html#skeletonize",
-    "title": "葉脈の抽出",
-    "section": "Skeletonize",
-    "text": "Skeletonize\n後処理済みの vein_mask から skeleton を作ります。 この skeleton が、GUI で mask layer から作る skeleton layer に対応します。\n\nskeleton = skeletonize(vein_mask)\n\nprint(f\"Mask foreground pixels: {np.count_nonzero(vein_mask)}\")\nprint(f\"Skeleton pixels: {np.count_nonzero(skeleton)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\naxes[1].imshow(skeleton, cmap=\"gray\")\naxes[1].set_title(\"skeleton image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n前の画像に重ねてみます。 表示用に skeleton を太らせて、赤色で重ねます。\n\nfig, ax = plt.subplots()\n\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 表示用に太らせた skeleton を作る\nskeleton_display = dilation(skeleton, footprint=disk(3))\n\nskeleton_overlay = np.zeros((*skeleton.shape, 4), dtype=np.float32)\nskeleton_overlay[skeleton_display] = [1, 0, 0, 1]  # red, alpha=1\n\nax.imshow(skeleton_overlay)\nax.set_title(\"skeleton overlay\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "objectID": "notebooks/napari_plugin_development.html#つの-widget-を責務別に分ける",
+    "href": "notebooks/napari_plugin_development.html#つの-widget-を責務別に分ける",
+    "title": "napari プラグイン作成の要点",
+    "section": "1 つの widget を責務別に分ける",
+    "text": "1 つの widget を責務別に分ける\nCropWidget は全体を組み立てる場所として残し、具体的な処理は次のファイルに分けています。\n\n\n\n\n\n\n\nファイル\n主な責務\n\n\n\n\nwidgets/crop_widget.py\nwidget の組み立て、Qt signal の接続、公開メソッドから各工程への委譲\n\n\nwidgets/controls.py\nUI 部品の生成、レイアウト、工程に応じた有効・無効の切り替え\n\n\nwidgets/layers.py\nmetadata 定数、レイヤー間の対応、検索、選択、削除\n\n\nwidgets/roi.py\nImage layer の検出、ROI の準備と確認、crop の作成\n\n\nwidgets/mask.py\nGaussian、Otsu、閾値 timer、mask cleanup\n\n\nwidgets/order_labels.py\norder labels の作成、再利用、mask 外への描画防止\n\n\n\n各工程の担当は互いを直接呼び合わず、共有する controls とレイヤー管理を CropWidget から受け取ります。たとえば order labels のコードが ROI 内部の辞書を直接読むことはありません。依存方向を単純にすることで、ある工程を修正するときに別工程の実装まで読み込まずに済みます。\n既存の CropWidget.add_roi()、apply_gaussian_filter()、use_otsu_threshold()、clean_mask()、create_order_labels() は薄い委譲メソッドとして残します。napari の見た目と外部からの呼び方を保ちながら、内部だけを分割するためです。\nコードを読むときは、まず _widget.py で公開入口を確認し、次に crop_widget.py で全体の接続を見ます。その後、UI なら controls.py、レイヤーの active/visible や削除なら layers.py、個別の操作なら roi.py、mask.py、order_labels.py の該当ファイルだけを読みます。配列計算の詳細は、そこから呼ばれる crop.py、threshold.py、order.py を確認します。",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#脈の太さの推定",
-    "href": "notebooks/skeletonization.html#脈の太さの推定",
-    "title": "葉脈の抽出",
-    "section": "脈の太さの推定",
-    "text": "脈の太さの推定\nmask の distance transform から、各 foreground pixel が背景からどれだけ離れているかを求めます。 skeleton 上の距離を 2 倍すると、局所的な直径の近似値として使えます。\nこの値は threshold や mask 後処理に依存するため、major/minor を自動分類する決定値ではなく、手動確認前のヒントとして扱います。\n\nmedial_skeleton, radius_px = medial_axis(vein_mask, return_distance=True)\ndiameter_px = radius_px * 2\ndiameter_on_skeleton = np.where(skeleton, diameter_px, np.nan)\n\nprint(pd.Series(diameter_px[skeleton], name=\"skeleton-diameter-px\").describe())\n\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(9, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\ndiameter_image = axes[1].imshow(diameter_on_skeleton, cmap=\"magma\")\naxes[1].set_title(\"diameter on skeleton (px)\")\nfig.colorbar(diameter_image, ax=axes[1], fraction=0.046, pad=0.04)\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n先ほどと同様に、太らせて重ねてみます。\n\nfig, ax = plt.subplots()\nax.imshow(vein_mask, cmap=\"gray\")\n\n# skeleton 上だけに値を持つ画像\ndiameter_on_skeleton = np.where(skeleton, diameter_px, 0)\n\n# footprint は共通で定義\nfoot = disk(5)\n\n# 値つき画像を太らせる\ndiameter_display = dilation(diameter_on_skeleton, footprint=foot)\n\n# 表示範囲だけを制限するためのマスク\ndisplay_mask = dilation(skeleton, footprint=foot)\n\n# skeleton 以外は透明にする\ndiameter_display = np.where(display_mask, diameter_display, np.nan)\n\nim = ax.imshow(diameter_display, cmap=\"magma\", alpha=0.9)\nax.set_title(\"diameter-colored skeleton overlay\")\nfig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label=\"diameter (px)\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "objectID": "notebooks/napari_plugin_development.html#contribution-の種類を選ぶ",
+    "href": "notebooks/napari_plugin_development.html#contribution-の種類を選ぶ",
+    "title": "napari プラグイン作成の要点",
+    "section": "contribution の種類を選ぶ",
+    "text": "contribution の種類を選ぶ\nplugin を作るときは、最初に「napari のどこを拡張したいのか」を決めます。\n\n\n\n目的\n選ぶ contribution\n\n\n\n\n独自フォーマットを開きたい\nreader\n\n\nレイヤーを独自形式で保存したい\nwriter\n\n\n操作パネルを出したい\nwidget\n\n\nメニュー項目を追加したい\nmenu\n\n\nデモ用画像を同梱したい\nsample data\n\n\n\nleaf-vein-workflow の MVP では、まず widget だけで十分です。画像ファイルの読み込みは napari に任せられるため、reader を追加する必要はまだありません。\n将来、葉脈解析用の独自 project file を読み書きする段階になったら、reader や writer の追加を検討します。その場合も、GUI から無理にファイル形式を扱うより、reader/writer contribution として分けた方が napari の作法に合います。",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#branch-node-の抽出",
-    "href": "notebooks/skeletonization.html#branch-node-の抽出",
-    "title": "葉脈の抽出",
-    "section": "branch / node の抽出",
-    "text": "branch / node の抽出\nskan を使って skeleton を branch 単位の表に変換します。 branch-type は、0 が tip-tip、1 が tip-junction、2 が junction-junction、3 が cycle です。\n\nskeleton_graph = Skeleton(skeleton, spacing=1)\nbranch_table = summarize(skeleton_graph, separator=\"-\").copy()\nbranch_table[\"branch-id\"] = np.arange(len(branch_table))\n\nbranch_type_labels = {\n    0: \"tip-tip\",\n    1: \"tip-junction\",\n    2: \"junction-junction\",\n    3: \"cycle\",\n}\nbranch_table[\"branch-type-label\"] = branch_table[\"branch-type\"].map(branch_type_labels)\n\nmean_diameter = []\nmedian_diameter = []\nmax_diameter = []\n\nfor branch_index in range(skeleton_graph.n_paths):\n    coords = skeleton_graph.path_coordinates(branch_index).astype(int)\n    branch_diameter = diameter_px[coords[:, 0], coords[:, 1]]\n    mean_diameter.append(float(np.mean(branch_diameter)))\n    median_diameter.append(float(np.median(branch_diameter)))\n    max_diameter.append(float(np.max(branch_diameter)))\n\nbranch_table[\"mean-diameter-px\"] = mean_diameter\nbranch_table[\"median-diameter-px\"] = median_diameter\nbranch_table[\"max-diameter-px\"] = max_diameter\n\nspur_length_px = 20\nbranch_table[\"spur-candidate\"] = (\n    (branch_table[\"branch-type\"] == 1)\n    & (branch_table[\"branch-distance\"] &lt;= spur_length_px)\n)\n\nprint(f\"Number of branches: {len(branch_table)}\")\nprint(branch_table[\"branch-type-label\"].value_counts().to_string())\nprint(\n    branch_table[\n        [\"mean-diameter-px\", \"median-diameter-px\", \"max-diameter-px\"]\n    ].describe().to_string()\n)\nprint(\n    branch_table[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"spur-candidate\",\n        ]\n    ]\n    .head(10)\n    .to_string(index=False)\n)\n\nnode は skeleton graph の degree で確認します。 degree 1 は endpoint、degree 2 は通常の線分上の pixel、degree 3 以上は branchpoint として扱います。\n\nnode_table = pd.DataFrame(\n    {\n        \"node-id\": np.arange(len(skeleton_graph.degrees)),\n        \"coord-y-px\": skeleton_graph.coordinates[:, 0],\n        \"coord-x-px\": skeleton_graph.coordinates[:, 1],\n        \"degree\": skeleton_graph.degrees,\n    }\n)\nnode_table[\"image-y-px\"] = node_table[\"coord-y-px\"] + bbox[0]\nnode_table[\"image-x-px\"] = node_table[\"coord-x-px\"] + bbox[1]\nnode_table[\"node-type\"] = \"path\"\nnode_table.loc[node_table[\"degree\"] == 1, \"node-type\"] = \"endpoint\"\nnode_table.loc[node_table[\"degree\"] &gt;= 3, \"node-type\"] = \"branchpoint\"\n\nkey_node_table = node_table[node_table[\"node-type\"] != \"path\"].copy()\n\nprint(key_node_table[\"node-type\"].value_counts().to_string())\nprint(key_node_table.head(10).to_string(index=False))",
+    "objectID": "notebooks/napari_plugin_development.html#dependency-の注意点",
+    "href": "notebooks/napari_plugin_development.html#dependency-の注意点",
+    "title": "napari プラグイン作成の要点",
+    "section": "dependency の注意点",
+    "text": "dependency の注意点\n公式の best practices では、plugin の依存関係を重くしすぎないことが強調されています。特に Qt backend への依存は避けるべきです。\n避けたい例:\n\nruntime dependency に napari[all] を入れる\nruntime dependency に PyQt5、PyQt6、PySide6 を固定する\nwheel がない重い binary dependency を安易に増やす\n\nこの repo では、Qt backend の pyqt6 は dev dependency に置いています。plugin の利用者がどの Qt backend を使うかは、基本的に利用者側の napari 環境に任せる方が安全です。\nまた、型注釈だけのために napari を import する場合は、文字列 annotation や typing.TYPE_CHECKING を使うと runtime dependency を増やさずに済みます。ただし、この repo は napari.layers や通知 API を runtime で使うため、napari dependency は実際に必要です。",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#spur-pruning-の候補確認",
-    "href": "notebooks/skeletonization.html#spur-pruning-の候補確認",
-    "title": "葉脈の抽出",
-    "section": "spur pruning の候補確認",
-    "text": "spur pruning の候補確認\nここでは pruning 自体は行わず、短い terminal branch を候補として表で確認します。 spur_length_px は GUI では調整可能な値にする想定です。\n\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].sort_values(\n    \"branch-distance\"\n)\n\nprint(f\"Spur candidates at &lt;= {spur_length_px} px: {len(spur_candidates)}\")\nprint(\n    spur_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ]\n    .head(20)\n    .to_string(index=False)\n)\n\n\n# spur candidates を branch-id ベースで取り出す\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].copy()\n\nfig, ax = plt.subplots(figsize=(8, 8))\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 全 branch を薄い水色で描く\nfor branch_id in branch_table[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"cyan\", linewidth=1, alpha=0.6)\n\n# spur candidate を黄色で強調\nfor branch_id in spur_candidates[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"yellow\", linewidth=2.5, alpha=1.0)\n\n# endpoint と branchpoint を描く\nendpoint_table = node_table[node_table[\"node-type\"] == \"endpoint\"]\nbranchpoint_table = node_table[node_table[\"node-type\"] == \"branchpoint\"]\n\nax.scatter(\n    endpoint_table[\"coord-x-px\"],\n    endpoint_table[\"coord-y-px\"],\n    s=20,\n    c=\"lime\",\n    label=\"endpoint\",\n    zorder=3,\n)\n\nax.scatter(\n    branchpoint_table[\"coord-x-px\"],\n    branchpoint_table[\"coord-y-px\"],\n    s=30,\n    c=\"red\",\n    label=\"branchpoint\",\n    zorder=3,\n)\n\nax.set_title(\"branches / nodes / spur candidates\")\nax.legend(loc=\"upper right\")\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "objectID": "notebooks/napari_plugin_development.html#テスト方針",
+    "href": "notebooks/napari_plugin_development.html#テスト方針",
+    "title": "napari プラグイン作成の要点",
+    "section": "テスト方針",
+    "text": "テスト方針\n公式ドキュメントでは、napari plugin のテストには pytest が推奨されています。また、viewer を使うテストには make_napari_viewer_proxy fixture が用意されています。\n一方で、すべてを napari の画面操作として統合テストする必要はありません。公式 docs でも、小さい unit test に分けることが勧められています。\nこの repo の方針は次の通りです。\n\n\n\n\n\n\n\n対象\nテスト方針\n\n\n\n\ncrop 計算\ntests/test_crop.py で NumPy 配列として直接テスト\n\n\nGaussian、threshold、cleanup 計算\ntests/test_threshold.py で直接テスト\n\n\norder labels の検証・集計\ntests/test_order.py で直接テスト\n\n\nwidget と napari layer\ntests/test_widget_import.py で import 互換性と明示的な工程を統合確認\n\n\n\nこの分け方にすると、GUI や Qt の不安定さに引きずられず、画像処理の仕様を小さく確認できます。",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
   },
   {
-    "objectID": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
-    "href": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
-    "title": "葉脈の抽出",
-    "section": "major / minor 分離前の太さヒント",
-    "text": "major / minor 分離前の太さヒント\nmajor / minor の自動分類はまだ行いません。 ただし、太さが大きい branch は major vein 候補として確認する価値があります。 この表は、napari で手動 order labels を作るときの確認用ヒントとして使います。\n\nwide_branch_candidates = branch_table.sort_values(\n    [\"mean-diameter-px\", \"branch-distance\"],\n    ascending=[False, False],\n).head(20)\n\nprint(\n    wide_branch_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ].to_string(index=False)\n)\n\n今後の方針としては、まず手動ラベルを基準にし、太さ・接続関係・midrib からの距離を補助情報として重ねるのが安全です。 完全自動分類よりも、「自動候補 + napari で修正」のほうが、画像条件の違いや葉脈の切断に強いです。\nskan は branch table を安定して作る用途に向いています。 一方で、branchpoint が複数 pixel の塊になる場合や、junction 近傍で branch が細かく分割される場合があります。 そのため、GUI に接続するときは branch table をそのまま最終分類に使うのではなく、可視化・候補提示・手動修正の補助として使うのがよいです。",
+    "objectID": "notebooks/napari_plugin_development.html#開発中の確認手順",
+    "href": "notebooks/napari_plugin_development.html#開発中の確認手順",
+    "title": "napari プラグイン作成の要点",
+    "section": "開発中の確認手順",
+    "text": "開発中の確認手順\nローカルで plugin を変更したら、まず editable install 相当の環境で napari を起動して確認します。この repo では uv を使うため、基本コマンドは次の通りです。\nuv sync\nuv run napari\nnapari が起動したら、次を確認します。\n\nPlugins &gt; Leaf Vein Workflow &gt; Leaf Vein Workflow から widget が開く。\n画像を開くと ROI 用 Shapes layer が作られる。\nAdd ROI で crop が作られる。\nApply Gaussian では smoothed_image だけが作られ、まだ vein_mask がない。\nApply Otsu で初めて vein_mask が作られ、閾値を調整できる。\nClean Mask 後も paint mode で手動修正できる。\n手動修正後の Create Order Labels で order_labels が作られ、mask 外には描画できない。\n\n自動テストは次で実行します。\nuv run pytest",
     "crumbs": [
       "Home",
       "Manual",
-      "葉脈の抽出"
+      "napari プラグイン作成の要点"
     ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#公開するときの流れ",
+    "href": "notebooks/napari_plugin_development.html#公開するときの流れ",
+    "title": "napari プラグイン作成の要点",
+    "section": "公開するときの流れ",
+    "text": "公開するときの流れ\n公式ドキュメントでは、公開先として PyPI、conda-forge、napari hub が挙げられています。\n基本的な流れは次の通りです。\n\nFramework :: napari classifier を package metadata に入れる。\npyproject.toml と napari.yaml が正しく入った配布物を作る。\nPyPI に公開する。\nnapari hub 上の説明文や metadata を整える。\n必要なら conda-forge にも公開する。\n\n新規 plugin を最初から作る場合は、公式の napari-plugin-template を使うと、package 構成、テスト、CI、公開設定の雛形を作れます。ただし、既存 repo で小さく育てる場合は、今のように pyproject.toml、napari.yaml、widget 実装、tests を確認しながら足していく方が追いやすいです。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#この-repo-で次に見直す場所",
+    "href": "notebooks/napari_plugin_development.html#この-repo-で次に見直す場所",
+    "title": "napari プラグイン作成の要点",
+    "section": "この repo で次に見直す場所",
+    "text": "この repo で次に見直す場所\nプラグイン作成の観点では、今後の変更時に次を確認するとよいです。\n\n\n\n\n\n\n\n確認点\n見る場所\n\n\n\n\nnapari が plugin を発見できるか\npyproject.toml の napari.manifest\n\n\nmenu に出る名前が適切か\nsrc/leaf_vein_workflow/napari.yaml\n\n\nmanifest と import の互換性が保たれているか\nsrc/leaf_vein_workflow/_widget.py\n\n\nsignal と工程の接続が明示されているか\nwidgets/crop_widget.py\n\n\nlayer の対応・選択・削除が一元管理されているか\nwidgets/layers.py\n\n\n各操作の修正範囲が工程別に分かれているか\nwidgets/roi.py、widgets/mask.py、widgets/order_labels.py\n\n\n計算処理が GUI から分離されているか\ncrop.py、threshold.py、order.py\n\n\nnapari なしで確認できる仕様がテストされているか\ntests/test_*.py",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "notebooks/napari_plugin_development.html#参考リンク",
+    "href": "notebooks/napari_plugin_development.html#参考リンク",
+    "title": "napari プラグイン作成の要点",
+    "section": "参考リンク",
+    "text": "参考リンク\n\nBuilding a plugin\nYour first plugin\nPlugin contributions\nBest practices for plugin developers\nTesting guidelines\nPublish your plugin",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "napari プラグイン作成の要点"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "leaf-vein-workflow",
+    "section": "",
+    "text": "leaf-vein-workflow は、葉脈画像の ROI 切り出し、二値 mask 作成、骨格化、手動分類のための napari plugin です。\nこのサイトは、実装の保守と利用手順の確認に使うためのドキュメントです。"
+  },
+  {
+    "objectID": "index.html#manual",
+    "href": "index.html#manual",
+    "title": "leaf-vein-workflow",
+    "section": "Manual",
+    "text": "Manual\n\nLeaf Vein Workflow の挙動と関数の流れ\nnapari プラグイン作成の要点\n葉脈の抽出\nサンプルデータセット"
+  },
+  {
+    "objectID": "index.html#reports",
+    "href": "index.html#reports",
+    "title": "leaf-vein-workflow",
+    "section": "Reports",
+    "text": "Reports\n\nZotero文献から見る葉脈研究\n参考プロトコル: 葉脈形質の定量\n生態学研究における葉脈形質の測定方法とツール比較\n葉脈形質の測定法と既存ツールの比較報告"
+  },
+  {
+    "objectID": "index.html#development",
+    "href": "index.html#development",
+    "title": "leaf-vein-workflow",
+    "section": "Development",
+    "text": "Development\nローカル環境の準備:\nuv sync\nnapari の起動:\nuv run napari\nテスト:\nuv run pytest\nドキュメントの確認:\nquarto preview --no-execute"
   },
   {
     "objectID": "notebooks/workflow_overview.html",
@@ -648,235 +724,243 @@
     ]
   },
   {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "leaf-vein-workflow",
+    "objectID": "notebooks/skeletonization.html",
+    "href": "notebooks/skeletonization.html",
+    "title": "葉脈の抽出",
     "section": "",
-    "text": "leaf-vein-workflow は、葉脈画像の ROI 切り出し、二値 mask 作成、骨格化、手動分類のための napari plugin です。\nこのサイトは、実装の保守と利用手順の確認に使うためのドキュメントです。"
+    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
   },
   {
-    "objectID": "index.html#manual",
-    "href": "index.html#manual",
-    "title": "leaf-vein-workflow",
-    "section": "Manual",
-    "text": "Manual\n\nLeaf Vein Workflow の挙動と関数の流れ\nnapari プラグイン作成の要点\n葉脈の抽出\nサンプルデータセット"
-  },
-  {
-    "objectID": "index.html#reports",
-    "href": "index.html#reports",
-    "title": "leaf-vein-workflow",
-    "section": "Reports",
-    "text": "Reports\n\n参考プロトコル: 葉脈形質の定量\n生態学研究における葉脈形質の測定方法とツール比較\n葉脈形質の測定法と既存ツールの比較報告"
-  },
-  {
-    "objectID": "index.html#development",
-    "href": "index.html#development",
-    "title": "leaf-vein-workflow",
-    "section": "Development",
-    "text": "Development\nローカル環境の準備:\nuv sync\nnapari の起動:\nuv run napari\nテスト:\nuv run pytest\nドキュメントの確認:\nquarto preview --no-execute"
-  },
-  {
-    "objectID": "notebooks/napari_plugin_development.html",
-    "href": "notebooks/napari_plugin_development.html",
-    "title": "napari プラグイン作成の要点",
+    "objectID": "notebooks/skeletonization.html#ライブラリのインポート",
+    "href": "notebooks/skeletonization.html#ライブラリのインポート",
+    "title": "葉脈の抽出",
     "section": "",
-    "text": "このノートは、napari 公式ドキュメントの Building a plugin をもとに、leaf-vein-workflow のような napari plugin を作るときの基本構造を整理したものです。\n対象は、現在の leaf-vein-workflow と同じく、napari のメニューから dock widget を開いて画像処理ワークフローを進めるタイプの plugin です。",
+    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
     "crumbs": [
       "Home",
       "Manual",
-      "napari プラグイン作成の要点"
+      "葉脈の抽出"
     ]
   },
   {
-    "objectID": "notebooks/napari_plugin_development.html#このノートの目的",
-    "href": "notebooks/napari_plugin_development.html#このノートの目的",
-    "title": "napari プラグイン作成の要点",
+    "objectID": "notebooks/skeletonization.html#画像の読み込み",
+    "href": "notebooks/skeletonization.html#画像の読み込み",
+    "title": "葉脈の抽出",
+    "section": "画像の読み込み",
+    "text": "画像の読み込み\n解析に使用する画像を読み込みます。\n\n# 画像読み込み\nfile_path = \"data/BEL-T44-BS_img.png\"\nimg = imread(file_path)\n\nprint(type(img))\nprint(img.shape)\nprint(img.dtype)\n\n画像を確認してみます。\n\nfig, ax = plt.subplots()\nif img.ndim == 2:\n    ax.imshow(img, cmap=\"gray\")\nelse:\n    ax.imshow(img)\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#グレースケール化",
+    "href": "notebooks/skeletonization.html#グレースケール化",
+    "title": "葉脈の抽出",
+    "section": "グレースケール化",
+    "text": "グレースケール化\nもし RGB/RGBA 画像の場合は、グレースケール化します。 ここでは GUI 側でも使っている to_grayscale() を使います。 RGBA 画像では alpha channel は無視します。\n\ngray = to_grayscale(img)\n\n# 値域をざっくり 0-1 にそろえる\nif gray.max() &gt; 1:\n    gray = gray / 255",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#切り取り",
+    "href": "notebooks/skeletonization.html#切り取り",
+    "title": "葉脈の抽出",
+    "section": "切り取り",
+    "text": "切り取り\nROIを指定して、画像を切り取ります。 ここでは例として、(ymin, xmin, ymax, xmax) = (2000, 2000, 5000, 5000) の範囲を切り取ります。\n\nbbox = (2000, 2000, 5000, 5000) # (ymin, xmin, ymax, xmax)\n\nfig, ax = plt.subplots()\nax.imshow(gray, cmap=\"gray\")\nrect = plt.Rectangle((bbox[1], bbox[0]), bbox[3]-bbox[1], bbox[2]-bbox[0], edgecolor=\"red\", facecolor=\"none\", lw=2)\nax.add_patch(rect)\nfig.tight_layout()\nplt.show()\nplt.close(fig)\nimg_crop = gray[bbox[0]:bbox[2], bbox[1]:bbox[3]]",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#ガウシアンフィルタによる平滑化",
+    "href": "notebooks/skeletonization.html#ガウシアンフィルタによる平滑化",
+    "title": "葉脈の抽出",
+    "section": "ガウシアンフィルタによる平滑化",
+    "text": "ガウシアンフィルタによる平滑化\nガウシアンフィルタで平滑化します。 sigma は 1 に設定します。\n\nimg_smooth = gaussian(img_crop, sigma=1)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_smooth, cmap=\"gray\")\naxes[1].set_title(\"smoothed image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#二値化",
+    "href": "notebooks/skeletonization.html#二値化",
+    "title": "葉脈の抽出",
+    "section": "二値化",
+    "text": "二値化\n解析前の二値化を行います。 ここでは Otsu の方法で閾値を決定します。 napariでの二値化では、調整できるようにします。 現在の画像では葉脈が背景より暗いため、img_smooth &lt; threshold を前景として扱います。 GUI ではこの条件が Invert threshold を有効にした状態に相当します。\n\nthreshold = threshold_otsu(img_smooth)\nimg_binary = img_smooth &lt; threshold\n\nprint(f\"Otsu threshold: {threshold:.6f}\")\nprint(f\"Binary foreground pixels: {np.count_nonzero(img_binary)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_binary, cmap=\"gray\")\naxes[1].set_title(\"binary image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#後処理",
+    "href": "notebooks/skeletonization.html#後処理",
+    "title": "葉脈の抽出",
+    "section": "後処理",
+    "text": "後処理\n小さい穴やゴミを除去します。\n\n# 小さいゴミ除去\nmax_size = 100\nvein_mask = remove_small_objects(img_binary, max_size=max_size)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n葉脈内部の穴埋めや境界の整形を行います。\n\n# 太い葉脈内部の穴埋め\nvein_mask = remove_small_holes(vein_mask, max_size=500)\n# 境界を少し整える\nvein_mask = closing(vein_mask, footprint=disk(2))\nvein_mask = opening(vein_mask, footprint=disk(1))\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#skeletonize",
+    "href": "notebooks/skeletonization.html#skeletonize",
+    "title": "葉脈の抽出",
+    "section": "Skeletonize",
+    "text": "Skeletonize\n後処理済みの vein_mask から skeleton を作ります。 この skeleton が、GUI で mask layer から作る skeleton layer に対応します。\n\nskeleton = skeletonize(vein_mask)\n\nprint(f\"Mask foreground pixels: {np.count_nonzero(vein_mask)}\")\nprint(f\"Skeleton pixels: {np.count_nonzero(skeleton)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\naxes[1].imshow(skeleton, cmap=\"gray\")\naxes[1].set_title(\"skeleton image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n前の画像に重ねてみます。 表示用に skeleton を太らせて、赤色で重ねます。\n\nfig, ax = plt.subplots()\n\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 表示用に太らせた skeleton を作る\nskeleton_display = dilation(skeleton, footprint=disk(3))\n\nskeleton_overlay = np.zeros((*skeleton.shape, 4), dtype=np.float32)\nskeleton_overlay[skeleton_display] = [1, 0, 0, 1]  # red, alpha=1\n\nax.imshow(skeleton_overlay)\nax.set_title(\"skeleton overlay\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#脈の太さの推定",
+    "href": "notebooks/skeletonization.html#脈の太さの推定",
+    "title": "葉脈の抽出",
+    "section": "脈の太さの推定",
+    "text": "脈の太さの推定\nmask の distance transform から、各 foreground pixel が背景からどれだけ離れているかを求めます。 skeleton 上の距離を 2 倍すると、局所的な直径の近似値として使えます。\nこの値は threshold や mask 後処理に依存するため、major/minor を自動分類する決定値ではなく、手動確認前のヒントとして扱います。\n\nmedial_skeleton, radius_px = medial_axis(vein_mask, return_distance=True)\ndiameter_px = radius_px * 2\ndiameter_on_skeleton = np.where(skeleton, diameter_px, np.nan)\n\nprint(pd.Series(diameter_px[skeleton], name=\"skeleton-diameter-px\").describe())\n\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(9, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\ndiameter_image = axes[1].imshow(diameter_on_skeleton, cmap=\"magma\")\naxes[1].set_title(\"diameter on skeleton (px)\")\nfig.colorbar(diameter_image, ax=axes[1], fraction=0.046, pad=0.04)\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n先ほどと同様に、太らせて重ねてみます。\n\nfig, ax = plt.subplots()\nax.imshow(vein_mask, cmap=\"gray\")\n\n# skeleton 上だけに値を持つ画像\ndiameter_on_skeleton = np.where(skeleton, diameter_px, 0)\n\n# footprint は共通で定義\nfoot = disk(5)\n\n# 値つき画像を太らせる\ndiameter_display = dilation(diameter_on_skeleton, footprint=foot)\n\n# 表示範囲だけを制限するためのマスク\ndisplay_mask = dilation(skeleton, footprint=foot)\n\n# skeleton 以外は透明にする\ndiameter_display = np.where(display_mask, diameter_display, np.nan)\n\nim = ax.imshow(diameter_display, cmap=\"magma\", alpha=0.9)\nax.set_title(\"diameter-colored skeleton overlay\")\nfig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label=\"diameter (px)\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#branch-node-の抽出",
+    "href": "notebooks/skeletonization.html#branch-node-の抽出",
+    "title": "葉脈の抽出",
+    "section": "branch / node の抽出",
+    "text": "branch / node の抽出\nskan を使って skeleton を branch 単位の表に変換します。 branch-type は、0 が tip-tip、1 が tip-junction、2 が junction-junction、3 が cycle です。\n\nskeleton_graph = Skeleton(skeleton, spacing=1)\nbranch_table = summarize(skeleton_graph, separator=\"-\").copy()\nbranch_table[\"branch-id\"] = np.arange(len(branch_table))\n\nbranch_type_labels = {\n    0: \"tip-tip\",\n    1: \"tip-junction\",\n    2: \"junction-junction\",\n    3: \"cycle\",\n}\nbranch_table[\"branch-type-label\"] = branch_table[\"branch-type\"].map(branch_type_labels)\n\nmean_diameter = []\nmedian_diameter = []\nmax_diameter = []\n\nfor branch_index in range(skeleton_graph.n_paths):\n    coords = skeleton_graph.path_coordinates(branch_index).astype(int)\n    branch_diameter = diameter_px[coords[:, 0], coords[:, 1]]\n    mean_diameter.append(float(np.mean(branch_diameter)))\n    median_diameter.append(float(np.median(branch_diameter)))\n    max_diameter.append(float(np.max(branch_diameter)))\n\nbranch_table[\"mean-diameter-px\"] = mean_diameter\nbranch_table[\"median-diameter-px\"] = median_diameter\nbranch_table[\"max-diameter-px\"] = max_diameter\n\nspur_length_px = 20\nbranch_table[\"spur-candidate\"] = (\n    (branch_table[\"branch-type\"] == 1)\n    & (branch_table[\"branch-distance\"] &lt;= spur_length_px)\n)\n\nprint(f\"Number of branches: {len(branch_table)}\")\nprint(branch_table[\"branch-type-label\"].value_counts().to_string())\nprint(\n    branch_table[\n        [\"mean-diameter-px\", \"median-diameter-px\", \"max-diameter-px\"]\n    ].describe().to_string()\n)\nprint(\n    branch_table[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"spur-candidate\",\n        ]\n    ]\n    .head(10)\n    .to_string(index=False)\n)\n\nnode は skeleton graph の degree で確認します。 degree 1 は endpoint、degree 2 は通常の線分上の pixel、degree 3 以上は branchpoint として扱います。\n\nnode_table = pd.DataFrame(\n    {\n        \"node-id\": np.arange(len(skeleton_graph.degrees)),\n        \"coord-y-px\": skeleton_graph.coordinates[:, 0],\n        \"coord-x-px\": skeleton_graph.coordinates[:, 1],\n        \"degree\": skeleton_graph.degrees,\n    }\n)\nnode_table[\"image-y-px\"] = node_table[\"coord-y-px\"] + bbox[0]\nnode_table[\"image-x-px\"] = node_table[\"coord-x-px\"] + bbox[1]\nnode_table[\"node-type\"] = \"path\"\nnode_table.loc[node_table[\"degree\"] == 1, \"node-type\"] = \"endpoint\"\nnode_table.loc[node_table[\"degree\"] &gt;= 3, \"node-type\"] = \"branchpoint\"\n\nkey_node_table = node_table[node_table[\"node-type\"] != \"path\"].copy()\n\nprint(key_node_table[\"node-type\"].value_counts().to_string())\nprint(key_node_table.head(10).to_string(index=False))",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#spur-pruning-の候補確認",
+    "href": "notebooks/skeletonization.html#spur-pruning-の候補確認",
+    "title": "葉脈の抽出",
+    "section": "spur pruning の候補確認",
+    "text": "spur pruning の候補確認\nここでは pruning 自体は行わず、短い terminal branch を候補として表で確認します。 spur_length_px は GUI では調整可能な値にする想定です。\n\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].sort_values(\n    \"branch-distance\"\n)\n\nprint(f\"Spur candidates at &lt;= {spur_length_px} px: {len(spur_candidates)}\")\nprint(\n    spur_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ]\n    .head(20)\n    .to_string(index=False)\n)\n\n\n# spur candidates を branch-id ベースで取り出す\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].copy()\n\nfig, ax = plt.subplots(figsize=(8, 8))\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 全 branch を薄い水色で描く\nfor branch_id in branch_table[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"cyan\", linewidth=1, alpha=0.6)\n\n# spur candidate を黄色で強調\nfor branch_id in spur_candidates[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"yellow\", linewidth=2.5, alpha=1.0)\n\n# endpoint と branchpoint を描く\nendpoint_table = node_table[node_table[\"node-type\"] == \"endpoint\"]\nbranchpoint_table = node_table[node_table[\"node-type\"] == \"branchpoint\"]\n\nax.scatter(\n    endpoint_table[\"coord-x-px\"],\n    endpoint_table[\"coord-y-px\"],\n    s=20,\n    c=\"lime\",\n    label=\"endpoint\",\n    zorder=3,\n)\n\nax.scatter(\n    branchpoint_table[\"coord-x-px\"],\n    branchpoint_table[\"coord-y-px\"],\n    s=30,\n    c=\"red\",\n    label=\"branchpoint\",\n    zorder=3,\n)\n\nax.set_title(\"branches / nodes / spur candidates\")\nax.legend(loc=\"upper right\")\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
+    "href": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
+    "title": "葉脈の抽出",
+    "section": "major / minor 分離前の太さヒント",
+    "text": "major / minor 分離前の太さヒント\nmajor / minor の自動分類はまだ行いません。 ただし、太さが大きい branch は major vein 候補として確認する価値があります。 この表は、napari で手動 order labels を作るときの確認用ヒントとして使います。\n\nwide_branch_candidates = branch_table.sort_values(\n    [\"mean-diameter-px\", \"branch-distance\"],\n    ascending=[False, False],\n).head(20)\n\nprint(\n    wide_branch_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ].to_string(index=False)\n)\n\n今後の方針としては、まず手動ラベルを基準にし、太さ・接続関係・midrib からの距離を補助情報として重ねるのが安全です。 完全自動分類よりも、「自動候補 + napari で修正」のほうが、画像条件の違いや葉脈の切断に強いです。\nskan は branch table を安定して作る用途に向いています。 一方で、branchpoint が複数 pixel の塊になる場合や、junction 近傍で branch が細かく分割される場合があります。 そのため、GUI に接続するときは branch table をそのまま最終分類に使うのではなく、可視化・候補提示・手動修正の補助として使うのがよいです。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/zotero_leaf_vein_literature.html",
+    "href": "notebooks/zotero_leaf_vein_literature.html",
+    "title": "Zotero文献から見る葉脈研究",
     "section": "",
-    "text": "このノートは、napari 公式ドキュメントの Building a plugin をもとに、leaf-vein-workflow のような napari plugin を作るときの基本構造を整理したものです。\n対象は、現在の leaf-vein-workflow と同じく、napari のメニューから dock widget を開いて画像処理ワークフローを進めるタイプの plugin です。",
+    "text": "このページは、2026年7月14日にローカルZoteroライブラリを検索し、葉脈研究に関係する文献を整理したものである。引用はZoteroから書き出したBibTeXを用い、Quartoの引用記法で管理している。",
     "crumbs": [
       "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
+      "Reports",
+      "Zotero文献から見る葉脈研究"
     ]
   },
   {
-    "objectID": "notebooks/napari_plugin_development.html#公式ドキュメント上の位置づけ",
-    "href": "notebooks/napari_plugin_development.html#公式ドキュメント上の位置づけ",
-    "title": "napari プラグイン作成の要点",
-    "section": "公式ドキュメント上の位置づけ",
-    "text": "公式ドキュメント上の位置づけ\nnapari plugin は、napari の機能を Python package として拡張する仕組みです。公式ドキュメントでは、主に次のような拡張が想定されています。\n\n\n\n種類\n何を追加するか\n\n\n\n\nreader\n新しいファイル形式の読み込み\n\n\nwriter\nnapari レイヤーの保存\n\n\nwidget\n独自の UI や処理パネル\n\n\nsample data\nFile &gt; Open Sample から開けるサンプルデータ\n\n\ntheme\nnapari の見た目\n\n\n\nleaf-vein-workflow は、このうち widget plugin です。画像の読み込み自体は napari 標準機能に任せ、plugin は ROI、Gaussian smoothing、mask の作成と cleanup、order labels の作成を担当します。",
+    "objectID": "notebooks/zotero_leaf_vein_literature.html#調査範囲",
+    "href": "notebooks/zotero_leaf_vein_literature.html#調査範囲",
+    "title": "Zotero文献から見る葉脈研究",
+    "section": "調査範囲",
+    "text": "調査範囲\nZoteroの Leaf vein コレクション（collection key: 4NXIFW4C）には65件の文献レコードがあった。DOIまたは完全一致するタイトルで重複をまとめると56文献であった。さらにライブラリ全体のタイトル・抄録・タグを検索し、タイトルから葉脈を直接扱うと判断できる4文献を追加した。\nしたがって、本ページでは次の82文献を扱う。\n\n\n\n\n\n\n\n\n区分\n文献数\n判定基準\n\n\n\n\n中核文献\n60\nLeaf vein コレクションの文献、またはタイトルが葉脈・葉脈網・主脈を直接扱う文献\n\n\n周辺文献\n22\n抄録中で葉脈との関係が確認できるが、主題が葉水理、葉構造、葉力学などに置かれる文献\n\n\n合計\n82\n重複レコードを統合した文献数\n\n\n\nここでいう「すべて」は、この再現可能な検索基準に該当したZotero所蔵文献を指す。一般的な vein だけの一致は動物・医学文献を拾うため採用せず、leaf、leaves、foliar と vein、venation、midvein、areole の組み合わせ、および既存タグを用いた。",
     "crumbs": [
       "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
+      "Reports",
+      "Zotero文献から見る葉脈研究"
     ]
   },
   {
-    "objectID": "notebooks/napari_plugin_development.html#最小構成",
-    "href": "notebooks/napari_plugin_development.html#最小構成",
-    "title": "napari プラグイン作成の要点",
-    "section": "最小構成",
-    "text": "最小構成\n公式チュートリアルでは、現在の新しい plugin 形式として npe2 を対象にしています。napari plugin は通常の Python package ですが、少なくとも次の 2 つが必要です。\n\nplugin の貢献内容を静的に書いた manifest ファイル\nnapari が manifest を見つけるための napari.manifest entry point\n\nこの repo では、それぞれ次のファイルが対応しています。\n\n\n\n\n\n\n\n役割\nこの repo のファイル\n\n\n\n\npackage metadata と entry point\npyproject.toml\n\n\nplugin manifest\nsrc/leaf_vein_workflow/napari.yaml\n\n\nmanifest から参照する互換用入口\nsrc/leaf_vein_workflow/_widget.py\n\n\n1 つの widget の組み立て\nsrc/leaf_vein_workflow/widgets/crop_widget.py\n\n\n工程別の widget 実装\nsrc/leaf_vein_workflow/widgets/ 以下の各モジュール",
+    "objectID": "notebooks/zotero_leaf_vein_literature.html#葉脈研究の全体像",
+    "href": "notebooks/zotero_leaf_vein_literature.html#葉脈研究の全体像",
+    "title": "Zotero文献から見る葉脈研究",
+    "section": "葉脈研究の全体像",
+    "text": "葉脈研究の全体像\n\n葉脈網は多機能な階層ネットワークである\n葉脈は、水・光合成産物・シグナルを運ぶ輸送系であると同時に、葉身を支持し、損傷時にも機能を維持するネットワークである。総説では、構造、発生、可塑性、進化、生態、応用を一つの枠組みで扱う必要性が示されている (Sack と Scoffoni 2013年; Roth-Nebelsick ほか 2001年)。近年の比較研究は、細脈・中間径・太い葉脈で機能への寄与が異なり、単一の最適解ではなく複数の設計が成立することを示している (Matos, Boakye, Niewiadomski, ほか 2024年; Blonder ほか 2020年)。約4億年の進化史を扱った研究でも、葉脈密度やループ構造の変化が葉脈サイズ階級ごとに異なることが示された (Matos, Vu, ほか 2025年)。\n\n\n水理・光合成・乾燥耐性との関係\n葉脈密度や葉脈配置は、葉内の水輸送距離を通じて葉の水理伝導度と最大光合成速度に関係する (Brodribb ほか 2007年)。ただし、葉脈形質を葉経済スペクトル全体の単純な「起源」とみなすのは支持されず、葉脈密度は独立した水理的な経路を通じて気孔コンダクタンスや光合成に影響すると整理されている (Sack ほか 2013年)。また、major vein と minor vein は同じ役割ではなく、少なくとも温帯落葉樹では minor vein の形質が水欠乏耐性や葉構造とより強く関連した (Kawai と Okada 2018年)。葉脈閉塞、bundle sheath、道管外経路、塞栓などを扱う研究も、葉脈網だけでなく周辺組織を含めて水理機能を評価する必要性を示す (Harayama ほか 2019年; Ohtsuka ほか 2018年; Buckley ほか 2015年; Brodribb ほか 2016年)。\n\n\n輸送と力学のトレードオフ\n主脈や高次脈は葉身を平坦に保ちつつ、風や乾燥に応じて変形できる支持構造でもある。主脈の三次元構造と材料特性は、曲げ、ねじり、座屈、破壊様式に影響する (Pierantoni ほか 2019年)。多種比較と理論モデルを組み合わせた研究では、葉先側では輸送効率、基部側では力学的支持が主脈形態を強く規定するという軸方向のトレードオフが示された (Hong ほか 2025年)。葉脈分布・葉脈角度・乾燥時の主脈も、変形や破壊、葉形形成に関与する (Liu ほか 2020年; Kobayashi と Daimaruya 2002年; Guo ほか 2026年)。\n\n\n画像取得・セグメンテーション・ネットワーク計測\n再現性の高い葉脈研究には、透明化、染色、封入、撮像、保存までを一続きのプロトコルとして管理する必要がある (Niewiadomski ほか 2025年)。解析では、LEAF GUIが対話的な閾値処理とクリーニングから葉脈・areoleの位置、形状、接続性を計測する枠組みを示した (Price ほか 2011年)。phenoVeinは背景むらの補正、自動セグメンテーション、幅推定、骨格グラフ統計、手動修正を統合している (Bühler ほか 2015年)。その後、深層学習によるマスク抽出と無向グラフ化を組み合わせ、未処理葉から葉脈ネットワークの形態空間を再構成する方法が提案された (Iwamasa と Noshita 2023年)。\n葉脈次数を扱う場合、単なる二値セグメンテーションだけでは不十分である。HALVSはprimary、secondary、tertiaryの3階層を注釈したデータセットと、少ない注釈から細脈の連結性を回復する方法を提示している (Liu ほか 2026年)。この方向は、leaf-vein-workflow で目指す「自動候補生成、次数の確認、手動修正」という流れに最も近い。",
     "crumbs": [
       "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
+      "Reports",
+      "Zotero文献から見る葉脈研究"
     ]
   },
   {
-    "objectID": "notebooks/napari_plugin_development.html#pyproject.toml-で-napari-に見つけてもらう",
-    "href": "notebooks/napari_plugin_development.html#pyproject.toml-で-napari-に見つけてもらう",
-    "title": "napari プラグイン作成の要点",
-    "section": "pyproject.toml で napari に見つけてもらう",
-    "text": "pyproject.toml で napari に見つけてもらう\nnapari は、インストール済み Python package の entry point を見て plugin を発見します。この repo では次の部分が対応しています。\n[project.entry-points.\"napari.manifest\"]\nleaf-vein-workflow = \"leaf_vein_workflow:napari.yaml\"\n左辺の leaf-vein-workflow は plugin の配布名です。右辺は、Python package leaf_vein_workflow の中にある napari.yaml を manifest として読む、という意味です。\nまた、PyPI や napari hub 上で napari plugin として認識されやすくするため、package metadata には次の classifier を入れます。\nclassifiers = [\n    \"Framework :: napari\",\n]\nこの repo ではすでに Framework :: napari が入っています。",
+    "objectID": "notebooks/zotero_leaf_vein_literature.html#このプロジェクトへの示唆",
+    "href": "notebooks/zotero_leaf_vein_literature.html#このプロジェクトへの示唆",
+    "title": "Zotero文献から見る葉脈研究",
+    "section": "このプロジェクトへの示唆",
+    "text": "このプロジェクトへの示唆\nZotero文献群から見ると、実装上の優先順位は次のように整理できる。\n\n入力画像の品質とスケールを記録し、透明化標本・透過画像・通常撮影を区別する。\n二値maskだけでなく、骨格、分岐点、端点、edge、areoleを再利用できる形で保持する。\nmajor/minorや次数は線幅だけで決めず、接続関係と階層を含めて候補提示する。\n自動処理後の手動修正を正式な工程として残す。\nセグメンテーション精度と、VLA・幅・次数など最終形質の測定誤差を分けて検証する。\n\nこれは文献から導いた実装上の整理であり、個々の論文がこのソフトウェア設計を直接推奨しているという意味ではない。",
     "crumbs": [
       "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
+      "Reports",
+      "Zotero文献から見る葉脈研究"
     ]
   },
   {
-    "objectID": "notebooks/napari_plugin_development.html#napari.yaml-で何を提供するかを書く",
-    "href": "notebooks/napari_plugin_development.html#napari.yaml-で何を提供するかを書く",
-    "title": "napari プラグイン作成の要点",
-    "section": "napari.yaml で何を提供するかを書く",
-    "text": "napari.yaml で何を提供するかを書く\nmanifest には、plugin が napari に提供する機能を書きます。公式ドキュメントでは、まず commands を定義し、その command を widget、reader、writer、menu などから参照する形が基本です。\nこの repo の napari.yaml は、widget を 1 つ提供します。\nname: leaf-vein-workflow\ndisplay_name: Leaf Vein Workflow\ncontributions:\n  commands:\n    - id: leaf-vein-workflow.make_crop_widget\n      title: Make ROI Crop Widget\n      python_name: leaf_vein_workflow._widget:CropWidget\n  widgets:\n    - command: leaf-vein-workflow.make_crop_widget\n      display_name: Leaf Vein Workflow\nここで重要なのは、commands と widgets の対応です。\n\n\n\n項目\n意味\n\n\n\n\nid\ncommand の一意な ID。plugin 名から始める\n\n\ntitle\ncommand の説明名\n\n\npython_name\n実際に呼び出す Python オブジェクト\n\n\nwidgets.command\nwidget として開く command\n\n\ndisplay_name\nnapari の plugin menu に表示される名前\n\n\n\nこの設定により、napari の Plugins menu から Leaf Vein Workflow を選ぶと、leaf_vein_workflow._widget:CropWidget が作られます。_widget.py は widgets/crop_widget.py の CropWidget を再公開する薄い入口なので、内部を分割しても manifest の python_name と既存の import は変わりません。",
+    "objectID": "notebooks/zotero_leaf_vein_literature.html#中核文献一覧",
+    "href": "notebooks/zotero_leaf_vein_literature.html#中核文献一覧",
+    "title": "Zotero文献から見る葉脈研究",
+    "section": "中核文献一覧",
+    "text": "中核文献一覧\n以下は、Zoteroの Leaf vein コレクションと、ライブラリ全体から追加した直接該当文献である。同一DOIまたは完全一致タイトルの重複は、情報量の多い1レコードにまとめた。\n\n106 Mechanical Characteristics of Vein Network in Butterbur Leaves (Sakuma ほか 2001年) — Zotero item I325IECF\n617 Vein Structure and Mechanical Properties of a Leaf of Santa Cruz Water Lily (Victoria cruziana) (Kobayashi ほか 2009年) — Zotero item DMATMNJW\nA 3D study of the relationship between leaf vein structure and mechanical function (Pierantoni ほか 2019年) — Zotero item JYGBNA8W\nA comprehensive illustrated protocol for clearing, mounting, and imaging leaf venation networks (Niewiadomski ほか 2025年) — Zotero item TVMTI32J\nA high-resolution model of the grapevine leaf morphospace predicts synthetic leaves (Chitwood ほか 2025年) — Zotero item TA2IN3DW\nA Modern Ampelography: A Genetic Basis for Leaf Shape and Venation Patterning in Grape (Chitwood ほか 2014年) — Zotero item HLRWCWY2\nA trade-off between transport and mechanics determines plant leaf vein architecture (Hong ほか 2025年) — Zotero item HR2VCZ4Q\nAridity-dependent regulation of water-use efficiency by leaf vein traits across grassland communities (Han ほか, 日付なし) — Zotero item SAQM6IGT\nAxial anatomy of the leaf midrib provides new insights into the hydraulic architecture and cavitation patterns of Acer pseudoplatanus leaves (Lechthaler ほか 2019年) — Zotero item Q6HIK3ZD\nBranching Pattern of Veins and Structural Stiffness in Butterbur Leaf (Kobayashi と Daimaruya 2003年) — Zotero item MVGRM54F\nBundle sheath lignification mediates the linkage of leaf hydraulics and venation (Ohtsuka ほか 2018年) — Zotero item N7RR7AQY\nCauses of ecological gradients in leaf margin entirety: Evaluating the roles of biomechanics, hydraulics, vein geometry, and bud packing (Givnish と Kriebel 2017年) — Zotero item VPU74D6V\nComputer vision cracks the leaf code (Wilf ほか 2016年) — Zotero item HKP4PPEH\nCUDU-Net: Collaborative up-sampling decoder U-Net for leaf vein segmentation (Cai ほか 2024年) — Zotero item VBDAWK9M\nDecline of Leaf Hydraulic Conductance with Dehydration: Relationship to Leaf Size and Venation Architecture (Scoffoni ほか 2011年) — Zotero item IBAPWKXC\nDecoding Leaf Hydraulics with a Spatially Explicit Model: Principles of Venation Architecture and Implications for Its Evolution. (McKown ほか 2010年) — Zotero item ZLXEJRQC\nEffects of major vein blockage and aquaporin inhibition on leaf hydraulics and stomatal conductance (Harayama ほか 2019年) — Zotero item 97UPQS5L\nEvolution and Function of Leaf Venation Architecture: A Review (Roth-Nebelsick ほか 2001年) — Zotero item ZFK7R2B2\nExamining the support–supply and bud-packing hypotheses for the increase in toothed leaf margins in northern deciduous floras (Zohner ほか 2019年) — Zotero item HM4LS29P\nFunctional consequences of light intensity on soybean leaf hydraulic conductance: Coordinated variations in leaf venation architecture and mesophyll structure (Gao ほか 2023年) — Zotero item H8MCECWR\nHigher PEPC activity and vein density contribute to improve cotton leaf water use efficiency under water stress (Lei ほか 2025年) — Zotero item 28TYNHMC\nHow are leaf mechanical properties and water-use traits coordinated by vein traits? A case study in Fagaceae (Kawai と Okada 2016年) — Zotero item 3H6Z9MW2\nHow do leaf veins influence the worldwide leaf economic spectrum? Review and synthesis (Sack ほか 2013年) — Zotero item IZYAVRKQ\nHow Does Leaf Anatomy Influence Water Transport outside the Xylem? (Buckley ほか 2015年) — Zotero item 6YYSFX4I\nHybrid network of leaf veins observed in tree species (Muraleedharan ほか 2026年) — Zotero item ZE3YSYSC\nImproved mesophyll–bundle sheath connectivity is achieved via different mechanisms in C2 vs C4 Alternanthera (Roberts ほか, 日付なし) — Zotero item N5BL3NCS\nInvestigating the Functional and Architectural Diversity of Leaf Venation Networks (Matos, Boakye, ほか 2025年) — Zotero item NE6KUEDL\nKinetics of recovery of leaf hydraulic conductance and vein functionality from cavitation‐induced embolism in sunflower (Trifilò ほか 2003年) — Zotero item AXZMIFGW\nLeaf architecture and functional traits for 122 species at the University of California Botanical Garden at Berkeley (Matos, Boakye, Antonio, ほか 2024年) — Zotero item EH58HWAG\nLeaf Extraction and Analysis Framework Graphical User Interface: Segmenting and Analyzing the Structure of Leaf Veins and Areoles (Price ほか 2011年) — Zotero item I7PTR295\nLeaf Maximum Photosynthetic Rate and Venation Are Linked by Hydraulics (Brodribb ほか 2007年) — Zotero item X4IRNXJK\nLeaf morphology correlates with water and light availability: What consequences for simple and compound leaves? (Xu ほか 2009年) — Zotero item BK4FKI2M\nLeaf shape and venation pattern alter the support investments within leaf lamina in temperate species: a neglected source of leaf physiological differentiation? (Niinemets ほか 2007年) — Zotero item LJPSJY7X\nLeaf Shrinkage with Dehydration: Coordination with Hydraulic Vulnerability and Drought Tolerance (Scoffoni ほか 2014年) — Zotero item DINNFMSB\nLeaf venation network architecture coordinates functional trade-offs across vein spatial scales: evidence for multiple alternative designs (Matos, Boakye, Niewiadomski, ほか 2024年) — Zotero item 9396YNTW\nLeaf venation network evolution across clades and scales (Matos, Vu, ほか 2025年) — Zotero item 7W9C6BPS\nLeaf venation networks of Bornean trees: images and hand-traced segmentations (Blonder ほか 2019年) — Zotero item JSIRCDG9\nLeaf venation: structure, function, development, evolution, ecology and applications in the past, present and future (Sack と Scoffoni 2013年) — Zotero item 3QMH67CL\nLinking functional traits to multiscale statistics of leaf venation networks (Blonder ほか 2020年) — Zotero item AVEX3RL8\nMechanical Contribution of Laminar Angle in Plant Leaves with Pinnate Venation(Biomimetics & Innovative Design) (Kobayashi ほか 2004年) — Zotero item FYLGTJHR\nMechanical evaluation of London plane leaves with pedate venation (Kobayashi と Daimaruya 2001年) — Zotero item K72URVE9\nMechanical Properties of Lamina and Veins in Butterbur Leaf and Its Venation Pattern (Kobayashi ほか 2002年) — Zotero item MP67BIT2\nMidveins regulate the shape formation of drying leaves (Guo ほか 2026年) — Zotero item 97ILEZZM\nMorphological Response of Eight Quercus Species to Simulated Wind Load (Wu ほか 2016年) — Zotero item 3FSR8L7Q\nNetwork feature-based phenotyping of leaf venation robustly reconstructs the latent space (Iwamasa と Noshita 2023年) — Zotero item WK7NZZQ7\nOS1008 Unique Vein Structure and Buoyancy Observed in Leaf of Prickly Water Lily (Morishita ほか 2009年) — Zotero item N7WGNNFL\nphenoVein—A Tool for Leaf Vein Segmentation and Analysis (Bühler ほか 2015年) — Zotero item YBT3UA9Z\nPlasticity in Hydraulic Architecture: Riparian Trees Respond to Increased Temperatures With Genotype-Specific Adjustments to Leaf Traits (Garthwaite ほか 2024年) — Zotero item 9879KAWP\nRevealing Hierarchical Structure of Leaf Venations via Diffusion-Refined Label-Efficient Segmentation: Dataset and Method (Liu ほか 2026年) — Zotero item DRJW7RG3\nRole of hydraulic traits in stomatal regulation of transpiration under different vapour pressure deficits across five Mediterranean tree crops (Hernandez-Santana ほか 2023年) — Zotero item YANDPUES\nRoles of major and minor vein in leaf water deficit tolerance and structural properties in 11 temperate deciduous woody species (Kawai と Okada 2018年) — Zotero item YJNKJJGK\nScaling relationships of leaf vein and areole traits versus leaf size for nine Magnoliaceae species differing in venation density (Shi ほか 2022年) — Zotero item DMZB9ZZ7\nTansley Review No. 22 What becomes of the transpiration stream? (Canny 1990年) — Zotero item UVKFTWCS\nThe Functional Significance of Leaf Shape Lies in Water Relations Over Thermoregulation: A Case Study With an Arid Legume Herb (Wang ほか 2026年) — Zotero item 7WCU52PX\nThe Heterogeneity and Spatial Patterning of Structure and Physiology across the Leaf Surface in Giant Leaves of Alocasia macrorrhiza (Li ほか 2013年) — Zotero item S8RM63G2\nThe mechanical principles behind the golden ratio distribution of veins in plant leaves (Sun ほか 2018年) — Zotero item WMCPRYZ2\nVein Angle and Growing/Deployable Speed of Tree Leaves with Corrugation Folding (Kobayashi と Daimaruya 2002年) — Zotero item QBYRNXFH\nVein Distribution on the Deformation Behavior and Fracture Mechanisms of Typical Plant Leaves by Quasi In Situ Tensile Test under a Digital Microscope (Liu ほか 2020年) — Zotero item PNPESZQ6\nVenation Pattern of Butterbur Leaf and Its Mechanical Contribution (Kobayashi ほか 2000年) — Zotero item DDKREUMY\nVisual quantification of embolism reveals leaf vulnerability to hydraulic failure (Brodribb ほか 2016年) — Zotero item MTELLV3C",
     "crumbs": [
       "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
+      "Reports",
+      "Zotero文献から見る葉脈研究"
     ]
   },
   {
-    "objectID": "notebooks/napari_plugin_development.html#widget-実装の考え方",
-    "href": "notebooks/napari_plugin_development.html#widget-実装の考え方",
-    "title": "napari プラグイン作成の要点",
-    "section": "widget 実装の考え方",
-    "text": "widget 実装の考え方\nwidget contribution は、napari の画面に独自の操作パネルを追加する仕組みです。公式ドキュメントでは、widget は Qt の QWidget、magicgui の widget、または自動生成 widget として提供できます。\nこの repo では Qt widget を直接使っています。napari に提供する widget は 1 つのままですが、クラスの実装を 1 ファイルにまとめる必要はありません。\n# src/leaf_vein_workflow/_widget.py\nfrom .widgets.crop_widget import CropWidget\n\n# src/leaf_vein_workflow/widgets/crop_widget.py\nclass CropWidget(QWidget):\n    def __init__(self, napari_viewer):\n        super().__init__()\n        self.viewer = napari_viewer\nnapari_viewer を受け取ることで、widget から viewer の layer list にアクセスできます。現在の実装では、次の処理を viewer API 経由で行います。\n\n新しい Image layer を見つける\nROI 用 Shapes layer を追加する\ncrop Image layer を追加または更新する\nsmoothed_image Image layer を追加または更新する\nvein_mask と order_labels の Labels layer を追加または更新する",
+    "objectID": "notebooks/zotero_leaf_vein_literature.html#周辺文献一覧",
+    "href": "notebooks/zotero_leaf_vein_literature.html#周辺文献一覧",
+    "title": "Zotero文献から見る葉脈研究",
+    "section": "周辺文献一覧",
+    "text": "周辺文献一覧\n以下は、抄録内で葉脈との関係が確認できた文献である。葉水理、葉構造、葉力学の背景として有用だが、タイトル上の主題は葉脈そのものではないため中核文献と分けた。\n\nAllometry of cells and tissues within leaves (John ほか 2013年) — Zotero item 7EQRS9M5\nAnatomical determinants of gas exchange and hydraulics vary with leaf shape in soybean (Tamang ほか 2022年) — Zotero item 9HX4HLT5\nClassification of the Architecture of Dicotyledonous Leaves (Hickey 1973年) — Zotero item ZCFLWGY6\nEffect of Crease Interval on Unfolding Manner of Corrugated Tree Leaves (Kobayashi ほか 1999年) — Zotero item BM5P63BQ\nEvolution of leaf structure and drought tolerance in species of Californian Ceanothus (Fletcher ほか 2018年) — Zotero item 3V4B4J58\nHard and tough: the coordination between leaf mechanical resistance and drought tolerance (Nardini 2022年) — Zotero item GJJCKUTI\nHydraulic architecture of leaf blades: where is the main resistance? (Cochard ほか 2004年) — Zotero item 8IWI3RPA\nLeaf biomechanical traits predict litter decomposability (Wang ほか 2025年) — Zotero item ULFEUXXR\nLeaf biomechanics, morphology, and anatomy of the deciduous mesophyte Prunus serrulata (Rosaceae) and the evergreen sclerophyllous shrub Heteromeles arbutifolia (Rosaceae) (Balsamo ほか 2003年) — Zotero item 7NMYKDT3\nLeaf hydraulic vulnerability triggers the decline in stomatal and mesophyll conductance during drought in rice (Wang ほか 2018年) — Zotero item BKH3JJZ2\nLeaf mesophyll conductance and leaf hydraulic conductance: an introduction to their measurement and coordination (Flexas ほか 2013年) — Zotero item GK9PH72M\nLeaf Structural Diversity Is Related to Hydraulic Capacity in Tropical Rain Forest Trees (Sack と Frole 2006年) — Zotero item 436NLEIC\nMeasurement of Leaf Hydraulic Conductance and Stomatal Conductance and Their Responses to Irradiance and Dehydration Using the Evaporative Flux Method (EFM) (Sack と Scoffoni 2012年) — Zotero item 3SLBS4UE\nNon-destructive acoustic measurement of elastic modulus of plant leaves (Yoshitsugu ほか 2017年) — Zotero item MDVRP8QL\nOutside-Xylem Vulnerability, Not Xylem Embolism, Controls Leaf Hydraulic Decline during Dehydration (Scoffoni ほか 2017年) — Zotero item YPFRTP3U\nPetiole mechanics, leaf inclination, morphology, and investment in support in relation to light availability in the canopy of Liriodendron tulipifera (Niinemets と Fleck 2002年) — Zotero item N4W9Q2XG\nResearches into Structure and Motion of Plants from Mechanical View Point (Kobayashi 2019年) — Zotero item PTB32FSC\nStructural organization of the spongy mesophyll (Borsuk ほか 2022年) — Zotero item HLNVR9VV\nThe geometry of unfolding tree leaves (H. Kobayashi ほか 1998年) — Zotero item S6KDT7EE\nThresholds for persistent leaf photochemical damage predict plant drought resilience in a tropical rainforest (Fortunel ほか 2023年) — Zotero item 7GEHMJAH\nTissue-level leaf toughness, but not lamina thickness, predicts sapling leaf lifespan and shade tolerance of tropical tree species (Kitajima と Poorter 2010年) — Zotero item L985AZE2\nUnfolding Manners of Corrugated Plant Leaves (Hidetoshi Kobayashi ほか 1998年) — Zotero item 8GNXXLEW",
     "crumbs": [
       "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
+      "Reports",
+      "Zotero文献から見る葉脈研究"
     ]
   },
   {
-    "objectID": "notebooks/napari_plugin_development.html#つの-widget-を責務別に分ける",
-    "href": "notebooks/napari_plugin_development.html#つの-widget-を責務別に分ける",
-    "title": "napari プラグイン作成の要点",
-    "section": "1 つの widget を責務別に分ける",
-    "text": "1 つの widget を責務別に分ける\nCropWidget は全体を組み立てる場所として残し、具体的な処理は次のファイルに分けています。\n\n\n\n\n\n\n\nファイル\n主な責務\n\n\n\n\nwidgets/crop_widget.py\nwidget の組み立て、Qt signal の接続、公開メソッドから各工程への委譲\n\n\nwidgets/controls.py\nUI 部品の生成、レイアウト、工程に応じた有効・無効の切り替え\n\n\nwidgets/layers.py\nmetadata 定数、レイヤー間の対応、検索、選択、削除\n\n\nwidgets/roi.py\nImage layer の検出、ROI の準備と確認、crop の作成\n\n\nwidgets/mask.py\nGaussian、Otsu、閾値 timer、mask cleanup\n\n\nwidgets/order_labels.py\norder labels の作成、再利用、mask 外への描画防止\n\n\n\n各工程の担当は互いを直接呼び合わず、共有する controls とレイヤー管理を CropWidget から受け取ります。たとえば order labels のコードが ROI 内部の辞書を直接読むことはありません。依存方向を単純にすることで、ある工程を修正するときに別工程の実装まで読み込まずに済みます。\n既存の CropWidget.add_roi()、apply_gaussian_filter()、use_otsu_threshold()、clean_mask()、create_order_labels() は薄い委譲メソッドとして残します。napari の見た目と外部からの呼び方を保ちながら、内部だけを分割するためです。\nコードを読むときは、まず _widget.py で公開入口を確認し、次に crop_widget.py で全体の接続を見ます。その後、UI なら controls.py、レイヤーの active/visible や削除なら layers.py、個別の操作なら roi.py、mask.py、order_labels.py の該当ファイルだけを読みます。配列計算の詳細は、そこから呼ばれる crop.py、threshold.py、order.py を確認します。",
+    "objectID": "notebooks/zotero_leaf_vein_literature.html#データ品質と限界",
+    "href": "notebooks/zotero_leaf_vein_literature.html#データ品質と限界",
+    "title": "Zotero文献から見る葉脈研究",
+    "section": "データ品質と限界",
+    "text": "データ品質と限界\n\nまとめはZoteroの書誌情報、タグ、抄録に基づく。全82文献の本文精読を行ったレビューではない。\n中核60文献のうち4文献は抄録がなく、2文献は年情報がない。該当項目の解釈には書誌情報の補完が必要である。\n同一研究のプレプリント版と出版版、和文・英文の重複は、DOIまたは完全一致タイトルで統合した。近い内容でも別研究である文献は統合していない。\nZoteroコレクションやタグは変更していない。このページ用BibTeXでは、引用に不要な長い抄録・ノート・注釈だけを除いた。",
     "crumbs": [
       "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
-    ]
-  },
-  {
-    "objectID": "notebooks/napari_plugin_development.html#contribution-の種類を選ぶ",
-    "href": "notebooks/napari_plugin_development.html#contribution-の種類を選ぶ",
-    "title": "napari プラグイン作成の要点",
-    "section": "contribution の種類を選ぶ",
-    "text": "contribution の種類を選ぶ\nplugin を作るときは、最初に「napari のどこを拡張したいのか」を決めます。\n\n\n\n目的\n選ぶ contribution\n\n\n\n\n独自フォーマットを開きたい\nreader\n\n\nレイヤーを独自形式で保存したい\nwriter\n\n\n操作パネルを出したい\nwidget\n\n\nメニュー項目を追加したい\nmenu\n\n\nデモ用画像を同梱したい\nsample data\n\n\n\nleaf-vein-workflow の MVP では、まず widget だけで十分です。画像ファイルの読み込みは napari に任せられるため、reader を追加する必要はまだありません。\n将来、葉脈解析用の独自 project file を読み書きする段階になったら、reader や writer の追加を検討します。その場合も、GUI から無理にファイル形式を扱うより、reader/writer contribution として分けた方が napari の作法に合います。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
-    ]
-  },
-  {
-    "objectID": "notebooks/napari_plugin_development.html#dependency-の注意点",
-    "href": "notebooks/napari_plugin_development.html#dependency-の注意点",
-    "title": "napari プラグイン作成の要点",
-    "section": "dependency の注意点",
-    "text": "dependency の注意点\n公式の best practices では、plugin の依存関係を重くしすぎないことが強調されています。特に Qt backend への依存は避けるべきです。\n避けたい例:\n\nruntime dependency に napari[all] を入れる\nruntime dependency に PyQt5、PyQt6、PySide6 を固定する\nwheel がない重い binary dependency を安易に増やす\n\nこの repo では、Qt backend の pyqt6 は dev dependency に置いています。plugin の利用者がどの Qt backend を使うかは、基本的に利用者側の napari 環境に任せる方が安全です。\nまた、型注釈だけのために napari を import する場合は、文字列 annotation や typing.TYPE_CHECKING を使うと runtime dependency を増やさずに済みます。ただし、この repo は napari.layers や通知 API を runtime で使うため、napari dependency は実際に必要です。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
-    ]
-  },
-  {
-    "objectID": "notebooks/napari_plugin_development.html#テスト方針",
-    "href": "notebooks/napari_plugin_development.html#テスト方針",
-    "title": "napari プラグイン作成の要点",
-    "section": "テスト方針",
-    "text": "テスト方針\n公式ドキュメントでは、napari plugin のテストには pytest が推奨されています。また、viewer を使うテストには make_napari_viewer_proxy fixture が用意されています。\n一方で、すべてを napari の画面操作として統合テストする必要はありません。公式 docs でも、小さい unit test に分けることが勧められています。\nこの repo の方針は次の通りです。\n\n\n\n\n\n\n\n対象\nテスト方針\n\n\n\n\ncrop 計算\ntests/test_crop.py で NumPy 配列として直接テスト\n\n\nGaussian、threshold、cleanup 計算\ntests/test_threshold.py で直接テスト\n\n\norder labels の検証・集計\ntests/test_order.py で直接テスト\n\n\nwidget と napari layer\ntests/test_widget_import.py で import 互換性と明示的な工程を統合確認\n\n\n\nこの分け方にすると、GUI や Qt の不安定さに引きずられず、画像処理の仕様を小さく確認できます。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
-    ]
-  },
-  {
-    "objectID": "notebooks/napari_plugin_development.html#開発中の確認手順",
-    "href": "notebooks/napari_plugin_development.html#開発中の確認手順",
-    "title": "napari プラグイン作成の要点",
-    "section": "開発中の確認手順",
-    "text": "開発中の確認手順\nローカルで plugin を変更したら、まず editable install 相当の環境で napari を起動して確認します。この repo では uv を使うため、基本コマンドは次の通りです。\nuv sync\nuv run napari\nnapari が起動したら、次を確認します。\n\nPlugins &gt; Leaf Vein Workflow &gt; Leaf Vein Workflow から widget が開く。\n画像を開くと ROI 用 Shapes layer が作られる。\nAdd ROI で crop が作られる。\nApply Gaussian では smoothed_image だけが作られ、まだ vein_mask がない。\nApply Otsu で初めて vein_mask が作られ、閾値を調整できる。\nClean Mask 後も paint mode で手動修正できる。\n手動修正後の Create Order Labels で order_labels が作られ、mask 外には描画できない。\n\n自動テストは次で実行します。\nuv run pytest",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
-    ]
-  },
-  {
-    "objectID": "notebooks/napari_plugin_development.html#公開するときの流れ",
-    "href": "notebooks/napari_plugin_development.html#公開するときの流れ",
-    "title": "napari プラグイン作成の要点",
-    "section": "公開するときの流れ",
-    "text": "公開するときの流れ\n公式ドキュメントでは、公開先として PyPI、conda-forge、napari hub が挙げられています。\n基本的な流れは次の通りです。\n\nFramework :: napari classifier を package metadata に入れる。\npyproject.toml と napari.yaml が正しく入った配布物を作る。\nPyPI に公開する。\nnapari hub 上の説明文や metadata を整える。\n必要なら conda-forge にも公開する。\n\n新規 plugin を最初から作る場合は、公式の napari-plugin-template を使うと、package 構成、テスト、CI、公開設定の雛形を作れます。ただし、既存 repo で小さく育てる場合は、今のように pyproject.toml、napari.yaml、widget 実装、tests を確認しながら足していく方が追いやすいです。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
-    ]
-  },
-  {
-    "objectID": "notebooks/napari_plugin_development.html#この-repo-で次に見直す場所",
-    "href": "notebooks/napari_plugin_development.html#この-repo-で次に見直す場所",
-    "title": "napari プラグイン作成の要点",
-    "section": "この repo で次に見直す場所",
-    "text": "この repo で次に見直す場所\nプラグイン作成の観点では、今後の変更時に次を確認するとよいです。\n\n\n\n\n\n\n\n確認点\n見る場所\n\n\n\n\nnapari が plugin を発見できるか\npyproject.toml の napari.manifest\n\n\nmenu に出る名前が適切か\nsrc/leaf_vein_workflow/napari.yaml\n\n\nmanifest と import の互換性が保たれているか\nsrc/leaf_vein_workflow/_widget.py\n\n\nsignal と工程の接続が明示されているか\nwidgets/crop_widget.py\n\n\nlayer の対応・選択・削除が一元管理されているか\nwidgets/layers.py\n\n\n各操作の修正範囲が工程別に分かれているか\nwidgets/roi.py、widgets/mask.py、widgets/order_labels.py\n\n\n計算処理が GUI から分離されているか\ncrop.py、threshold.py、order.py\n\n\nnapari なしで確認できる仕様がテストされているか\ntests/test_*.py",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
-    ]
-  },
-  {
-    "objectID": "notebooks/napari_plugin_development.html#参考リンク",
-    "href": "notebooks/napari_plugin_development.html#参考リンク",
-    "title": "napari プラグイン作成の要点",
-    "section": "参考リンク",
-    "text": "参考リンク\n\nBuilding a plugin\nYour first plugin\nPlugin contributions\nBest practices for plugin developers\nTesting guidelines\nPublish your plugin",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "napari プラグイン作成の要点"
-    ]
-  },
-  {
-    "objectID": "notebooks/data_source.html",
-    "href": "notebooks/data_source.html",
-    "title": "サンプルデータセット",
-    "section": "",
-    "text": "Leaf venation networks of Bornean trees: images and hand‐traced segmentations - Blonder - 2019 - Ecology - Wiley Online Library\n\nLeaf venation networks of Bornean trees: images and hand-traced segmentations - ORA - Oxford University Research Archive",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "サンプルデータセット"
-    ]
-  },
-  {
-    "objectID": "notebooks/data_source.html#まとめ",
-    "href": "notebooks/data_source.html#まとめ",
-    "title": "サンプルデータセット",
-    "section": "まとめ",
-    "text": "まとめ\n\n\n\nデータ\n使いどころ\n注意\n\n\n\n\nLeaf venation networks of Bornean trees / LeafVeinCNN Images\n葉脈セグメンテーション、VLA計算、手動トレースとの比較に最も近い\nBornean tree species の高解像度画像と手動トレース。元画像は約50–70 MP、複数百種規模。LeafVeinCNN用にダウンサンプル画像・ground truth・処理結果もZenodoにある。(Macrosystems Ecology Laboratory)\n\n\nUCBG 122 species venation dataset\n多様な系統の葉脈形質データ、既存の形質値との照合\nDryadに LeafVeinCNN.zip, UCBG_venation_form_images.zip, UCBG_venation_anatomy.csv などがあるが、全体はかなり大きい。122種の葉脈・機能形質データ。(Dryad)\n\n\nCleared / x-rayed / fossil leaves dataset\n透明化葉・X線葉画像を大量に見たい、分類・探索用\n30,252画像、うち26,176画像が cleared / x-rayed leaves。葉脈標本そのものに近いが、基本は分類・参照用で、VLA用のマスクやスケール情報は期待しすぎない方がよい。(EurekAlert!)\n\n\nHALVS dataset\n葉脈の次数別セグメンテーションモデルのテスト\n5,057枚、 soybean / sweet cherry / London planetree の3種、1–3次脈のアノテーションあり。ただし「透明化標本」ではなく高解像度スキャン葉画像。(IJCAI)\n\n\nLeafVeinCNN software / results\n既存ツールの挙動確認、出力形式の参考\nMATLAB/Windows向け。ソフト自体と学習済みCNNモデルが公開されている。(Zenodo)",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "サンプルデータセット"
+      "Reports",
+      "Zotero文献から見る葉脈研究"
     ]
   },
   {

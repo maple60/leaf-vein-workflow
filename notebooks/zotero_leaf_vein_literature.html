@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Zotero文献から見る葉脈研究 – leaf-vein-workflow</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-51ec0baac84c74459878fd0df95b10e6.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "一致なし",
+    "search-matching-documents-text": "一致した文書",
+    "search-copy-link-title": "検索へのリンクをコピー",
+    "search-hide-matches-text": "追加の検索結果を非表示",
+    "search-more-match-text": "追加の検索結果",
+    "search-more-matches-text": "追加の検索結果",
+    "search-clear-button-title": "消去",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "取消",
+    "search-submit-button-title": "検索",
+    "search-label": "サーチ"
+  }
+}</script>
+
+
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">leaf-vein-workflow</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="サーチ"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-manual" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Manual</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-manual">    
+        <li>
+    <a class="dropdown-item" href="../notebooks/workflow_overview.html">
+ <span class="dropdown-text">Workflow overview</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/napari_plugin_development.html">
+ <span class="dropdown-text">napari プラグイン作成</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/skeletonization.html">
+ <span class="dropdown-text">葉脈の抽出</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/data_source.html">
+ <span class="dropdown-text">サンプルデータセット</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-reports" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Reports</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-reports">    
+        <li>
+    <a class="dropdown-item" href="../notebooks/zotero_leaf_vein_literature.html">
+ <span class="dropdown-text">Zotero文献から見る葉脈研究</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/prometheus_leaf_vein_protocol.html">
+ <span class="dropdown-text">参考プロトコル: 葉脈形質の定量</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/生態学研究における葉脈形質の測定方法とツール比較.html">
+ <span class="dropdown-text">生態学研究における葉脈形質の測定方法とツール比較</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/葉脈形質の測定法と既存ツールの比較報告.html">
+ <span class="dropdown-text">葉脈形質の測定法と既存ツールの比較報告</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="サイドバーを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../notebooks/zotero_leaf_vein_literature.html">Reports</a></li><li class="breadcrumb-item"><a href="../notebooks/zotero_leaf_vein_literature.html">Zotero文献から見る葉脈研究</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="サイドバーを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Manual</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="セクションを切り替え">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../notebooks/workflow_overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Leaf Vein Workflow の挙動と関数の流れ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../notebooks/napari_plugin_development.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">napari プラグイン作成の要点</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../notebooks/skeletonization.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">葉脈の抽出</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../notebooks/data_source.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">サンプルデータセット</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Reports</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="セクションを切り替え">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../notebooks/zotero_leaf_vein_literature.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Zotero文献から見る葉脈研究</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../notebooks/prometheus_leaf_vein_protocol.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">参考プロトコル: 葉脈形質の定量</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../notebooks/生態学研究における葉脈形質の測定方法とツール比較.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">生態学研究における葉脈形質の測定方法とツール比較</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../notebooks/葉脈形質の測定法と既存ツールの比較報告.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">葉脈形質の測定法と既存ツールの比較報告</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">目次</h2>
+   
+  <ul>
+  <li><a href="#調査範囲" id="toc-調査範囲" class="nav-link active" data-scroll-target="#調査範囲">調査範囲</a></li>
+  <li><a href="#葉脈研究の全体像" id="toc-葉脈研究の全体像" class="nav-link" data-scroll-target="#葉脈研究の全体像">葉脈研究の全体像</a>
+  <ul class="collapse">
+  <li><a href="#葉脈網は多機能な階層ネットワークである" id="toc-葉脈網は多機能な階層ネットワークである" class="nav-link" data-scroll-target="#葉脈網は多機能な階層ネットワークである">葉脈網は多機能な階層ネットワークである</a></li>
+  <li><a href="#水理光合成乾燥耐性との関係" id="toc-水理光合成乾燥耐性との関係" class="nav-link" data-scroll-target="#水理光合成乾燥耐性との関係">水理・光合成・乾燥耐性との関係</a></li>
+  <li><a href="#輸送と力学のトレードオフ" id="toc-輸送と力学のトレードオフ" class="nav-link" data-scroll-target="#輸送と力学のトレードオフ">輸送と力学のトレードオフ</a></li>
+  <li><a href="#画像取得セグメンテーションネットワーク計測" id="toc-画像取得セグメンテーションネットワーク計測" class="nav-link" data-scroll-target="#画像取得セグメンテーションネットワーク計測">画像取得・セグメンテーション・ネットワーク計測</a></li>
+  </ul></li>
+  <li><a href="#このプロジェクトへの示唆" id="toc-このプロジェクトへの示唆" class="nav-link" data-scroll-target="#このプロジェクトへの示唆">このプロジェクトへの示唆</a></li>
+  <li><a href="#中核文献一覧" id="toc-中核文献一覧" class="nav-link" data-scroll-target="#中核文献一覧">中核文献一覧</a></li>
+  <li><a href="#周辺文献一覧" id="toc-周辺文献一覧" class="nav-link" data-scroll-target="#周辺文献一覧">周辺文献一覧</a></li>
+  <li><a href="#データ品質と限界" id="toc-データ品質と限界" class="nav-link" data-scroll-target="#データ品質と限界">データ品質と限界</a></li>
+  <li><a href="#参考文献" id="toc-参考文献" class="nav-link" data-scroll-target="#参考文献">参考文献</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../notebooks/zotero_leaf_vein_literature.html">Reports</a></li><li class="breadcrumb-item"><a href="../notebooks/zotero_leaf_vein_literature.html">Zotero文献から見る葉脈研究</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Zotero文献から見る葉脈研究</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>このページは、2026年7月14日にローカルZoteroライブラリを検索し、葉脈研究に関係する文献を整理したものである。引用はZoteroから書き出したBibTeXを用い、Quartoの引用記法で管理している。</p>
+<section id="調査範囲" class="level2">
+<h2 class="anchored" data-anchor-id="調査範囲">調査範囲</h2>
+<p>Zoteroの <code>Leaf vein</code> コレクション（collection key: <code>4NXIFW4C</code>）には65件の文献レコードがあった。DOIまたは完全一致するタイトルで重複をまとめると56文献であった。さらにライブラリ全体のタイトル・抄録・タグを検索し、タイトルから葉脈を直接扱うと判断できる4文献を追加した。</p>
+<p>したがって、本ページでは次の82文献を扱う。</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 40%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>区分</th>
+<th style="text-align: right;">文献数</th>
+<th>判定基準</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>中核文献</td>
+<td style="text-align: right;">60</td>
+<td><code>Leaf vein</code> コレクションの文献、またはタイトルが葉脈・葉脈網・主脈を直接扱う文献</td>
+</tr>
+<tr class="even">
+<td>周辺文献</td>
+<td style="text-align: right;">22</td>
+<td>抄録中で葉脈との関係が確認できるが、主題が葉水理、葉構造、葉力学などに置かれる文献</td>
+</tr>
+<tr class="odd">
+<td>合計</td>
+<td style="text-align: right;">82</td>
+<td>重複レコードを統合した文献数</td>
+</tr>
+</tbody>
+</table>
+<p>ここでいう「すべて」は、この再現可能な検索基準に該当したZotero所蔵文献を指す。一般的な <code>vein</code> だけの一致は動物・医学文献を拾うため採用せず、<code>leaf</code>、<code>leaves</code>、<code>foliar</code> と <code>vein</code>、<code>venation</code>、<code>midvein</code>、<code>areole</code> の組み合わせ、および既存タグを用いた。</p>
+</section>
+<section id="葉脈研究の全体像" class="level2">
+<h2 class="anchored" data-anchor-id="葉脈研究の全体像">葉脈研究の全体像</h2>
+<section id="葉脈網は多機能な階層ネットワークである" class="level3">
+<h3 class="anchored" data-anchor-id="葉脈網は多機能な階層ネットワークである">葉脈網は多機能な階層ネットワークである</h3>
+<p>葉脈は、水・光合成産物・シグナルを運ぶ輸送系であると同時に、葉身を支持し、損傷時にも機能を維持するネットワークである。総説では、構造、発生、可塑性、進化、生態、応用を一つの枠組みで扱う必要性が示されている <span class="citation" data-cites="sack2013a roth-nebelsick2001">(<a href="#ref-sack2013a" role="doc-biblioref">Sack と Scoffoni 2013年</a>; <a href="#ref-roth-nebelsick2001" role="doc-biblioref">Roth-Nebelsick ほか 2001年</a>)</span>。近年の比較研究は、細脈・中間径・太い葉脈で機能への寄与が異なり、単一の最適解ではなく複数の設計が成立することを示している <span class="citation" data-cites="matos2024 blonder2020">(<a href="#ref-matos2024" role="doc-biblioref">Matos, Boakye, Niewiadomski, ほか 2024年</a>; <a href="#ref-blonder2020" role="doc-biblioref">Blonder ほか 2020年</a>)</span>。約4億年の進化史を扱った研究でも、葉脈密度やループ構造の変化が葉脈サイズ階級ごとに異なることが示された <span class="citation" data-cites="matos2025">(<a href="#ref-matos2025" role="doc-biblioref">Matos, Vu, ほか 2025年</a>)</span>。</p>
+</section>
+<section id="水理光合成乾燥耐性との関係" class="level3">
+<h3 class="anchored" data-anchor-id="水理光合成乾燥耐性との関係">水理・光合成・乾燥耐性との関係</h3>
+<p>葉脈密度や葉脈配置は、葉内の水輸送距離を通じて葉の水理伝導度と最大光合成速度に関係する <span class="citation" data-cites="brodribb2007">(<a href="#ref-brodribb2007" role="doc-biblioref">Brodribb ほか 2007年</a>)</span>。ただし、葉脈形質を葉経済スペクトル全体の単純な「起源」とみなすのは支持されず、葉脈密度は独立した水理的な経路を通じて気孔コンダクタンスや光合成に影響すると整理されている <span class="citation" data-cites="sack2013">(<a href="#ref-sack2013" role="doc-biblioref">Sack ほか 2013年</a>)</span>。また、major vein と minor vein は同じ役割ではなく、少なくとも温帯落葉樹では minor vein の形質が水欠乏耐性や葉構造とより強く関連した <span class="citation" data-cites="kawai2018">(<a href="#ref-kawai2018" role="doc-biblioref">Kawai と Okada 2018年</a>)</span>。葉脈閉塞、bundle sheath、道管外経路、塞栓などを扱う研究も、葉脈網だけでなく周辺組織を含めて水理機能を評価する必要性を示す <span class="citation" data-cites="harayama2019 ohtsuka2018 buckley2015 brodribb2016">(<a href="#ref-harayama2019" role="doc-biblioref">Harayama ほか 2019年</a>; <a href="#ref-ohtsuka2018" role="doc-biblioref">Ohtsuka ほか 2018年</a>; <a href="#ref-buckley2015" role="doc-biblioref">Buckley ほか 2015年</a>; <a href="#ref-brodribb2016" role="doc-biblioref">Brodribb ほか 2016年</a>)</span>。</p>
+</section>
+<section id="輸送と力学のトレードオフ" class="level3">
+<h3 class="anchored" data-anchor-id="輸送と力学のトレードオフ">輸送と力学のトレードオフ</h3>
+<p>主脈や高次脈は葉身を平坦に保ちつつ、風や乾燥に応じて変形できる支持構造でもある。主脈の三次元構造と材料特性は、曲げ、ねじり、座屈、破壊様式に影響する <span class="citation" data-cites="pierantoni2019">(<a href="#ref-pierantoni2019" role="doc-biblioref">Pierantoni ほか 2019年</a>)</span>。多種比較と理論モデルを組み合わせた研究では、葉先側では輸送効率、基部側では力学的支持が主脈形態を強く規定するという軸方向のトレードオフが示された <span class="citation" data-cites="hong2025">(<a href="#ref-hong2025" role="doc-biblioref">Hong ほか 2025年</a>)</span>。葉脈分布・葉脈角度・乾燥時の主脈も、変形や破壊、葉形形成に関与する <span class="citation" data-cites="liu2020a kobayashi2002b guo2026">(<a href="#ref-liu2020a" role="doc-biblioref">Liu ほか 2020年</a>; <a href="#ref-kobayashi2002b" role="doc-biblioref">Kobayashi と Daimaruya 2002年</a>; <a href="#ref-guo2026" role="doc-biblioref">Guo ほか 2026年</a>)</span>。</p>
+</section>
+<section id="画像取得セグメンテーションネットワーク計測" class="level3">
+<h3 class="anchored" data-anchor-id="画像取得セグメンテーションネットワーク計測">画像取得・セグメンテーション・ネットワーク計測</h3>
+<p>再現性の高い葉脈研究には、透明化、染色、封入、撮像、保存までを一続きのプロトコルとして管理する必要がある <span class="citation" data-cites="niewiadomski2025">(<a href="#ref-niewiadomski2025" role="doc-biblioref">Niewiadomski ほか 2025年</a>)</span>。解析では、LEAF GUIが対話的な閾値処理とクリーニングから葉脈・areoleの位置、形状、接続性を計測する枠組みを示した <span class="citation" data-cites="price2011">(<a href="#ref-price2011" role="doc-biblioref">Price ほか 2011年</a>)</span>。phenoVeinは背景むらの補正、自動セグメンテーション、幅推定、骨格グラフ統計、手動修正を統合している <span class="citation" data-cites="buhler_phenoveintool_2015">(<a href="#ref-buhler_phenoveintool_2015" role="doc-biblioref">Bühler ほか 2015年</a>)</span>。その後、深層学習によるマスク抽出と無向グラフ化を組み合わせ、未処理葉から葉脈ネットワークの形態空間を再構成する方法が提案された <span class="citation" data-cites="iwamasa2023">(<a href="#ref-iwamasa2023" role="doc-biblioref">Iwamasa と Noshita 2023年</a>)</span>。</p>
+<p>葉脈次数を扱う場合、単なる二値セグメンテーションだけでは不十分である。HALVSはprimary、secondary、tertiaryの3階層を注釈したデータセットと、少ない注釈から細脈の連結性を回復する方法を提示している <span class="citation" data-cites="liu2026">(<a href="#ref-liu2026" role="doc-biblioref">Liu ほか 2026年</a>)</span>。この方向は、<code>leaf-vein-workflow</code> で目指す「自動候補生成、次数の確認、手動修正」という流れに最も近い。</p>
+</section>
+</section>
+<section id="このプロジェクトへの示唆" class="level2">
+<h2 class="anchored" data-anchor-id="このプロジェクトへの示唆">このプロジェクトへの示唆</h2>
+<p>Zotero文献群から見ると、実装上の優先順位は次のように整理できる。</p>
+<ol type="1">
+<li>入力画像の品質とスケールを記録し、透明化標本・透過画像・通常撮影を区別する。</li>
+<li>二値maskだけでなく、骨格、分岐点、端点、edge、areoleを再利用できる形で保持する。</li>
+<li>major/minorや次数は線幅だけで決めず、接続関係と階層を含めて候補提示する。</li>
+<li>自動処理後の手動修正を正式な工程として残す。</li>
+<li>セグメンテーション精度と、VLA・幅・次数など最終形質の測定誤差を分けて検証する。</li>
+</ol>
+<p>これは文献から導いた実装上の整理であり、個々の論文がこのソフトウェア設計を直接推奨しているという意味ではない。</p>
+</section>
+<section id="中核文献一覧" class="level2">
+<h2 class="anchored" data-anchor-id="中核文献一覧">中核文献一覧</h2>
+<p>以下は、Zoteroの <code>Leaf vein</code> コレクションと、ライブラリ全体から追加した直接該当文献である。同一DOIまたは完全一致タイトルの重複は、情報量の多い1レコードにまとめた。</p>
+<ul>
+<li><em>106 Mechanical Characteristics of Vein Network in Butterbur Leaves</em> <span class="citation" data-cites="sakuma2001">(<a href="#ref-sakuma2001" role="doc-biblioref">Sakuma ほか 2001年</a>)</span> — Zotero item <code>I325IECF</code></li>
+<li><em>617 Vein Structure and Mechanical Properties of a Leaf of Santa Cruz Water Lily (Victoria cruziana)</em> <span class="citation" data-cites="kobayashi2009">(<a href="#ref-kobayashi2009" role="doc-biblioref">Kobayashi ほか 2009年</a>)</span> — Zotero item <code>DMATMNJW</code></li>
+<li><em>A 3D study of the relationship between leaf vein structure and mechanical function</em> <span class="citation" data-cites="pierantoni2019">(<a href="#ref-pierantoni2019" role="doc-biblioref">Pierantoni ほか 2019年</a>)</span> — Zotero item <code>JYGBNA8W</code></li>
+<li><em>A comprehensive illustrated protocol for clearing, mounting, and imaging leaf venation networks</em> <span class="citation" data-cites="niewiadomski2025">(<a href="#ref-niewiadomski2025" role="doc-biblioref">Niewiadomski ほか 2025年</a>)</span> — Zotero item <code>TVMTI32J</code></li>
+<li><em>A high-resolution model of the grapevine leaf morphospace predicts synthetic leaves</em> <span class="citation" data-cites="chitwood2025">(<a href="#ref-chitwood2025" role="doc-biblioref">Chitwood ほか 2025年</a>)</span> — Zotero item <code>TA2IN3DW</code></li>
+<li><em>A Modern Ampelography: A Genetic Basis for Leaf Shape and Venation Patterning in Grape</em> <span class="citation" data-cites="chitwood2014">(<a href="#ref-chitwood2014" role="doc-biblioref">Chitwood ほか 2014年</a>)</span> — Zotero item <code>HLRWCWY2</code></li>
+<li><em>A trade-off between transport and mechanics determines plant leaf vein architecture</em> <span class="citation" data-cites="hong2025">(<a href="#ref-hong2025" role="doc-biblioref">Hong ほか 2025年</a>)</span> — Zotero item <code>HR2VCZ4Q</code></li>
+<li><em>Aridity-dependent regulation of water-use efficiency by leaf vein traits across grassland communities</em> <span class="citation" data-cites="han_aridity-dependent_nodate">(<a href="#ref-han_aridity-dependent_nodate" role="doc-biblioref">Han ほか, 日付なし</a>)</span> — Zotero item <code>SAQM6IGT</code></li>
+<li><em>Axial anatomy of the leaf midrib provides new insights into the hydraulic architecture and cavitation patterns of Acer pseudoplatanus leaves</em> <span class="citation" data-cites="lechthaler2019">(<a href="#ref-lechthaler2019" role="doc-biblioref">Lechthaler ほか 2019年</a>)</span> — Zotero item <code>Q6HIK3ZD</code></li>
+<li><em>Branching Pattern of Veins and Structural Stiffness in Butterbur Leaf</em> <span class="citation" data-cites="kobayashi2003a">(<a href="#ref-kobayashi2003a" role="doc-biblioref">Kobayashi と Daimaruya 2003年</a>)</span> — Zotero item <code>MVGRM54F</code></li>
+<li><em>Bundle sheath lignification mediates the linkage of leaf hydraulics and venation</em> <span class="citation" data-cites="ohtsuka2018">(<a href="#ref-ohtsuka2018" role="doc-biblioref">Ohtsuka ほか 2018年</a>)</span> — Zotero item <code>N7RR7AQY</code></li>
+<li><em>Causes of ecological gradients in leaf margin entirety: Evaluating the roles of biomechanics, hydraulics, vein geometry, and bud packing</em> <span class="citation" data-cites="givnish2017">(<a href="#ref-givnish2017" role="doc-biblioref">Givnish と Kriebel 2017年</a>)</span> — Zotero item <code>VPU74D6V</code></li>
+<li><em>Computer vision cracks the leaf code</em> <span class="citation" data-cites="wilf2016">(<a href="#ref-wilf2016" role="doc-biblioref">Wilf ほか 2016年</a>)</span> — Zotero item <code>HKP4PPEH</code></li>
+<li><em>CUDU-Net: Collaborative up-sampling decoder U-Net for leaf vein segmentation</em> <span class="citation" data-cites="cai2024">(<a href="#ref-cai2024" role="doc-biblioref">Cai ほか 2024年</a>)</span> — Zotero item <code>VBDAWK9M</code></li>
+<li><em>Decline of Leaf Hydraulic Conductance with Dehydration: Relationship to Leaf Size and Venation Architecture</em> <span class="citation" data-cites="scoffoni2011">(<a href="#ref-scoffoni2011" role="doc-biblioref">Scoffoni ほか 2011年</a>)</span> — Zotero item <code>IBAPWKXC</code></li>
+<li><em>Decoding Leaf Hydraulics with a Spatially Explicit Model: Principles of Venation Architecture and Implications for Its Evolution.</em> <span class="citation" data-cites="mckown2010">(<a href="#ref-mckown2010" role="doc-biblioref">McKown ほか 2010年</a>)</span> — Zotero item <code>ZLXEJRQC</code></li>
+<li><em>Effects of major vein blockage and aquaporin inhibition on leaf hydraulics and stomatal conductance</em> <span class="citation" data-cites="harayama2019">(<a href="#ref-harayama2019" role="doc-biblioref">Harayama ほか 2019年</a>)</span> — Zotero item <code>97UPQS5L</code></li>
+<li><em>Evolution and Function of Leaf Venation Architecture: A Review</em> <span class="citation" data-cites="roth-nebelsick2001">(<a href="#ref-roth-nebelsick2001" role="doc-biblioref">Roth-Nebelsick ほか 2001年</a>)</span> — Zotero item <code>ZFK7R2B2</code></li>
+<li><em>Examining the support–supply and bud-packing hypotheses for the increase in toothed leaf margins in northern deciduous floras</em> <span class="citation" data-cites="zohner2019a">(<a href="#ref-zohner2019a" role="doc-biblioref">Zohner ほか 2019年</a>)</span> — Zotero item <code>HM4LS29P</code></li>
+<li><em>Functional consequences of light intensity on soybean leaf hydraulic conductance: Coordinated variations in leaf venation architecture and mesophyll structure</em> <span class="citation" data-cites="gao2023">(<a href="#ref-gao2023" role="doc-biblioref">Gao ほか 2023年</a>)</span> — Zotero item <code>H8MCECWR</code></li>
+<li><em>Higher PEPC activity and vein density contribute to improve cotton leaf water use efficiency under water stress</em> <span class="citation" data-cites="lei2025">(<a href="#ref-lei2025" role="doc-biblioref">Lei ほか 2025年</a>)</span> — Zotero item <code>28TYNHMC</code></li>
+<li><em>How are leaf mechanical properties and water-use traits coordinated by vein traits? A case study in Fagaceae</em> <span class="citation" data-cites="kawai2016">(<a href="#ref-kawai2016" role="doc-biblioref">Kawai と Okada 2016年</a>)</span> — Zotero item <code>3H6Z9MW2</code></li>
+<li><em>How do leaf veins influence the worldwide leaf economic spectrum? Review and synthesis</em> <span class="citation" data-cites="sack2013">(<a href="#ref-sack2013" role="doc-biblioref">Sack ほか 2013年</a>)</span> — Zotero item <code>IZYAVRKQ</code></li>
+<li><em>How Does Leaf Anatomy Influence Water Transport outside the Xylem?</em> <span class="citation" data-cites="buckley2015">(<a href="#ref-buckley2015" role="doc-biblioref">Buckley ほか 2015年</a>)</span> — Zotero item <code>6YYSFX4I</code></li>
+<li><em>Hybrid network of leaf veins observed in tree species</em> <span class="citation" data-cites="muraleedharan2026b">(<a href="#ref-muraleedharan2026b" role="doc-biblioref">Muraleedharan ほか 2026年</a>)</span> — Zotero item <code>ZE3YSYSC</code></li>
+<li><em>Improved mesophyll–bundle sheath connectivity is achieved via different mechanisms in C2 vs C4 Alternanthera</em> <span class="citation" data-cites="roberts">(<a href="#ref-roberts" role="doc-biblioref">Roberts ほか, 日付なし</a>)</span> — Zotero item <code>N5BL3NCS</code></li>
+<li><em>Investigating the Functional and Architectural Diversity of Leaf Venation Networks</em> <span class="citation" data-cites="matos2025a">(<a href="#ref-matos2025a" role="doc-biblioref">Matos, Boakye, ほか 2025年</a>)</span> — Zotero item <code>NE6KUEDL</code></li>
+<li><em>Kinetics of recovery of leaf hydraulic conductance and vein functionality from cavitation‐induced embolism in sunflower</em> <span class="citation" data-cites="trifilo2003">(<a href="#ref-trifilo2003" role="doc-biblioref">Trifilò ほか 2003年</a>)</span> — Zotero item <code>AXZMIFGW</code></li>
+<li><em>Leaf architecture and functional traits for 122 species at the University of California Botanical Garden at Berkeley</em> <span class="citation" data-cites="matos2024a">(<a href="#ref-matos2024a" role="doc-biblioref">Matos, Boakye, Antonio, ほか 2024年</a>)</span> — Zotero item <code>EH58HWAG</code></li>
+<li><em>Leaf Extraction and Analysis Framework Graphical User Interface: Segmenting and Analyzing the Structure of Leaf Veins and Areoles</em> <span class="citation" data-cites="price2011">(<a href="#ref-price2011" role="doc-biblioref">Price ほか 2011年</a>)</span> — Zotero item <code>I7PTR295</code></li>
+<li><em>Leaf Maximum Photosynthetic Rate and Venation Are Linked by Hydraulics</em> <span class="citation" data-cites="brodribb2007">(<a href="#ref-brodribb2007" role="doc-biblioref">Brodribb ほか 2007年</a>)</span> — Zotero item <code>X4IRNXJK</code></li>
+<li><em>Leaf morphology correlates with water and light availability: What consequences for simple and compound leaves?</em> <span class="citation" data-cites="xu2009">(<a href="#ref-xu2009" role="doc-biblioref">Xu ほか 2009年</a>)</span> — Zotero item <code>BK4FKI2M</code></li>
+<li><em>Leaf shape and venation pattern alter the support investments within leaf lamina in temperate species: a neglected source of leaf physiological differentiation?</em> <span class="citation" data-cites="niinemets2007">(<a href="#ref-niinemets2007" role="doc-biblioref">Niinemets ほか 2007年</a>)</span> — Zotero item <code>LJPSJY7X</code></li>
+<li><em>Leaf Shrinkage with Dehydration: Coordination with Hydraulic Vulnerability and Drought Tolerance</em> <span class="citation" data-cites="scoffoni2014">(<a href="#ref-scoffoni2014" role="doc-biblioref">Scoffoni ほか 2014年</a>)</span> — Zotero item <code>DINNFMSB</code></li>
+<li><em>Leaf venation network architecture coordinates functional trade-offs across vein spatial scales: evidence for multiple alternative designs</em> <span class="citation" data-cites="matos2024">(<a href="#ref-matos2024" role="doc-biblioref">Matos, Boakye, Niewiadomski, ほか 2024年</a>)</span> — Zotero item <code>9396YNTW</code></li>
+<li><em>Leaf venation network evolution across clades and scales</em> <span class="citation" data-cites="matos2025">(<a href="#ref-matos2025" role="doc-biblioref">Matos, Vu, ほか 2025年</a>)</span> — Zotero item <code>7W9C6BPS</code></li>
+<li><em>Leaf venation networks of Bornean trees: images and hand-traced segmentations</em> <span class="citation" data-cites="blonder_leaf_2019">(<a href="#ref-blonder_leaf_2019" role="doc-biblioref">Blonder ほか 2019年</a>)</span> — Zotero item <code>JSIRCDG9</code></li>
+<li><em>Leaf venation: structure, function, development, evolution, ecology and applications in the past, present and future</em> <span class="citation" data-cites="sack2013a">(<a href="#ref-sack2013a" role="doc-biblioref">Sack と Scoffoni 2013年</a>)</span> — Zotero item <code>3QMH67CL</code></li>
+<li><em>Linking functional traits to multiscale statistics of leaf venation networks</em> <span class="citation" data-cites="blonder2020">(<a href="#ref-blonder2020" role="doc-biblioref">Blonder ほか 2020年</a>)</span> — Zotero item <code>AVEX3RL8</code></li>
+<li><em>Mechanical Contribution of Laminar Angle in Plant Leaves with Pinnate Venation(Biomimetics &amp; Innovative Design)</em> <span class="citation" data-cites="kobayashi2004">(<a href="#ref-kobayashi2004" role="doc-biblioref">Kobayashi ほか 2004年</a>)</span> — Zotero item <code>FYLGTJHR</code></li>
+<li><em>Mechanical evaluation of London plane leaves with pedate venation</em> <span class="citation" data-cites="kobayashi2001">(<a href="#ref-kobayashi2001" role="doc-biblioref">Kobayashi と Daimaruya 2001年</a>)</span> — Zotero item <code>K72URVE9</code></li>
+<li><em>Mechanical Properties of Lamina and Veins in Butterbur Leaf and Its Venation Pattern</em> <span class="citation" data-cites="kobayashi2002">(<a href="#ref-kobayashi2002" role="doc-biblioref">Kobayashi ほか 2002年</a>)</span> — Zotero item <code>MP67BIT2</code></li>
+<li><em>Midveins regulate the shape formation of drying leaves</em> <span class="citation" data-cites="guo2026">(<a href="#ref-guo2026" role="doc-biblioref">Guo ほか 2026年</a>)</span> — Zotero item <code>97ILEZZM</code></li>
+<li><em>Morphological Response of Eight Quercus Species to Simulated Wind Load</em> <span class="citation" data-cites="wu2016">(<a href="#ref-wu2016" role="doc-biblioref">Wu ほか 2016年</a>)</span> — Zotero item <code>3FSR8L7Q</code></li>
+<li><em>Network feature-based phenotyping of leaf venation robustly reconstructs the latent space</em> <span class="citation" data-cites="iwamasa2023">(<a href="#ref-iwamasa2023" role="doc-biblioref">Iwamasa と Noshita 2023年</a>)</span> — Zotero item <code>WK7NZZQ7</code></li>
+<li><em>OS1008 Unique Vein Structure and Buoyancy Observed in Leaf of Prickly Water Lily</em> <span class="citation" data-cites="morishita2009">(<a href="#ref-morishita2009" role="doc-biblioref">Morishita ほか 2009年</a>)</span> — Zotero item <code>N7WGNNFL</code></li>
+<li><em>phenoVein—A Tool for Leaf Vein Segmentation and Analysis</em> <span class="citation" data-cites="buhler_phenoveintool_2015">(<a href="#ref-buhler_phenoveintool_2015" role="doc-biblioref">Bühler ほか 2015年</a>)</span> — Zotero item <code>YBT3UA9Z</code></li>
+<li><em>Plasticity in Hydraulic Architecture: Riparian Trees Respond to Increased Temperatures With Genotype-Specific Adjustments to Leaf Traits</em> <span class="citation" data-cites="garthwaite2024">(<a href="#ref-garthwaite2024" role="doc-biblioref">Garthwaite ほか 2024年</a>)</span> — Zotero item <code>9879KAWP</code></li>
+<li><em>Revealing Hierarchical Structure of Leaf Venations via Diffusion-Refined Label-Efficient Segmentation: Dataset and Method</em> <span class="citation" data-cites="liu2026">(<a href="#ref-liu2026" role="doc-biblioref">Liu ほか 2026年</a>)</span> — Zotero item <code>DRJW7RG3</code></li>
+<li><em>Role of hydraulic traits in stomatal regulation of transpiration under different vapour pressure deficits across five Mediterranean tree crops</em> <span class="citation" data-cites="hernandez-santana2023">(<a href="#ref-hernandez-santana2023" role="doc-biblioref">Hernandez-Santana ほか 2023年</a>)</span> — Zotero item <code>YANDPUES</code></li>
+<li><em>Roles of major and minor vein in leaf water deficit tolerance and structural properties in 11 temperate deciduous woody species</em> <span class="citation" data-cites="kawai2018">(<a href="#ref-kawai2018" role="doc-biblioref">Kawai と Okada 2018年</a>)</span> — Zotero item <code>YJNKJJGK</code></li>
+<li><em>Scaling relationships of leaf vein and areole traits versus leaf size for nine Magnoliaceae species differing in venation density</em> <span class="citation" data-cites="shi2022">(<a href="#ref-shi2022" role="doc-biblioref">Shi ほか 2022年</a>)</span> — Zotero item <code>DMZB9ZZ7</code></li>
+<li><em>Tansley Review No.&nbsp;22 What becomes of the transpiration stream?</em> <span class="citation" data-cites="canny1990">(<a href="#ref-canny1990" role="doc-biblioref">Canny 1990年</a>)</span> — Zotero item <code>UVKFTWCS</code></li>
+<li><em>The Functional Significance of Leaf Shape Lies in Water Relations Over Thermoregulation: A Case Study With an Arid Legume Herb</em> <span class="citation" data-cites="wang2026b">(<a href="#ref-wang2026b" role="doc-biblioref">Wang ほか 2026年</a>)</span> — Zotero item <code>7WCU52PX</code></li>
+<li><em>The Heterogeneity and Spatial Patterning of Structure and Physiology across the Leaf Surface in Giant Leaves of Alocasia macrorrhiza</em> <span class="citation" data-cites="li2013">(<a href="#ref-li2013" role="doc-biblioref">Li ほか 2013年</a>)</span> — Zotero item <code>S8RM63G2</code></li>
+<li><em>The mechanical principles behind the golden ratio distribution of veins in plant leaves</em> <span class="citation" data-cites="sun2018">(<a href="#ref-sun2018" role="doc-biblioref">Sun ほか 2018年</a>)</span> — Zotero item <code>WMCPRYZ2</code></li>
+<li><em>Vein Angle and Growing/Deployable Speed of Tree Leaves with Corrugation Folding</em> <span class="citation" data-cites="kobayashi2002b">(<a href="#ref-kobayashi2002b" role="doc-biblioref">Kobayashi と Daimaruya 2002年</a>)</span> — Zotero item <code>QBYRNXFH</code></li>
+<li><em>Vein Distribution on the Deformation Behavior and Fracture Mechanisms of Typical Plant Leaves by Quasi In Situ Tensile Test under a Digital Microscope</em> <span class="citation" data-cites="liu2020a">(<a href="#ref-liu2020a" role="doc-biblioref">Liu ほか 2020年</a>)</span> — Zotero item <code>PNPESZQ6</code></li>
+<li><em>Venation Pattern of Butterbur Leaf and Its Mechanical Contribution</em> <span class="citation" data-cites="kobayashi2000">(<a href="#ref-kobayashi2000" role="doc-biblioref">Kobayashi ほか 2000年</a>)</span> — Zotero item <code>DDKREUMY</code></li>
+<li><em>Visual quantification of embolism reveals leaf vulnerability to hydraulic failure</em> <span class="citation" data-cites="brodribb2016">(<a href="#ref-brodribb2016" role="doc-biblioref">Brodribb ほか 2016年</a>)</span> — Zotero item <code>MTELLV3C</code></li>
+</ul>
+</section>
+<section id="周辺文献一覧" class="level2">
+<h2 class="anchored" data-anchor-id="周辺文献一覧">周辺文献一覧</h2>
+<p>以下は、抄録内で葉脈との関係が確認できた文献である。葉水理、葉構造、葉力学の背景として有用だが、タイトル上の主題は葉脈そのものではないため中核文献と分けた。</p>
+<ul>
+<li><em>Allometry of cells and tissues within leaves</em> <span class="citation" data-cites="john2013">(<a href="#ref-john2013" role="doc-biblioref">John ほか 2013年</a>)</span> — Zotero item <code>7EQRS9M5</code></li>
+<li><em>Anatomical determinants of gas exchange and hydraulics vary with leaf shape in soybean</em> <span class="citation" data-cites="tamang2022">(<a href="#ref-tamang2022" role="doc-biblioref">Tamang ほか 2022年</a>)</span> — Zotero item <code>9HX4HLT5</code></li>
+<li><em>Classification of the Architecture of Dicotyledonous Leaves</em> <span class="citation" data-cites="hickey1973">(<a href="#ref-hickey1973" role="doc-biblioref">Hickey 1973年</a>)</span> — Zotero item <code>ZCFLWGY6</code></li>
+<li><em>Effect of Crease Interval on Unfolding Manner of Corrugated Tree Leaves</em> <span class="citation" data-cites="kobayashi1999">(<a href="#ref-kobayashi1999" role="doc-biblioref">Kobayashi ほか 1999年</a>)</span> — Zotero item <code>BM5P63BQ</code></li>
+<li><em>Evolution of leaf structure and drought tolerance in species of Californian Ceanothus</em> <span class="citation" data-cites="fletcher2018">(<a href="#ref-fletcher2018" role="doc-biblioref">Fletcher ほか 2018年</a>)</span> — Zotero item <code>3V4B4J58</code></li>
+<li><em>Hard and tough: the coordination between leaf mechanical resistance and drought tolerance</em> <span class="citation" data-cites="nardini2022">(<a href="#ref-nardini2022" role="doc-biblioref">Nardini 2022年</a>)</span> — Zotero item <code>GJJCKUTI</code></li>
+<li><em>Hydraulic architecture of leaf blades: where is the main resistance?</em> <span class="citation" data-cites="cochard2004">(<a href="#ref-cochard2004" role="doc-biblioref">Cochard ほか 2004年</a>)</span> — Zotero item <code>8IWI3RPA</code></li>
+<li><em>Leaf biomechanical traits predict litter decomposability</em> <span class="citation" data-cites="wang2025c">(<a href="#ref-wang2025c" role="doc-biblioref">Wang ほか 2025年</a>)</span> — Zotero item <code>ULFEUXXR</code></li>
+<li><em>Leaf biomechanics, morphology, and anatomy of the deciduous mesophyte Prunus serrulata (Rosaceae) and the evergreen sclerophyllous shrub Heteromeles arbutifolia (Rosaceae)</em> <span class="citation" data-cites="balsamo2003">(<a href="#ref-balsamo2003" role="doc-biblioref">Balsamo ほか 2003年</a>)</span> — Zotero item <code>7NMYKDT3</code></li>
+<li><em>Leaf hydraulic vulnerability triggers the decline in stomatal and mesophyll conductance during drought in rice</em> <span class="citation" data-cites="wang2018">(<a href="#ref-wang2018" role="doc-biblioref">Wang ほか 2018年</a>)</span> — Zotero item <code>BKH3JJZ2</code></li>
+<li><em>Leaf mesophyll conductance and leaf hydraulic conductance: an introduction to their measurement and coordination</em> <span class="citation" data-cites="flexas2013a">(<a href="#ref-flexas2013a" role="doc-biblioref">Flexas ほか 2013年</a>)</span> — Zotero item <code>GK9PH72M</code></li>
+<li><em>Leaf Structural Diversity Is Related to Hydraulic Capacity in Tropical Rain Forest Trees</em> <span class="citation" data-cites="sack2006">(<a href="#ref-sack2006" role="doc-biblioref">Sack と Frole 2006年</a>)</span> — Zotero item <code>436NLEIC</code></li>
+<li><em>Measurement of Leaf Hydraulic Conductance and Stomatal Conductance and Their Responses to Irradiance and Dehydration Using the Evaporative Flux Method (EFM)</em> <span class="citation" data-cites="sack2012">(<a href="#ref-sack2012" role="doc-biblioref">Sack と Scoffoni 2012年</a>)</span> — Zotero item <code>3SLBS4UE</code></li>
+<li><em>Non-destructive acoustic measurement of elastic modulus of plant leaves</em> <span class="citation" data-cites="yoshitsugu2017">(<a href="#ref-yoshitsugu2017" role="doc-biblioref">Yoshitsugu ほか 2017年</a>)</span> — Zotero item <code>MDVRP8QL</code></li>
+<li><em>Outside-Xylem Vulnerability, Not Xylem Embolism, Controls Leaf Hydraulic Decline during Dehydration</em> <span class="citation" data-cites="scoffoni2017a">(<a href="#ref-scoffoni2017a" role="doc-biblioref">Scoffoni ほか 2017年</a>)</span> — Zotero item <code>YPFRTP3U</code></li>
+<li><em>Petiole mechanics, leaf inclination, morphology, and investment in support in relation to light availability in the canopy of Liriodendron tulipifera</em> <span class="citation" data-cites="niinemets2002">(<a href="#ref-niinemets2002" role="doc-biblioref">Niinemets と Fleck 2002年</a>)</span> — Zotero item <code>N4W9Q2XG</code></li>
+<li><em>Researches into Structure and Motion of Plants from Mechanical View Point</em> <span class="citation" data-cites="kobayashi2019">(<a href="#ref-kobayashi2019" role="doc-biblioref">Kobayashi 2019年</a>)</span> — Zotero item <code>PTB32FSC</code></li>
+<li><em>Structural organization of the spongy mesophyll</em> <span class="citation" data-cites="borsuk2022">(<a href="#ref-borsuk2022" role="doc-biblioref">Borsuk ほか 2022年</a>)</span> — Zotero item <code>HLNVR9VV</code></li>
+<li><em>The geometry of unfolding tree leaves</em> <span class="citation" data-cites="kobayashi1998">(<a href="#ref-kobayashi1998" role="doc-biblioref">H. Kobayashi ほか 1998年</a>)</span> — Zotero item <code>S6KDT7EE</code></li>
+<li><em>Thresholds for persistent leaf photochemical damage predict plant drought resilience in a tropical rainforest</em> <span class="citation" data-cites="fortunel2023">(<a href="#ref-fortunel2023" role="doc-biblioref">Fortunel ほか 2023年</a>)</span> — Zotero item <code>7GEHMJAH</code></li>
+<li><em>Tissue-level leaf toughness, but not lamina thickness, predicts sapling leaf lifespan and shade tolerance of tropical tree species</em> <span class="citation" data-cites="kitajima2010">(<a href="#ref-kitajima2010" role="doc-biblioref">Kitajima と Poorter 2010年</a>)</span> — Zotero item <code>L985AZE2</code></li>
+<li><em>Unfolding Manners of Corrugated Plant Leaves</em> <span class="citation" data-cites="kobayashi1998a">(<a href="#ref-kobayashi1998a" role="doc-biblioref">Hidetoshi Kobayashi ほか 1998年</a>)</span> — Zotero item <code>8GNXXLEW</code></li>
+</ul>
+</section>
+<section id="データ品質と限界" class="level2">
+<h2 class="anchored" data-anchor-id="データ品質と限界">データ品質と限界</h2>
+<ul>
+<li>まとめはZoteroの書誌情報、タグ、抄録に基づく。全82文献の本文精読を行ったレビューではない。</li>
+<li>中核60文献のうち4文献は抄録がなく、2文献は年情報がない。該当項目の解釈には書誌情報の補完が必要である。</li>
+<li>同一研究のプレプリント版と出版版、和文・英文の重複は、DOIまたは完全一致タイトルで統合した。近い内容でも別研究である文献は統合していない。</li>
+<li>Zoteroコレクションやタグは変更していない。このページ用BibTeXでは、引用に不要な長い抄録・ノート・注釈だけを除いた。</li>
+</ul>
+</section>
+<section id="参考文献" class="level2">
+
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">参考文献</h2><div id="refs" class="references csl-bib-body hanging-indent" role="list">
+<div id="ref-balsamo2003" class="csl-entry" role="listitem">
+Balsamo, Ronald A., Aaron M. Bauer, Stephen D. Davis, と Benita M. Rice. 2003年. <span>「Leaf biomechanics, morphology, and anatomy of the deciduous mesophyte <span>Prunus</span> serrulata (<span>Rosaceae</span>) and the evergreen sclerophyllous shrub <span>Heteromeles</span> arbutifolia (<span>Rosaceae</span>)」</span>. <em>American Journal of Botany</em> 90 (1): 72–77. <a href="https://doi.org/10.3732/ajb.90.1.72">https://doi.org/10.3732/ajb.90.1.72</a>.
+</div>
+<div id="ref-blonder_leaf_2019" class="csl-entry" role="listitem">
+Blonder, Benjamin, Sabine Both, Miguel Jodra, ほか. 2019年. <span>「Leaf venation networks of <span>Bornean</span> trees: images and hand-traced segmentations」</span>. <em>Ecology</em> 100 (11): e02844. <a href="https://doi.org/10.1002/ecy.2844">https://doi.org/10.1002/ecy.2844</a>.
+</div>
+<div id="ref-blonder2020" class="csl-entry" role="listitem">
+Blonder, Benjamin, Sabine Both, Miguel Jodra, ほか. 2020年. <span>「Linking functional traits to multiscale statistics of leaf venation networks」</span>. <em>New Phytologist</em> 228 (6): 1796–810. <a href="https://doi.org/10.1111/nph.16830">https://doi.org/10.1111/nph.16830</a>.
+</div>
+<div id="ref-borsuk2022" class="csl-entry" role="listitem">
+Borsuk, Aleca M., Adam B. Roddy, Guillaume Théroux-Rancourt, と Craig R. Brodersen. 2022年. <span>「Structural organization of the spongy mesophyll」</span>. <em>New Phytologist</em> 234 (3): 946–60. <a href="https://doi.org/10.1111/nph.17971">https://doi.org/10.1111/nph.17971</a>.
+</div>
+<div id="ref-brodribb2007" class="csl-entry" role="listitem">
+Brodribb, Tim J., Taylor S. Feild, と Gregory J. Jordan. 2007年. <span>「Leaf <span>Maximum</span> <span>Photosynthetic</span> <span>Rate</span> and <span>Venation</span> <span>Are</span> <span>Linked</span> by <span>Hydraulics</span>」</span>. <em>Plant Physiology</em> 144 (4): 1890–98. <a href="https://doi.org/10.1104/pp.107.101352">https://doi.org/10.1104/pp.107.101352</a>.
+</div>
+<div id="ref-brodribb2016" class="csl-entry" role="listitem">
+Brodribb, Timothy J., Robert P. Skelton, Scott A. M. McAdam, Diane Bienaimé, Christopher J. Lucani, と Philippe Marmottant. 2016年. <span>「Visual quantification of embolism reveals leaf vulnerability to hydraulic failure」</span>. <em>New Phytologist</em> 209 (4): 1403–9. <a href="https://doi.org/10.1111/nph.13846">https://doi.org/10.1111/nph.13846</a>.
+</div>
+<div id="ref-buckley2015" class="csl-entry" role="listitem">
+Buckley, Thomas N., Grace P. John, Christine Scoffoni, と Lawren Sack. 2015年. <span>「How <span>Does</span> <span>Leaf</span> <span>Anatomy</span> <span>Influence</span> <span>Water</span> <span>Transport</span> outside the <span>Xylem</span>?」</span> <em>Plant Physiology</em> 168 (4): 1616–35. <a href="https://doi.org/10.1104/pp.15.00731">https://doi.org/10.1104/pp.15.00731</a>.
+</div>
+<div id="ref-buhler_phenoveintool_2015" class="csl-entry" role="listitem">
+Bühler, Jonas, Louai Rishmawi, Daniel Pflugfelder, ほか. 2015年. <span>「<span>phenoVein</span>—<span>A</span> <span>Tool</span> for <span>Leaf</span> <span>Vein</span> <span>Segmentation</span> and <span>Analysis</span>」</span>. <em>Plant Physiology</em> 169 (4): 2359–70. <a href="https://doi.org/10.1104/pp.15.00974">https://doi.org/10.1104/pp.15.00974</a>.
+</div>
+<div id="ref-cai2024" class="csl-entry" role="listitem">
+Cai, Wanqiang, Bin Wang, と Fanqing Zeng. 2024年. <span>「<span>CUDU</span>-<span>Net</span>: <span>Collaborative</span> up-sampling decoder <span>U</span>-<span>Net</span> for leaf vein segmentation」</span>. <em>Digital Signal Processing</em> 144 (1月): 104287. <a href="https://doi.org/10.1016/j.dsp.2023.104287">https://doi.org/10.1016/j.dsp.2023.104287</a>.
+</div>
+<div id="ref-canny1990" class="csl-entry" role="listitem">
+Canny, M. J. 1990年. <span>「Tansley <span>Review</span> <span>No</span>. 22 <span>What</span> becomes of the transpiration stream?」</span> <em>New Phytologist</em> 114 (3): 341–68. <a href="https://doi.org/10.1111/j.1469-8137.1990.tb00404.x">https://doi.org/10.1111/j.1469-8137.1990.tb00404.x</a>.
+</div>
+<div id="ref-chitwood2014" class="csl-entry" role="listitem">
+Chitwood, Daniel H., Aashish Ranjan, Ciera C. Martinez, ほか. 2014年. <span>「A <span>Modern</span> <span>Ampelography</span>: <span>A</span> <span>Genetic</span> <span>Basis</span> for <span>Leaf</span> <span>Shape</span> and <span>Venation</span> <span>Patterning</span> in <span>Grape</span>」</span>. <em>Plant Physiology</em> 164 (1): 259–72. <a href="https://doi.org/10.1104/pp.113.229708">https://doi.org/10.1104/pp.113.229708</a>.
+</div>
+<div id="ref-chitwood2025" class="csl-entry" role="listitem">
+Chitwood, Daniel H., Efrain Torres-Lomas, Ebi S. Hadi, ほか. 2025年. <span>「A high-resolution model of the grapevine leaf morphospace predicts synthetic leaves」</span>. <em>PLANTS, PEOPLE, PLANET</em> 7 (1): 133–46. <a href="https://doi.org/10.1002/ppp3.10561">https://doi.org/10.1002/ppp3.10561</a>.
+</div>
+<div id="ref-cochard2004" class="csl-entry" role="listitem">
+Cochard, H., A. Nardini, と L. Coll. 2004年. <span>「Hydraulic architecture of leaf blades: where is the main resistance?」</span> <em>Plant, Cell &amp; Environment</em> 27 (10): 1257–67. <a href="https://doi.org/10.1111/j.1365-3040.2004.01233.x">https://doi.org/10.1111/j.1365-3040.2004.01233.x</a>.
+</div>
+<div id="ref-fletcher2018" class="csl-entry" role="listitem">
+Fletcher, Leila R., Hongxia Cui, Hilary Callahan, ほか. 2018年. <span>「Evolution of leaf structure and drought tolerance in species of <span>Californian</span> <span>Ceanothus</span>」</span>. <em>American Journal of Botany</em> 105 (10): 1672–87. <a href="https://doi.org/10.1002/ajb2.1164">https://doi.org/10.1002/ajb2.1164</a>.
+</div>
+<div id="ref-flexas2013a" class="csl-entry" role="listitem">
+Flexas, Jaume, Christine Scoffoni, Jorge Gago, と Lawren Sack. 2013年. <span>「Leaf mesophyll conductance and leaf hydraulic conductance: an introduction to their measurement and coordination」</span>. <em>Journal of Experimental Botany</em> 64 (13): 3965–81. <a href="https://doi.org/10.1093/jxb/ert319">https://doi.org/10.1093/jxb/ert319</a>.
+</div>
+<div id="ref-fortunel2023" class="csl-entry" role="listitem">
+Fortunel, Claire, Clément Stahl, Sabrina Coste, ほか. 2023年. <span>「Thresholds for persistent leaf photochemical damage predict plant drought resilience in a tropical rainforest」</span>. <em>New Phytologist</em> n/a (n/a). <a href="https://doi.org/10.1111/nph.18973">https://doi.org/10.1111/nph.18973</a>.
+</div>
+<div id="ref-gao2023" class="csl-entry" role="listitem">
+Gao, Jing, Jiyu Chen, Yi Lei, ほか. 2023年. <span>「Functional consequences of light intensity on soybean leaf hydraulic conductance: <span>Coordinated</span> variations in leaf venation architecture and mesophyll structure」</span>. <em>Environmental and Experimental Botany</em> 210 (6月): 105301. <a href="https://doi.org/10.1016/j.envexpbot.2023.105301">https://doi.org/10.1016/j.envexpbot.2023.105301</a>.
+</div>
+<div id="ref-garthwaite2024" class="csl-entry" role="listitem">
+Garthwaite, Iris J., Catherine Lepp, Zyled S. R. Maldonado, ほか. 2024年. <span>「Plasticity in <span>Hydraulic</span> <span>Architecture</span>: <span>Riparian</span> <span>Trees</span> <span>Respond</span> to <span>Increased</span> <span>Temperatures</span> <span>With</span> <span>Genotype</span>-<span>Specific</span> <span>Adjustments</span> to <span>Leaf</span> <span>Traits</span>」</span>. <em>Ecology and Evolution</em> 14 (12): e70683. <a href="https://doi.org/10.1002/ece3.70683">https://doi.org/10.1002/ece3.70683</a>.
+</div>
+<div id="ref-givnish2017" class="csl-entry" role="listitem">
+Givnish, Thomas J., と Ricardo Kriebel. 2017年. <span>「Causes of ecological gradients in leaf margin entirety: <span>Evaluating</span> the roles of biomechanics, hydraulics, vein geometry, and bud packing」</span>. <em>American Journal of Botany</em> 104 (3): 354–66. <a href="https://doi.org/10.3732/ajb.1600287">https://doi.org/10.3732/ajb.1600287</a>.
+</div>
+<div id="ref-guo2026" class="csl-entry" role="listitem">
+Guo, Kexin, Yafei Zhang, Massimo Paradiso, Yuchen Long, K. Jimmy Hsia, と Mingchao Liu. 2026年. <span>「Midveins regulate the shape formation of drying leaves」</span>. <em>Journal of the Mechanics and Physics of Solids</em> 206 (1月): 106391. <a href="https://doi.org/10.1016/j.jmps.2025.106391">https://doi.org/10.1016/j.jmps.2025.106391</a>.
+</div>
+<div id="ref-han_aridity-dependent_nodate" class="csl-entry" role="listitem">
+Han, Meixu, Xiaochun Wang, Min Ji, ほか. 日付なし. <span>「Aridity-dependent regulation of water-use efficiency by leaf vein traits across grassland communities」</span>. <em>Functional Ecology</em> n/a (n/a). <a href="https://doi.org/10.1111/1365-2435.70386">https://doi.org/10.1111/1365-2435.70386</a>.
+</div>
+<div id="ref-harayama2019" class="csl-entry" role="listitem">
+Harayama, Hisanori, Mitsutoshi Kitao, Evgenios Agathokleous, と Atsushi Ishida. 2019年. <span>「Effects of major vein blockage and aquaporin inhibition on leaf hydraulics and stomatal conductance」</span>. <em>Proceedings of the Royal Society B: Biological Sciences</em> 286 (1904): 20190799. <a href="https://doi.org/10.1098/rspb.2019.0799">https://doi.org/10.1098/rspb.2019.0799</a>.
+</div>
+<div id="ref-hernandez-santana2023" class="csl-entry" role="listitem">
+Hernandez-Santana, Virginia, Celia M Rodriguez-Dominguez, Jaime Sebastian-Azcona, Luis Felipe Perez-Romero, と Antonio Diaz-Espejo. 2023年. <span>「Role of hydraulic traits in stomatal regulation of transpiration under different vapour pressure deficits across five <span>Mediterranean</span> tree crops」</span>. <em>Journal of Experimental Botany</em>, 4月, erad157. <a href="https://doi.org/10.1093/jxb/erad157">https://doi.org/10.1093/jxb/erad157</a>.
+</div>
+<div id="ref-hickey1973" class="csl-entry" role="listitem">
+Hickey, Leo J. 1973年. <span>「Classification of the <span>Architecture</span> of <span>Dicotyledonous</span> <span>Leaves</span>」</span>. <em>American Journal of Botany</em> 60 (1): 17–33. <a href="https://doi.org/10.2307/2441319">https://doi.org/10.2307/2441319</a>.
+</div>
+<div id="ref-hong2025" class="csl-entry" role="listitem">
+Hong, Sungdo, Chan Jin Park, Hyun-Ah Lee, Ho-Young Kim, Kaare H. Jensen, と Keunhwan Park. 2025年. <span>「A trade-off between transport and mechanics determines plant leaf vein architecture」</span>. <em>npj Science of Plants</em> 1 (1): 8. <a href="https://doi.org/10.1038/s44383-025-00007-3">https://doi.org/10.1038/s44383-025-00007-3</a>.
+</div>
+<div id="ref-iwamasa2023" class="csl-entry" role="listitem">
+Iwamasa, Kohei, と Koji Noshita. 2023年. <span>「Network feature-based phenotyping of leaf venation robustly reconstructs the latent space」</span>. <em>PLOS Computational Biology</em> 19 (7): e1010581. <a href="https://doi.org/10.1371/journal.pcbi.1010581">https://doi.org/10.1371/journal.pcbi.1010581</a>.
+</div>
+<div id="ref-john2013" class="csl-entry" role="listitem">
+John, Grace P., Christine Scoffoni, と Lawren Sack. 2013年. <span>「Allometry of cells and tissues within leaves」</span>. <em>American Journal of Botany</em> 100 (10): 1936–48. <a href="https://doi.org/10.3732/ajb.1200608">https://doi.org/10.3732/ajb.1200608</a>.
+</div>
+<div id="ref-kawai2016" class="csl-entry" role="listitem">
+Kawai, Kiyosada, と Naoki Okada. 2016年. <span>「How are leaf mechanical properties and water-use traits coordinated by vein traits? <span>A</span> case study in <span>Fagaceae</span>」</span>. <em>Functional Ecology</em> 30 (4): 527–36. <a href="https://doi.org/10.1111/1365-2435.12526">https://doi.org/10.1111/1365-2435.12526</a>.
+</div>
+<div id="ref-kawai2018" class="csl-entry" role="listitem">
+Kawai, Kiyosada, と Naoki Okada. 2018年. <span>「Roles of major and minor vein in leaf water deficit tolerance and structural properties in 11 temperate deciduous woody species」</span>. <em>Trees</em> 32 (6): 1573–82. <a href="https://doi.org/10.1007/s00468-018-1734-8">https://doi.org/10.1007/s00468-018-1734-8</a>.
+</div>
+<div id="ref-kitajima2010" class="csl-entry" role="listitem">
+Kitajima, Kaoru, と Lourens Poorter. 2010年. <span>「Tissue-level leaf toughness, but not lamina thickness, predicts sapling leaf lifespan and shade tolerance of tropical tree species」</span>. <em>New Phytologist</em> 186 (3): 708–21. <a href="https://doi.org/10.1111/j.1469-8137.2010.03212.x">https://doi.org/10.1111/j.1469-8137.2010.03212.x</a>.
+</div>
+<div id="ref-kobayashi2019" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi. 2019年. <span>「Researches into <span>Structure</span> and <span>Motion</span> of <span>Plants</span> from <span>Mechanical</span> <span>View</span> <span>Point</span>」</span>. <em>The Proceedings of the Materials and Mechanics Conference</em> 2019: OS1531. <a href="https://doi.org/10.1299/jsmemm.2019.OS1531">https://doi.org/10.1299/jsmemm.2019.OS1531</a>.
+</div>
+<div id="ref-kobayashi2001" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi, と Masashi Daimaruya. 2001年. <span>「Mechanical evaluation of <span>London</span> plane leaves with pedate venation」</span>. <em>NCTAM papers, National Congress of Theoretical and Applied Mechanics, Japan</em> tam51: 246–46. <a href="https://doi.org/10.11345/japannctam.tam51.0.246.0">https://doi.org/10.11345/japannctam.tam51.0.246.0</a>.
+</div>
+<div id="ref-kobayashi2002b" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi, と Masashi Daimaruya. 2002年. <span>「Vein <span>Angle</span> and <span>Growing</span>/<span>Deployable</span> <span>Speed</span> of <span>Tree</span> <span>Leaves</span> with <span>Corrugation</span> <span>Folding</span>」</span>. <em>Transactions of the Japan Society of Mechanical Engineers Series A</em> 68 (675): 1607–13. <a href="https://doi.org/10.1299/kikaia.68.1607">https://doi.org/10.1299/kikaia.68.1607</a>.
+</div>
+<div id="ref-kobayashi2003a" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi, と Masashi Daimaruya. 2003年. <span>「Branching <span>Pattern</span> of <span>Veins</span> and <span>Structural</span> <span>Stiffness</span> in <span>Butterbur</span> <span>Leaf</span>」</span>. <em>The Proceedings of the Bioengineering Conference Annual Meeting of BED/JSME</em> 2003.15: 61–62. <a href="https://doi.org/10.1299/jsmebio.2003.15.61">https://doi.org/10.1299/jsmebio.2003.15.61</a>.
+</div>
+<div id="ref-kobayashi2000" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi, Masashi Daimaruya, と Kaori Kuribayashi. 2000年. <span>「Venation <span>Pattern</span> of <span>Butterbur</span> <span>Leaf</span> and <span>Its</span> <span>Mechanical</span> <span>Contribution</span>」</span>. <em>Journal of the Society of Materials Science, Japan</em> 49 (12): 1318–23. <a href="https://doi.org/10.2472/jsms.49.1318">https://doi.org/10.2472/jsms.49.1318</a>.
+</div>
+<div id="ref-kobayashi2002" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi, Masashi Daimaruya, と Atsushi Sakuma. 2002年. <span>「Mechanical <span>Properties</span> of <span>Lamina</span> and <span>Veins</span> in <span>Butterbur</span> <span>Leaf</span> and <span>Its</span> <span>Venation</span> <span>Pattern</span>」</span>. <em>The proceedings of the JSME annual meeting</em> 2002.2: 443–44. <a href="https://doi.org/10.1299/jsmemecjo.2002.2.0_443">https://doi.org/10.1299/jsmemecjo.2002.2.0_443</a>.
+</div>
+<div id="ref-kobayashi2004" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi, Masashi Daimaruya, と Motoki Sakurazawa. 2004年. <span>「Mechanical <span>Contribution</span> of <span>Laminar</span> <span>Angle</span> in <span>Plant</span> <span>Leaves</span> with <span>Pinnate</span> <span>Venation</span>(<span>Biomimetics</span> &amp; <span>Innovative</span> <span>Design</span>)」</span>. <em>The Proceedings of the Asian Pacific Conference on Biomechanics : emerging science and technology in biomechanics</em> 2004.1: 21–22. <a href="https://doi.org/10.1299/jsmeapbio.2004.1.21">https://doi.org/10.1299/jsmeapbio.2004.1.21</a>.
+</div>
+<div id="ref-kobayashi1998a" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi, Masashi Daimaruya, と Julian F. V. Vincent. 1998年. <span>「Unfolding <span>Manners</span> of <span>Corrugated</span> <span>Plant</span> <span>Leaves</span>」</span>. <em>Transactions of the Japan Society of Mechanical Engineers Series A</em> 64 (628): 3089–94. <a href="https://doi.org/10.1299/kikaia.64.3089">https://doi.org/10.1299/kikaia.64.3089</a>.
+</div>
+<div id="ref-kobayashi1999" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi, Masashi Daimaruya, と Julian F. V. Vincent. 1999年. <span>「Effect of <span>Crease</span> <span>Interval</span> on <span>Unfolding</span> <span>Manner</span> of <span>Corrugated</span> <span>Tree</span> <span>Leaves</span>」</span>. <em>JSME International Journal Series C</em> 42 (3): 759–67. <a href="https://doi.org/10.1299/jsmec.42.759">https://doi.org/10.1299/jsmec.42.759</a>.
+</div>
+<div id="ref-kobayashi2009" class="csl-entry" role="listitem">
+Kobayashi, Hidetoshi, Yoshimi Yabugaki, Keitaro Horikawa, と Keiko Watanabe. 2009年. <span>「617 <span>Vein</span> <span>Structure</span> and <span>Mechanical</span> <span>Properties</span> of a <span>Leaf</span> of <span>Santa</span> <span>Cruz</span> <span>Water</span> <span>Lily</span> (<span>Victoria</span> cruziana)」</span>. <em>The Proceedings of the Bioengineering Conference Annual Meeting of BED/JSME</em> 2008.21: 265–66. <a href="https://doi.org/10.1299/jsmebio.2008.21.265">https://doi.org/10.1299/jsmebio.2008.21.265</a>.
+</div>
+<div id="ref-kobayashi1998" class="csl-entry" role="listitem">
+Kobayashi, H., B. Kresling, と J. F. V. Vincent. 1998年. <span>「The geometry of unfolding tree leaves」</span>. <em>Proceedings of the Royal Society B: Biological Sciences</em> 265 (1391): 147–54. <a href="https://doi.org/10.1098/rspb.1998.0276">https://doi.org/10.1098/rspb.1998.0276</a>.
+</div>
+<div id="ref-lechthaler2019" class="csl-entry" role="listitem">
+Lechthaler, Silvia, Pierluigi Colangeli, Moira Gazzabin, と Tommaso Anfodillo. 2019年. <span>「Axial anatomy of the leaf midrib provides new insights into the hydraulic architecture and cavitation patterns of <span>Acer</span> pseudoplatanus leaves」</span>. <em>Journal of Experimental Botany</em> 70 (21): 6195–201. <a href="https://doi.org/10.1093/jxb/erz347">https://doi.org/10.1093/jxb/erz347</a>.
+</div>
+<div id="ref-lei2025" class="csl-entry" role="listitem">
+Lei, Z., J. Han, X. Yi, ほか. 2025年. <span>「Higher <span>PEPC</span> activity and vein density contribute to improve cotton leaf water use efficiency under water stress」</span>. <em>Plant Biology</em> n/a (n/a). <a href="https://doi.org/10.1111/plb.13765">https://doi.org/10.1111/plb.13765</a>.
+</div>
+<div id="ref-li2013" class="csl-entry" role="listitem">
+Li, Shuai, Yong-Jiang Zhang, Lawren Sack, ほか. 2013年. <span>「The <span>Heterogeneity</span> and <span>Spatial</span> <span>Patterning</span> of <span>Structure</span> and <span>Physiology</span> across the <span>Leaf</span> <span>Surface</span> in <span>Giant</span> <span>Leaves</span> of <span>Alocasia</span> macrorrhiza」</span>. <em>PLOS ONE</em> 8 (6): e66016. <a href="https://doi.org/10.1371/journal.pone.0066016">https://doi.org/10.1371/journal.pone.0066016</a>.
+</div>
+<div id="ref-liu2020a" class="csl-entry" role="listitem">
+Liu, Jingjing, Wei Ye, Zhihui Zhang, ほか. 2020年. <span>「Vein <span>Distribution</span> on the <span>Deformation</span> <span>Behavior</span> and <span>Fracture</span> <span>Mechanisms</span> of <span>Typical</span> <span>Plant</span> <span>Leaves</span> by <span>Quasi</span> <span>In</span> <span>Situ</span> <span>Tensile</span> <span>Test</span> under a <span>Digital</span> <span>Microscope</span>」</span>. <em>Applied Bionics and Biomechanics</em> 2020 (7月): e8792143. <a href="https://doi.org/10.1155/2020/8792143">https://doi.org/10.1155/2020/8792143</a>.
+</div>
+<div id="ref-liu2026" class="csl-entry" role="listitem">
+Liu, Weizhen, Guangyu Lan, Zhiwen Xing, ほか. 2026年. <span>「Revealing <span>Hierarchical</span> <span>Structure</span> of <span>Leaf</span> <span>Venations</span> via <span>Diffusion</span>-<span>Refined</span> <span>Label</span>-<span>Efficient</span> <span>Segmentation</span>: <span>Dataset</span> and <span>Method</span>」</span>. <em>Plant Phenomics</em>, 1月, 100164. <a href="https://doi.org/10.1016/j.plaphe.2026.100164">https://doi.org/10.1016/j.plaphe.2026.100164</a>.
+</div>
+<div id="ref-matos2024a" class="csl-entry" role="listitem">
+Matos, Ilaine Silveira, Mickey Boakye, Monica Antonio, ほか. 2024年. <span>「Leaf architecture and functional traits for 122 species at the <span>University</span> of <span>California</span> <span>Botanical</span> <span>Garden</span> at <span>Berkeley</span>」</span>. <em>Ecology</em> 105 (12): e4436. <a href="https://doi.org/10.1002/ecy.4436">https://doi.org/10.1002/ecy.4436</a>.
+</div>
+<div id="ref-matos2025a" class="csl-entry" role="listitem">
+Matos, Ilaine Silveira, Mickey Boakye, Monica Antonio, ほか. 2025年. <span>「Investigating the <span>Functional</span> and <span>Architectural</span> <span>Diversity</span> of <span>Leaf</span> <span>Venation</span> <span>Networks</span>」</span>. <em>The Bulletin of the Ecological Society of America</em> 106 (1): e02206. <a href="https://doi.org/10.1002/bes2.2206">https://doi.org/10.1002/bes2.2206</a>.
+</div>
+<div id="ref-matos2024" class="csl-entry" role="listitem">
+Matos, Ilaine Silveira, Mickey Boakye, Izzi Niewiadomski, ほか. 2024年. <span>「Leaf venation network architecture coordinates functional trade-offs across vein spatial scales: evidence for multiple alternative designs」</span>. <em>New Phytologist</em> 244 (2): 407–25. <a href="https://doi.org/10.1111/nph.20037">https://doi.org/10.1111/nph.20037</a>.
+</div>
+<div id="ref-matos2025" class="csl-entry" role="listitem">
+Matos, Ilaine Silveira, Bradley Vu, Joseph Mann, ほか. 2025年. <span>「Leaf venation network evolution across clades and scales」</span>. <em>Nature Plants</em> 11 (6): 1127–41. <a href="https://doi.org/10.1038/s41477-025-02011-y">https://doi.org/10.1038/s41477-025-02011-y</a>.
+</div>
+<div id="ref-mckown2010" class="csl-entry" role="listitem">
+McKown, Athena D., Hervé Cochard, と Lawren Sack. 2010年. <span>「Decoding <span>Leaf</span> <span>Hydraulics</span> with a <span>Spatially</span> <span>Explicit</span> <span>Model</span>: <span>Principles</span> of <span>Venation</span> <span>Architecture</span> and <span>Implications</span> for <span>Its</span> <span>Evolution</span>.」</span> <em>The American Naturalist</em> 175 (4): 447–60. <a href="https://doi.org/10.1086/650721">https://doi.org/10.1086/650721</a>.
+</div>
+<div id="ref-morishita2009" class="csl-entry" role="listitem">
+Morishita, Kensuke, Hidetoshi Kobayashi, Keitaro Horikawa, と Keiko Watanabe. 2009年. <span>「<span>OS1008</span> <span>Unique</span> <span>Vein</span> <span>Structure</span> and <span>Buoyancy</span> <span>Observed</span> in <span>Leaf</span> of <span>Prickly</span> <span>Water</span> <span>Lily</span>」</span>. <em>The Proceedings of the Materials and Mechanics Conference</em> 2009: 641–42. <a href="https://doi.org/10.1299/jsmemm.2009.641">https://doi.org/10.1299/jsmemm.2009.641</a>.
+</div>
+<div id="ref-muraleedharan2026b" class="csl-entry" role="listitem">
+Muraleedharan, Vishnu, Sooraj N P, Sajeev C Rajan, と Jaishanker R. 2026年. <span>「Hybrid network of leaf veins observed in tree species」</span>. <em>Flora</em> 339 (6月): 152982. <a href="https://doi.org/10.1016/j.flora.2026.152982">https://doi.org/10.1016/j.flora.2026.152982</a>.
+</div>
+<div id="ref-nardini2022" class="csl-entry" role="listitem">
+Nardini, Andrea. 2022年. <span>「Hard and tough: the coordination between leaf mechanical resistance and drought tolerance」</span>. <em>Flora</em> 288 (3月): 152023. <a href="https://doi.org/10.1016/j.flora.2022.152023">https://doi.org/10.1016/j.flora.2022.152023</a>.
+</div>
+<div id="ref-niewiadomski2025" class="csl-entry" role="listitem">
+Niewiadomski, Isabella, Monica Antonio, Luiza Maria T. Aparecido, ほか. 2025年. <span>「A comprehensive illustrated protocol for clearing, mounting, and imaging leaf venation networks」</span>. <em>Applications in Plant Sciences</em> 13 (2): e70002. <a href="https://doi.org/10.1002/aps3.70002">https://doi.org/10.1002/aps3.70002</a>.
+</div>
+<div id="ref-niinemets2002" class="csl-entry" role="listitem">
+Niinemets, Ülo, と Stefan Fleck. 2002年. <span>「Petiole mechanics, leaf inclination, morphology, and investment in support in relation to light availability in the canopy of <span>Liriodendron</span> tulipifera」</span>. <em>Oecologia</em> 132 (1): 21–33. <a href="https://doi.org/10.1007/s00442-002-0902-z">https://doi.org/10.1007/s00442-002-0902-z</a>.
+</div>
+<div id="ref-niinemets2007" class="csl-entry" role="listitem">
+Niinemets, Ü., A. Portsmuth, と M. Tobias. 2007年. <span>「Leaf shape and venation pattern alter the support investments within leaf lamina in temperate species: a neglected source of leaf physiological differentiation?」</span> <em>Functional Ecology</em> 21 (1): 28–40. <a href="https://doi.org/10.1111/j.1365-2435.2006.01221.x">https://doi.org/10.1111/j.1365-2435.2006.01221.x</a>.
+</div>
+<div id="ref-ohtsuka2018" class="csl-entry" role="listitem">
+Ohtsuka, Akihiro, Lawren Sack, と Haruhiko Taneda. 2018年. <span>「Bundle sheath lignification mediates the linkage of leaf hydraulics and venation」</span>. <em>Plant, Cell &amp; Environment</em> 41 (2): 342–53. <a href="https://doi.org/10.1111/pce.13087">https://doi.org/10.1111/pce.13087</a>.
+</div>
+<div id="ref-pierantoni2019" class="csl-entry" role="listitem">
+Pierantoni, Maria, Vlad Brumfeld, Lia Addadi, と Steve Weiner. 2019年. <span>「A <span>3D</span> study of the relationship between leaf vein structure and mechanical function」</span>. <em>Acta Biomaterialia</em> 88 (4月): 111–19. <a href="https://doi.org/10.1016/j.actbio.2019.02.023">https://doi.org/10.1016/j.actbio.2019.02.023</a>.
+</div>
+<div id="ref-price2011" class="csl-entry" role="listitem">
+Price, Charles A., Olga Symonova, Yuriy Mileyko, Troy Hilley, と Joshua S. Weitz. 2011年. <span>「Leaf <span>Extraction</span> and <span>Analysis</span> <span>Framework</span> <span>Graphical</span> <span>User</span> <span>Interface</span>: <span>Segmenting</span> and <span>Analyzing</span> the <span>Structure</span> of <span>Leaf</span> <span>Veins</span> and <span>Areoles</span>」</span>. <em>Plant Physiology</em> 155 (1): 236–45. <a href="https://doi.org/10.1104/pp.110.162834">https://doi.org/10.1104/pp.110.162834</a>.
+</div>
+<div id="ref-roberts" class="csl-entry" role="listitem">
+Roberts, Hattie R., Roxana Khoshravesh, George Rumble, Tamara Hernández-Verdeja, と Marjorie R. Lundgren. 日付なし. <span>「Improved mesophyll–bundle sheath connectivity is achieved via different mechanisms in <span>C2</span> vs <span>C4</span> <span>Alternanthera</span>」</span>. <em>New Phytologist</em> n/a (n/a). <a href="https://doi.org/10.1111/nph.71218">https://doi.org/10.1111/nph.71218</a>.
+</div>
+<div id="ref-roth-nebelsick2001" class="csl-entry" role="listitem">
+Roth-Nebelsick, Anita, Dieter Uhl, Volker Mosbrugger, と Hans Kerp. 2001年. <span>「Evolution and <span>Function</span> of <span>Leaf</span> <span>Venation</span> <span>Architecture</span>: <span>A</span> <span>Review</span>」</span>. <em>Annals of Botany</em> 87 (5): 553–66. <a href="https://doi.org/10.1006/anbo.2001.1391">https://doi.org/10.1006/anbo.2001.1391</a>.
+</div>
+<div id="ref-sack2006" class="csl-entry" role="listitem">
+Sack, Lawren, と Kristen Frole. 2006年. <span>「Leaf <span>Structural</span> <span>Diversity</span> <span>Is</span> <span>Related</span> to <span>Hydraulic</span> <span>Capacity</span> in <span>Tropical</span> <span>Rain</span> <span>Forest</span> <span>Trees</span>」</span>. <em>Ecology</em> 87 (2): 483–91. <a href="https://doi.org/10.1890/05-0710">https://doi.org/10.1890/05-0710</a>.
+</div>
+<div id="ref-sack2012" class="csl-entry" role="listitem">
+Sack, Lawren, と Christine Scoffoni. 2012年. <span>「Measurement of <span>Leaf</span> <span>Hydraulic</span> <span>Conductance</span> and <span>Stomatal</span> <span>Conductance</span> and <span>Their</span> <span>Responses</span> to <span>Irradiance</span> and <span>Dehydration</span> <span>Using</span> the <span>Evaporative</span> <span>Flux</span> <span>Method</span> (<span>EFM</span>)」</span>. <em>JoVE (Journal of Visualized Experiments)</em>, no. 70 (12月): e4179. <a href="https://doi.org/10.3791/4179">https://doi.org/10.3791/4179</a>.
+</div>
+<div id="ref-sack2013a" class="csl-entry" role="listitem">
+Sack, Lawren, と Christine Scoffoni. 2013年. <span>「Leaf venation: structure, function, development, evolution, ecology and applications in the past, present and future」</span>. <em>New Phytologist</em> 198 (4): 983–1000. <a href="https://doi.org/10.1111/nph.12253">https://doi.org/10.1111/nph.12253</a>.
+</div>
+<div id="ref-sack2013" class="csl-entry" role="listitem">
+Sack, Lawren, Christine Scoffoni, Grace P. John, ほか. 2013年. <span>「How do leaf veins influence the worldwide leaf economic spectrum? <span>Review</span> and synthesis」</span>. <em>Journal of Experimental Botany</em> 64 (13): 4053–80. <a href="https://doi.org/10.1093/jxb/ert316">https://doi.org/10.1093/jxb/ert316</a>.
+</div>
+<div id="ref-sakuma2001" class="csl-entry" role="listitem">
+Sakuma, Atsushi, Hidetoshi Kobayashi, と Masashi Daimaruya. 2001年. <span>「106 <span>Mechanical</span> <span>Characteristics</span> of <span>Vein</span> <span>Network</span> in <span>Butterbur</span> <span>Leaves</span>」</span>. <em>The Proceedings of Conference of Hokkaido Branch</em> 2001.41: 12–13. <a href="https://doi.org/10.1299/jsmehokkaido.2001.41.12">https://doi.org/10.1299/jsmehokkaido.2001.41.12</a>.
+</div>
+<div id="ref-scoffoni2017a" class="csl-entry" role="listitem">
+Scoffoni, Christine, Caetano Albuquerque, Craig R. Brodersen, ほか. 2017年. <span>「Outside-<span>Xylem</span> <span>Vulnerability</span>, <span>Not</span> <span>Xylem</span> <span>Embolism</span>, <span>Controls</span> <span>Leaf</span> <span>Hydraulic</span> <span>Decline</span> during <span>Dehydration</span>」</span>. <em>Plant Physiology</em> 173 (2): 1197–210. <a href="https://doi.org/10.1104/pp.16.01643">https://doi.org/10.1104/pp.16.01643</a>.
+</div>
+<div id="ref-scoffoni2011" class="csl-entry" role="listitem">
+Scoffoni, Christine, Michael Rawls, Athena McKown, と Hervé Cochard. 2011年. <span>「Decline of <span>Leaf</span> <span>Hydraulic</span> <span>Conductance</span> with <span>Dehydration</span>: <span>Relationship</span> to <span>Leaf</span> <span>Size</span> and <span>Venation</span> <span>Architecture</span>」</span>. <em>Plant Physiology</em> 156 (2): 832–43. <a href="https://doi.org/10.1104/pp.111.173856">https://doi.org/10.1104/pp.111.173856</a>.
+</div>
+<div id="ref-scoffoni2014" class="csl-entry" role="listitem">
+Scoffoni, Christine, Christine Vuong, Steven Diep, Hervé Cochard, と Lawren Sack. 2014年. <span>「Leaf <span>Shrinkage</span> with <span>Dehydration</span>: <span>Coordination</span> with <span>Hydraulic</span> <span>Vulnerability</span> and <span>Drought</span> <span>Tolerance</span>」</span>. <em>Plant Physiology</em> 164 (4): 1772–88. <a href="https://doi.org/10.1104/pp.113.221424">https://doi.org/10.1104/pp.113.221424</a>.
+</div>
+<div id="ref-shi2022" class="csl-entry" role="listitem">
+Shi, Peijian, Qinyue Miao, Ülo Niinemets, ほか. 2022年. <span>「Scaling relationships of leaf vein and areole traits versus leaf size for nine <span>Magnoliaceae</span> species differing in venation density」</span>. <em>American Journal of Botany</em> 109 (6): 899–909. <a href="https://doi.org/10.1002/ajb2.1856">https://doi.org/10.1002/ajb2.1856</a>.
+</div>
+<div id="ref-sun2018" class="csl-entry" role="listitem">
+Sun, Zhi, Tianchen Cui, Yichao Zhu, ほか. 2018年. <span>「The mechanical principles behind the golden ratio distribution of veins in plant leaves」</span>. <em>Scientific Reports</em> 8 (1): 1–8. <a href="https://doi.org/10.1038/s41598-018-31763-1">https://doi.org/10.1038/s41598-018-31763-1</a>.
+</div>
+<div id="ref-tamang2022" class="csl-entry" role="listitem">
+Tamang, Bishal G, Yanqun Zhang, Michelle A Zambrano, と Elizabeth A Ainsworth. 2022年. <span>「Anatomical determinants of gas exchange and hydraulics vary with leaf shape in soybean」</span>. <em>Annals of Botany</em>, 9月, mcac118. <a href="https://doi.org/10.1093/aob/mcac118">https://doi.org/10.1093/aob/mcac118</a>.
+</div>
+<div id="ref-trifilo2003" class="csl-entry" role="listitem">
+Trifilò, Patrizia, Antonio Gascó, Fabio Raimondo, Andrea Nardini, と Sebastiano Salleo. 2003年. <span>「Kinetics of recovery of leaf hydraulic conductance and vein functionality from cavitation‐induced embolism in sunflower」</span>. <em>Journal of Experimental Botany</em> 54 (391): 2323–30. <a href="https://doi.org/10.1093/jxb/erg259">https://doi.org/10.1093/jxb/erg259</a>.
+</div>
+<div id="ref-wang2025c" class="csl-entry" role="listitem">
+Wang, Hang, Hongwei Li, Yusuke Onoda, ほか. 2025年. <span>「Leaf biomechanical traits predict litter decomposability」</span>. <em>Journal of Ecology</em> 113 (5): 1121–35. <a href="https://doi.org/10.1111/1365-2745.70019">https://doi.org/10.1111/1365-2745.70019</a>.
+</div>
+<div id="ref-wang2026b" class="csl-entry" role="listitem">
+Wang, Hui, Jian Li, Jun-Yu Chen, Min Wang, Eric Imbert, と Zhao-Yang Chang. 2026年. <span>「The <span>Functional</span> <span>Significance</span> of <span>Leaf</span> <span>Shape</span> <span>Lies</span> in <span>Water</span> <span>Relations</span> <span>Over</span> <span>Thermoregulation</span>: <span>A</span> <span>Case</span> <span>Study</span> <span>With</span> an <span>Arid</span> <span>Legume</span> <span>Herb</span>」</span>. <em>Plant, Cell &amp; Environment</em> 49 (7): 4642–56. <a href="https://doi.org/10.1111/pce.70484">https://doi.org/10.1111/pce.70484</a>.
+</div>
+<div id="ref-wang2018" class="csl-entry" role="listitem">
+Wang, Xiaoxiao, Tingting Du, Jianliang Huang, Shaobing Peng, と Dongliang Xiong. 2018年. <span>「Leaf hydraulic vulnerability triggers the decline in stomatal and mesophyll conductance during drought in rice」</span>. <em>Journal of Experimental Botany</em> 69 (16): 4033–45. <a href="https://doi.org/10.1093/jxb/ery188">https://doi.org/10.1093/jxb/ery188</a>.
+</div>
+<div id="ref-wilf2016" class="csl-entry" role="listitem">
+Wilf, Peter, Shengping Zhang, Sharat Chikkerur, Stefan A. Little, Scott L. Wing, と Thomas Serre. 2016年. <span>「Computer vision cracks the leaf code」</span>. <em>Proceedings of the National Academy of Sciences</em> 113 (12): 3305–10. <a href="https://doi.org/10.1073/pnas.1524473113">https://doi.org/10.1073/pnas.1524473113</a>.
+</div>
+<div id="ref-wu2016" class="csl-entry" role="listitem">
+Wu, Tonggui, Peng Zhang, Lei Zhang, Geoff G. Wang, と Mukui Yu. 2016年. <span>「Morphological <span>Response</span> of <span>Eight</span> <span>Quercus</span> <span>Species</span> to <span>Simulated</span> <span>Wind</span> <span>Load</span>」</span>. <em>PLOS ONE</em> 11 (9): e0163613. <a href="https://doi.org/10.1371/journal.pone.0163613">https://doi.org/10.1371/journal.pone.0163613</a>.
+</div>
+<div id="ref-xu2009" class="csl-entry" role="listitem">
+Xu, Fei, Weihua Guo, Weihong Xu, Yinghua Wei, と Renqing Wang. 2009年. <span>「Leaf morphology correlates with water and light availability: <span>What</span> consequences for simple and compound leaves?」</span> <em>Progress in Natural Science</em> 19 (12): 1789–98. <a href="https://doi.org/10.1016/j.pnsc.2009.10.001">https://doi.org/10.1016/j.pnsc.2009.10.001</a>.
+</div>
+<div id="ref-yoshitsugu2017" class="csl-entry" role="listitem">
+Yoshitsugu, Soichiro, Kenichi Tanigaki, Keitaro Horikawa, と Hidetoshi Kobayashi. 2017年. <span>「Non-destructive acoustic measurement of elastic modulus of plant leaves」</span>. <em>The Proceedings of the Materials and Mechanics Conference</em> 2017: OS0421. <a href="https://doi.org/10.1299/jsmemm.2017.OS0421">https://doi.org/10.1299/jsmemm.2017.OS0421</a>.
+</div>
+<div id="ref-zohner2019a" class="csl-entry" role="listitem">
+Zohner, Constantin M., Elisabeth Ramm, と Susanne S. Renner. 2019年. <span>「Examining the support–supply and bud-packing hypotheses for the increase in toothed leaf margins in northern deciduous floras」</span>. <em>American Journal of Botany</em> 106 (11): 1404–11. <a href="https://doi.org/10.1002/ajb2.1379">https://doi.org/10.1002/ajb2.1379</a>.
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "コピーしました");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "コピーしました");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
