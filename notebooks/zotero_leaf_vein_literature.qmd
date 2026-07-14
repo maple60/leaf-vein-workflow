@@ -1,154 +1,868 @@
 ---
 title: "Zotero文献から見る葉脈研究"
+subtitle: "生理学・力学・葉脈次数・画像解析をつなぐ統合レビュー"
+date: "2026-07-14"
 bibliography: zotero_leaf_vein_library.bib
 link-citations: true
 ---
 
-このページは、2026年7月14日にローカルZoteroライブラリを検索し、葉脈研究に関係する文献を整理したものである。引用はZoteroから書き出したBibTeXを用い、Quartoの引用記法で管理している。
+このレビューは、**筆者がZoteroに収集してきた葉脈関連文献**を母集団として、葉脈を生理学、力学、次数・ネットワーク、画像解析の四つの面から読み直したものである。個々の論文を単独で紹介するのではなく、水輸送と光合成、支持と破壊、階層ネットワーク、撮像から形質抽出までを一つの研究設計として接続することを目的とする。
 
-## 調査範囲
+::: {.callout-important title="このページの範囲"}
+2026年7月14日時点のローカルZoteroライブラリから、葉脈を直接扱う中核60報と、葉水理・葉構造・葉力学などから葉脈へ接続する周辺22報を選び、重複を統合した82報を対象とした。76報はZoteroの添付ファイルから全文索引テキストを取得し、6報は抄録に基づいた。ただし、全文索引を取得できた講演報告の一部は、実質的に要旨・書誌ページだけである。したがって本稿は、世界の全葉脈文献を網羅するsystematic reviewではなく、**筆者自身の所蔵文献リストを、後から検証・再利用できる形に整理した統合レビュー**である。
+:::
 
-Zoteroの `Leaf vein` コレクション（collection key: `4NXIFW4C`）には65件の文献レコードがあった。DOIまたは完全一致するタイトルで重複をまとめると56文献であった。さらにライブラリ全体のタイトル・抄録・タグを検索し、タイトルから葉脈を直接扱うと判断できる4文献を追加した。
+## 調査範囲と読み方
 
-したがって、本ページでは次の82文献を扱う。
-
-| 区分 | 文献数 | 判定基準 |
+| 区分 | 文献数 | 読み取り方法 |
 |---|---:|---|
-| 中核文献 | 60 | `Leaf vein` コレクションの文献、またはタイトルが葉脈・葉脈網・主脈を直接扱う文献 |
-| 周辺文献 | 22 | 抄録中で葉脈との関係が確認できるが、主題が葉水理、葉構造、葉力学などに置かれる文献 |
-| 合計 | 82 | 重複レコードを統合した文献数 |
+| 中核文献 | 60 | 葉脈、葉脈網、主脈、areole、葉脈segmentationを主題とする文献 |
+| 周辺文献 | 22 | 水理、光合成、葉構造、力学、乾燥耐性などから葉脈を解釈する文献 |
+| 全文索引取得 | 76 | Zoteroの添付PDF等からローカルテキストを取得。一部の講演報告は要旨・書誌ページのみ |
+| 抄録ベース | 6 | 本文全文を取得できず、Zotero所蔵の抄録を根拠に要約 |
 
-ここでいう「すべて」は、この再現可能な検索基準に該当したZotero所蔵文献を指す。一般的な `vein` だけの一致は動物・医学文献を拾うため採用せず、`leaf`、`leaves`、`foliar` と `vein`、`venation`、`midvein`、`areole` の組み合わせ、および既存タグを用いた。
+本文中の数値は、対象種、標本数、撮像条件、評価法が確認できた場合に限って記した。論文の相関結果を因果として言い換えず、著者が述べる限界と、本稿での解釈を区別した。末尾の「文献別クイックリファレンス」では、本文で詳述した文献も含めた全82報を、Zotero item key、根拠レベル、短い内容メモとともに再掲する。
 
-## 葉脈研究の全体像
+### 結論の先取り
 
-### 葉脈網は多機能な階層ネットワークである
+1. **葉脈は一つの形質ではない。** 太いmajor vein、細いminor vein、周囲のbundle sheath・mesophyll、xylem外経路が異なる役割を担う。VLAだけから水理・光合成・耐乾性を一意に推定できない。
+2. **輸送と支持は同じ網を共有するが、最適化対象は異なる。** 大脈は長距離輸送と梁としての支持に、細脈は末端供給、網目の補強、損傷迂回に強く関与する。葉全体に単一の「最適な葉脈網」は想定しにくい。
+3. **次数と線幅は別物である。** 一次・二次・三次脈は接続と発生に基づく階層で、small・medium・largeは連続的なサイズ区分である。両方を保存して初めて生理・力学・進化を接続できる。
+4. **画像解析の最終評価は形質誤差で行う。** pixel accuracyが高くても、1画素の切断で端点、loop、areoleが変わる。IoU/F1に加えて連結性、幅、VLA、次数別密度、areole統計のbiasを検証する必要がある。
+5. **有効な自動化は、人の判断を局所化する。** 全自動の確定ラベルを目指すより、確率mask、次数候補、不確実箇所を提示し、修正履歴を残す方が、現在の文献証拠と研究用途に合う。
 
-葉脈は、水・光合成産物・シグナルを運ぶ輸送系であると同時に、葉身を支持し、損傷時にも機能を維持するネットワークである。総説では、構造、発生、可塑性、進化、生態、応用を一つの枠組みで扱う必要性が示されている [@sack2013a; @roth-nebelsick2001]。近年の比較研究は、細脈・中間径・太い葉脈で機能への寄与が異なり、単一の最適解ではなく複数の設計が成立することを示している [@matos2024; @blonder2020]。約4億年の進化史を扱った研究でも、葉脈密度やループ構造の変化が葉脈サイズ階級ごとに異なることが示された [@matos2025]。
+### 用語をそろえる
 
-### 水理・光合成・乾燥耐性との関係
+| 用語 | 本稿での意味 |
+|---|---|
+| major vein | 一般に一次・二次・三次脈など、長距離輸送と支持への寄与が大きい太い葉脈 |
+| minor vein | より高次で細く、mesophyllへの末端供給を担う葉脈とfree-ending veinlet |
+| vein order | 分岐元、走向、葉縁との関係などに基づく形態学的・発生的階層 |
+| width scale | 局所的な葉脈幅または半径による連続的なサイズ軸 |
+| VLA / VD | 単位葉面積当たりの葉脈総延長。文献に応じてvein length per areaまたはvein density |
+| areole | 葉脈によって囲まれた網目状の閉領域 |
+| resilience | 損傷を避ける抵抗性ではなく、損傷後にも輸送などの機能を維持・回復する性質 |
 
-葉脈密度や葉脈配置は、葉内の水輸送距離を通じて葉の水理伝導度と最大光合成速度に関係する [@brodribb2007]。ただし、葉脈形質を葉経済スペクトル全体の単純な「起源」とみなすのは支持されず、葉脈密度は独立した水理的な経路を通じて気孔コンダクタンスや光合成に影響すると整理されている [@sack2013]。また、major vein と minor vein は同じ役割ではなく、少なくとも温帯落葉樹では minor vein の形質が水欠乏耐性や葉構造とより強く関連した [@kawai2018]。葉脈閉塞、bundle sheath、道管外経路、塞栓などを扱う研究も、葉脈網だけでなく周辺組織を含めて水理機能を評価する必要性を示す [@harayama2019; @ohtsuka2018; @buckley2015; @brodribb2016]。
+この用語区分は完全に固定されたものではなく、論文間でmajor/minorや次数の定義は異なる。比較時には、著者の定義、撮像解像度、抽出できた最小脈幅を併記する必要がある [@sack2013a; @matos2025]。
 
-### 輸送と力学のトレードオフ
 
-主脈や高次脈は葉身を平坦に保ちつつ、風や乾燥に応じて変形できる支持構造でもある。主脈の三次元構造と材料特性は、曲げ、ねじり、座屈、破壊様式に影響する [@pierantoni2019]。多種比較と理論モデルを組み合わせた研究では、葉先側では輸送効率、基部側では力学的支持が主脈形態を強く規定するという軸方向のトレードオフが示された [@hong2025]。葉脈分布・葉脈角度・乾燥時の主脈も、変形や破壊、葉形形成に関与する [@liu2020a; @kobayashi2002b; @guo2026]。
+## 第1章　生理学
 
-### 画像取得・セグメンテーション・ネットワーク計測
+::: {.callout-note title="この章の資料範囲"}
+この章は、2026年7月14日時点で筆者のZoteroライブラリから抽出した葉脈関連文献を精読し、その所蔵文献だけを根拠としてまとめたものである。したがって、一般文献を網羅した系統的レビューではなく、**著者が収集してきた論文群から現在どこまで一貫した生理学的像を組み立てられるか**を示すレビューである。以下では、各論文が直接示した結果と、本ページで複数論文を接続して導いた解釈をできるだけ区別する。
+:::
 
-再現性の高い葉脈研究には、透明化、染色、封入、撮像、保存までを一続きのプロトコルとして管理する必要がある [@niewiadomski2025]。解析では、LEAF GUIが対話的な閾値処理とクリーニングから葉脈・areoleの位置、形状、接続性を計測する枠組みを示した [@price2011]。phenoVeinは背景むらの補正、自動セグメンテーション、幅推定、骨格グラフ統計、手動修正を統合している [@buhler_phenoveintool_2015]。その後、深層学習によるマスク抽出と無向グラフ化を組み合わせ、未処理葉から葉脈ネットワークの形態空間を再構成する方法が提案された [@iwamasa2023]。
+### 葉脈の生理機能を読むための基本モデル
 
-葉脈次数を扱う場合、単なる二値セグメンテーションだけでは不十分である。HALVSはprimary、secondary、tertiaryの3階層を注釈したデータセットと、少ない注釈から細脈の連結性を回復する方法を提示している [@liu2026]。この方向は、`leaf-vein-workflow` で目指す「自動候補生成、次数の確認、手動修正」という流れに最も近い。
+水は、葉柄から主脈・二次脈などのmajor veinを通り、より細いminor veinへ分配された後、道管を出てbundle sheath（維管束鞘）、葉肉、表皮を通り、細胞間隙で蒸発して気孔から大気へ出る。この経路全体の通しやすさが葉水理コンダクタンス（$K_\mathrm{leaf}$）である。最も単純には、道管内コンダクタンス $K_\mathrm{x}$ と道管外コンダクタンス $K_\mathrm{ox}$ が直列に並ぶため、次式で表される [@sack2013a; @sack2013; @flexas2013a]。
 
-## このプロジェクトへの示唆
+$$
+K_\mathrm{leaf}
+=
+\left(K_\mathrm{x}^{-1}+K_\mathrm{ox}^{-1}\right)^{-1}
+$$
 
-Zotero文献群から見ると、実装上の優先順位は次のように整理できる。
+この式が重要なのは、葉脈画像から得られる形態量だけでは $K_\mathrm{leaf}$ が決まらないことを明示するからである。$K_\mathrm{x}$ は葉脈次数ごとの道管数、内径、長さ、壁・壁孔の抵抗、並列経路数などに左右される。一方の $K_\mathrm{ox}$ は、葉脈から蒸発部位までの距離だけでなく、bundle sheathの透水性や木化、aquaporin、葉肉細胞の配列・接触面積、細胞壁、細胞間隙、葉内温度勾配にも左右される [@buckley2015; @ohtsuka2018]。したがって、vein length per area（VLA、葉脈長密度）は重要な説明変数ではあるが、単独で水輸送能を一意に決める「代理測定値」ではない。
 
-1. 入力画像の品質とスケールを記録し、透明化標本・透過画像・通常撮影を区別する。
-2. 二値maskだけでなく、骨格、分岐点、端点、edge、areoleを再利用できる形で保持する。
-3. major/minorや次数は線幅だけで決めず、接続関係と階層を含めて候補提示する。
-4. 自動処理後の手動修正を正式な工程として残す。
-5. セグメンテーション精度と、VLA・幅・次数など最終形質の測定誤差を分けて検証する。
+典型的な網状脈系では、1--3次脈がmajor vein、4次以上がminor veinとされる。minor veinは総葉脈長の80%以上を占める一方、58種を集めたデータでは葉脈体積の平均17%、葉全体体積の約2%にとどまり、major veinは葉脈体積の約82%を占めた [@sack2013a; @sack2013]。この非対称性から、細脈は少ない材料で葉肉との接触面積と並列経路を増やす「分配網」、太い葉脈は長距離輸送、冗長性、支持を担う「幹線」と捉えられる。ただし、これは平均的な機能分化であり、実際の寄与は葉脈配置、道管断面、bundle sheath、葉厚、生活形によって変わる。
 
-これは文献から導いた実装上の整理であり、個々の論文がこのソフトウェア設計を直接推奨しているという意味ではない。
+### 水輸送能と葉脈形態：強い関係と、単純化できない理由
 
-## 中核文献一覧
+葉脈と光合成をつないだ代表的研究では、コケ・シダ・裸子植物・被子植物を含む43種について、$K_\mathrm{leaf}$、光飽和光合成速度 $A_\mathrm{max}$、最寄りの葉脈から蒸発部位までの葉肉内距離 $D_\mathrm{m}$ が測定された。$A_\mathrm{max}$ と $K_\mathrm{leaf}$ の関係は $r^2=0.94$、特殊なtransfusion tissueをもつ種を除いた34種では $D_\mathrm{m}$ と $K_\mathrm{leaf}$ の指数関係が $r^2=0.97$ であった。$D_\mathrm{m}$ は90--2200 µm、$K_\mathrm{leaf}$ は20倍以上変化した [@brodribb2007]。これは、葉脈を密に配置して道管外の移動距離を短くすると、水供給上限が高まり、高い光合成を支え得るという仮説の強い比較証拠である。
 
-以下は、Zoteroの `Leaf vein` コレクションと、ライブラリ全体から追加した直接該当文献である。同一DOIまたは完全一致タイトルの重複は、情報量の多い1レコードにまとめた。
+ただし、この結果から「VLAを上げれば常に光合成が上がる」とは結論できない。同研究でも、多脈葉ではVLAそのものより、葉脈から表皮までの垂直距離を含む $D_\mathrm{m}$ の方がよく機能を説明し、accessory transfusion tissueをもつ裸子植物は同じ $D_\mathrm{m}$ から期待される値より約1桁高い $K_\mathrm{leaf}$ を示した [@brodribb2007]。また、後の再解析では、広い系統群・生育環境を一緒にした相関が系統やintervein distanceに強く依存することが指摘された [@sack2013]。この研究は10--30葉・5個体／種で $K_\mathrm{leaf}$ を測り、解剖測定も複数葉・多数点で行った点では堅牢だが、種間相関だけで発生的・進化的因果を分離したものではない。
 
-- *106 Mechanical Characteristics of Vein Network in Butterbur Leaves* [@sakuma2001] — Zotero item `I325IECF`
-- *617 Vein Structure and Mechanical Properties of a Leaf of Santa Cruz Water Lily (Victoria cruziana)* [@kobayashi2009] — Zotero item `DMATMNJW`
-- *A 3D study of the relationship between leaf vein structure and mechanical function* [@pierantoni2019] — Zotero item `JYGBNA8W`
-- *A comprehensive illustrated protocol for clearing, mounting, and imaging leaf venation networks* [@niewiadomski2025] — Zotero item `TVMTI32J`
-- *A high-resolution model of the grapevine leaf morphospace predicts synthetic leaves* [@chitwood2025] — Zotero item `TA2IN3DW`
-- *A Modern Ampelography: A Genetic Basis for Leaf Shape and Venation Patterning in Grape* [@chitwood2014] — Zotero item `HLRWCWY2`
-- *A trade-off between transport and mechanics determines plant leaf vein architecture* [@hong2025] — Zotero item `HR2VCZ4Q`
-- *Aridity-dependent regulation of water-use efficiency by leaf vein traits across grassland communities* [@han_aridity-dependent_nodate] — Zotero item `SAQM6IGT`
-- *Axial anatomy of the leaf midrib provides new insights into the hydraulic architecture and cavitation patterns of Acer pseudoplatanus leaves* [@lechthaler2019] — Zotero item `Q6HIK3ZD`
-- *Branching Pattern of Veins and Structural Stiffness in Butterbur Leaf* [@kobayashi2003a] — Zotero item `MVGRM54F`
-- *Bundle sheath lignification mediates the linkage of leaf hydraulics and venation* [@ohtsuka2018] — Zotero item `N7RR7AQY`
-- *Causes of ecological gradients in leaf margin entirety: Evaluating the roles of biomechanics, hydraulics, vein geometry, and bud packing* [@givnish2017] — Zotero item `VPU74D6V`
-- *Computer vision cracks the leaf code* [@wilf2016] — Zotero item `HKP4PPEH`
-- *CUDU-Net: Collaborative up-sampling decoder U-Net for leaf vein segmentation* [@cai2024] — Zotero item `VBDAWK9M`
-- *Decline of Leaf Hydraulic Conductance with Dehydration: Relationship to Leaf Size and Venation Architecture* [@scoffoni2011] — Zotero item `IBAPWKXC`
-- *Decoding Leaf Hydraulics with a Spatially Explicit Model: Principles of Venation Architecture and Implications for Its Evolution.* [@mckown2010] — Zotero item `ZLXEJRQC`
-- *Effects of major vein blockage and aquaporin inhibition on leaf hydraulics and stomatal conductance* [@harayama2019] — Zotero item `97UPQS5L`
-- *Evolution and Function of Leaf Venation Architecture: A Review* [@roth-nebelsick2001] — Zotero item `ZFK7R2B2`
-- *Examining the support–supply and bud-packing hypotheses for the increase in toothed leaf margins in northern deciduous floras* [@zohner2019a] — Zotero item `HM4LS29P`
-- *Functional consequences of light intensity on soybean leaf hydraulic conductance: Coordinated variations in leaf venation architecture and mesophyll structure* [@gao2023] — Zotero item `H8MCECWR`
-- *Higher PEPC activity and vein density contribute to improve cotton leaf water use efficiency under water stress* [@lei2025] — Zotero item `28TYNHMC`
-- *How are leaf mechanical properties and water-use traits coordinated by vein traits? A case study in Fagaceae* [@kawai2016] — Zotero item `3H6Z9MW2`
-- *How do leaf veins influence the worldwide leaf economic spectrum? Review and synthesis* [@sack2013] — Zotero item `IZYAVRKQ`
-- *How Does Leaf Anatomy Influence Water Transport outside the Xylem?* [@buckley2015] — Zotero item `6YYSFX4I`
-- *Hybrid network of leaf veins observed in tree species* [@muraleedharan2026b] — Zotero item `ZE3YSYSC`
-- *Improved mesophyll–bundle sheath connectivity is achieved via different mechanisms in C2 vs C4 Alternanthera* [@roberts] — Zotero item `N5BL3NCS`
-- *Investigating the Functional and Architectural Diversity of Leaf Venation Networks* [@matos2025a] — Zotero item `NE6KUEDL`
-- *Kinetics of recovery of leaf hydraulic conductance and vein functionality from cavitation‐induced embolism in sunflower* [@trifilo2003] — Zotero item `AXZMIFGW`
-- *Leaf architecture and functional traits for 122 species at the University of California Botanical Garden at Berkeley* [@matos2024a] — Zotero item `EH58HWAG`
-- *Leaf Extraction and Analysis Framework Graphical User Interface: Segmenting and Analyzing the Structure of Leaf Veins and Areoles* [@price2011] — Zotero item `I7PTR295`
-- *Leaf Maximum Photosynthetic Rate and Venation Are Linked by Hydraulics* [@brodribb2007] — Zotero item `X4IRNXJK`
-- *Leaf morphology correlates with water and light availability: What consequences for simple and compound leaves?* [@xu2009] — Zotero item `BK4FKI2M`
-- *Leaf shape and venation pattern alter the support investments within leaf lamina in temperate species: a neglected source of leaf physiological differentiation?* [@niinemets2007] — Zotero item `LJPSJY7X`
-- *Leaf Shrinkage with Dehydration: Coordination with Hydraulic Vulnerability and Drought Tolerance* [@scoffoni2014] — Zotero item `DINNFMSB`
-- *Leaf venation network architecture coordinates functional trade-offs across vein spatial scales: evidence for multiple alternative designs* [@matos2024] — Zotero item `9396YNTW`
-- *Leaf venation network evolution across clades and scales* [@matos2025] — Zotero item `7W9C6BPS`
-- *Leaf venation networks of Bornean trees: images and hand-traced segmentations* [@blonder_leaf_2019] — Zotero item `JSIRCDG9`
-- *Leaf venation: structure, function, development, evolution, ecology and applications in the past, present and future* [@sack2013a] — Zotero item `3QMH67CL`
-- *Linking functional traits to multiscale statistics of leaf venation networks* [@blonder2020] — Zotero item `AVEX3RL8`
-- *Mechanical Contribution of Laminar Angle in Plant Leaves with Pinnate Venation(Biomimetics & Innovative Design)* [@kobayashi2004] — Zotero item `FYLGTJHR`
-- *Mechanical evaluation of London plane leaves with pedate venation* [@kobayashi2001] — Zotero item `K72URVE9`
-- *Mechanical Properties of Lamina and Veins in Butterbur Leaf and Its Venation Pattern* [@kobayashi2002] — Zotero item `MP67BIT2`
-- *Midveins regulate the shape formation of drying leaves* [@guo2026] — Zotero item `97ILEZZM`
-- *Morphological Response of Eight Quercus Species to Simulated Wind Load* [@wu2016] — Zotero item `3FSR8L7Q`
-- *Network feature-based phenotyping of leaf venation robustly reconstructs the latent space* [@iwamasa2023] — Zotero item `WK7NZZQ7`
-- *OS1008 Unique Vein Structure and Buoyancy Observed in Leaf of Prickly Water Lily* [@morishita2009] — Zotero item `N7WGNNFL`
-- *phenoVein—A Tool for Leaf Vein Segmentation and Analysis* [@buhler_phenoveintool_2015] — Zotero item `YBT3UA9Z`
-- *Plasticity in Hydraulic Architecture: Riparian Trees Respond to Increased Temperatures With Genotype-Specific Adjustments to Leaf Traits* [@garthwaite2024] — Zotero item `9879KAWP`
-- *Revealing Hierarchical Structure of Leaf Venations via Diffusion-Refined Label-Efficient Segmentation: Dataset and Method* [@liu2026] — Zotero item `DRJW7RG3`
-- *Role of hydraulic traits in stomatal regulation of transpiration under different vapour pressure deficits across five Mediterranean tree crops* [@hernandez-santana2023] — Zotero item `YANDPUES`
-- *Roles of major and minor vein in leaf water deficit tolerance and structural properties in 11 temperate deciduous woody species* [@kawai2018] — Zotero item `YJNKJJGK`
-- *Scaling relationships of leaf vein and areole traits versus leaf size for nine Magnoliaceae species differing in venation density* [@shi2022] — Zotero item `DMZB9ZZ7`
-- *Tansley Review No. 22 What becomes of the transpiration stream?* [@canny1990] — Zotero item `UVKFTWCS`
-- *The Functional Significance of Leaf Shape Lies in Water Relations Over Thermoregulation: A Case Study With an Arid Legume Herb* [@wang2026b] — Zotero item `7WCU52PX`
-- *The Heterogeneity and Spatial Patterning of Structure and Physiology across the Leaf Surface in Giant Leaves of Alocasia macrorrhiza* [@li2013] — Zotero item `S8RM63G2`
-- *The mechanical principles behind the golden ratio distribution of veins in plant leaves* [@sun2018] — Zotero item `WMCPRYZ2`
-- *Vein Angle and Growing/Deployable Speed of Tree Leaves with Corrugation Folding* [@kobayashi2002b] — Zotero item `QBYRNXFH`
-- *Vein Distribution on the Deformation Behavior and Fracture Mechanisms of Typical Plant Leaves by Quasi In Situ Tensile Test under a Digital Microscope* [@liu2020a] — Zotero item `PNPESZQ6`
-- *Venation Pattern of Butterbur Leaf and Its Mechanical Contribution* [@kobayashi2000] — Zotero item `DDKREUMY`
-- *Visual quantification of embolism reveals leaf vulnerability to hydraulic failure* [@brodribb2016] — Zotero item `MTELLV3C`
+10種のパナマ熱帯林樹木を比較した研究でも、葉水理抵抗は10倍変異し、minor veinとfree-ending veinの密度が高いほど道管外抵抗が低かった。もっとも、全葉抵抗との関係は10種中1種を除いた場合に強く、道管抵抗の割合は種間で26--89%に及んだ。葉面積、全厚、組織密度などの粗い形態は水理抵抗と独立だった [@sack2006]。つまり、同じ「大きい葉」「厚い葉」であっても、葉脈断面、葉肉配置、葉脈から蒸発面までの距離が違えば、水理性能は大きく異なり得る。
 
-## 周辺文献一覧
+この注意点は作物内の比較にも当てはまる。28系統のダイズでは、細長い葉ほど厚く、面積当たり光合成速度と気孔コンダクタンスが高かった。$K_\mathrm{leaf}$ は9.4--19.3 mmol m$^{-2}$ s$^{-1}$ MPa$^{-1}$ と約2倍の幅を示し、葉厚および葉脈密度と正に相関したが、系統間差そのものは有意ではなかった。また撮像倍率が低く、報告値のVLAが既報の3分の1以下であったため、著者ら自身がminor veinの見落としを認めている [@tamang2022]。この例は、画像解像度の不足が生理相関まで弱めることを具体的に示す。
 
-以下は、抄録内で葉脈との関係が確認できた文献である。葉水理、葉構造、葉力学の背景として有用だが、タイトル上の主題は葉脈そのものではないため中核文献と分けた。
+乾燥地のマメ科草本 *Oxytropis diversifolia* でも、葉形を水理機能へ直結させる際の注意が示された。11集団346個体の形態測定と、4集団335個体のガス交換測定では、小葉数が多く有効葉幅が小さい葉ほど、葉肉／主脈断面積比が低く、葉面積が小さいほどVLAが高かった。一方で、主脈断面積、主脈径、道管径、bundle sheath extension面積も小さくなり、水分配距離の短縮と幹線輸送容量の低下が同時に起きた。ガス交換の葉形差は年・集団依存で、有効葉幅は光合成・蒸散を一貫して説明しなかった [@wang2026b]。解剖は164個体、直接の $K_\mathrm{leaf}$ は未測定であるため、これは水理的な「便益と費用」の有力な構造仮説であり、輸送能の実証ではない。
 
-- *Allometry of cells and tissues within leaves* [@john2013] — Zotero item `7EQRS9M5`
-- *Anatomical determinants of gas exchange and hydraulics vary with leaf shape in soybean* [@tamang2022] — Zotero item `9HX4HLT5`
-- *Classification of the Architecture of Dicotyledonous Leaves* [@hickey1973] — Zotero item `ZCFLWGY6`
-- *Effect of Crease Interval on Unfolding Manner of Corrugated Tree Leaves* [@kobayashi1999] — Zotero item `BM5P63BQ`
-- *Evolution of leaf structure and drought tolerance in species of Californian Ceanothus* [@fletcher2018] — Zotero item `3V4B4J58`
-- *Hard and tough: the coordination between leaf mechanical resistance and drought tolerance* [@nardini2022] — Zotero item `GJJCKUTI`
-- *Hydraulic architecture of leaf blades: where is the main resistance?* [@cochard2004] — Zotero item `8IWI3RPA`
-- *Leaf biomechanical traits predict litter decomposability* [@wang2025c] — Zotero item `ULFEUXXR`
-- *Leaf biomechanics, morphology, and anatomy of the deciduous mesophyte Prunus serrulata (Rosaceae) and the evergreen sclerophyllous shrub Heteromeles arbutifolia (Rosaceae)* [@balsamo2003] — Zotero item `7NMYKDT3`
-- *Leaf hydraulic vulnerability triggers the decline in stomatal and mesophyll conductance during drought in rice* [@wang2018] — Zotero item `BKH3JJZ2`
-- *Leaf mesophyll conductance and leaf hydraulic conductance: an introduction to their measurement and coordination* [@flexas2013a] — Zotero item `GK9PH72M`
-- *Leaf Structural Diversity Is Related to Hydraulic Capacity in Tropical Rain Forest Trees* [@sack2006] — Zotero item `436NLEIC`
-- *Measurement of Leaf Hydraulic Conductance and Stomatal Conductance and Their Responses to Irradiance and Dehydration Using the Evaporative Flux Method (EFM)* [@sack2012] — Zotero item `3SLBS4UE`
-- *Non-destructive acoustic measurement of elastic modulus of plant leaves* [@yoshitsugu2017] — Zotero item `MDVRP8QL`
-- *Outside-Xylem Vulnerability, Not Xylem Embolism, Controls Leaf Hydraulic Decline during Dehydration* [@scoffoni2017a] — Zotero item `YPFRTP3U`
-- *Petiole mechanics, leaf inclination, morphology, and investment in support in relation to light availability in the canopy of Liriodendron tulipifera* [@niinemets2002] — Zotero item `N4W9Q2XG`
-- *Researches into Structure and Motion of Plants from Mechanical View Point* [@kobayashi2019] — Zotero item `PTB32FSC`
-- *Structural organization of the spongy mesophyll* [@borsuk2022] — Zotero item `HLNVR9VV`
-- *The geometry of unfolding tree leaves* [@kobayashi1998] — Zotero item `S6KDT7EE`
-- *Thresholds for persistent leaf photochemical damage predict plant drought resilience in a tropical rainforest* [@fortunel2023] — Zotero item `7GEHMJAH`
-- *Tissue-level leaf toughness, but not lamina thickness, predicts sapling leaf lifespan and shade tolerance of tropical tree species* [@kitajima2010] — Zotero item `L985AZE2`
-- *Unfolding Manners of Corrugated Plant Leaves* [@kobayashi1998a] — Zotero item `8GNXXLEW`
+### 道管外経路：bundle sheath、葉肉、aquaporin
 
-## データ品質と限界
+#### 葉の主要抵抗はどこにあるのか
 
-- まとめはZoteroの書誌情報、タグ、抄録に基づく。全82文献の本文精読を行ったレビューではない。
-- 中核60文献のうち4文献は抄録がなく、2文献は年情報がない。該当項目の解釈には書誌情報の補完が必要である。
-- 同一研究のプレプリント版と出版版、和文・英文の重複は、DOIまたは完全一致タイトルで統合した。近い内容でも別研究である文献は統合していない。
-- Zoteroコレクションやタグは変更していない。このページ用BibTeXでは、引用に不要な長い抄録・ノート・注釈だけを除いた。
+葉内抵抗の分配について、所蔵文献には一見異なる結果が含まれる。クルミでは葉身切断により、ゲッケイジュでは切断に加えて凍結融解・煮沸により道管外経路を迂回または破壊すると、葉水理抵抗がそれぞれ約85%、約60%低下し、クルミの葉脈内圧を直接測った実験では抵抗の約88%が葉脈外にあると推定された [@cochard2004]。各処理は7葉、モデルは実測した葉脈密度と道管断面でパラメータ化されており、複数手法が同じ方向を示した点は強い。
 
-## 参考文献
+一方、10種の熱帯林樹木をHPFMと葉脈切断で測った研究では、道管側の抵抗が平均64%、種間で26--89%と推定された [@sack2006]。両者は必ずしも矛盾ではない。種が異なるだけでなく、HPFMは正圧で葉肉を水浸しにし得ること、切断法は低次脈からの放射方向漏出をどう仮定するかで結果が変わること、凍結・煮沸はbundle sheathまで破壊して道管抵抗を短絡し得ることが、それぞれの論文で議論されている [@cochard2004; @sack2006; @flexas2013a]。したがって、「葉抵抗の何%が道管外か」を普遍的な定数として用いるべきではない。重要なのは、$K_\mathrm{x}$ と $K_\mathrm{ox}$ の両方が同程度に全葉機能を制限し得て、その割合が種、光、水分状態、測定法によって動くことである。
+
+さらに、蛍光色素などのtracerが通った場所は、そのまま水の主要流路や流量配分を表すとは限らない。古典的総説は、葉脈間距離では拡散だけでも数分で溶質が移動し、流れに逆らう拡散も起こり得るため、tracer像から水の経路を一意に決められないと警告した [@canny1990]。この注意は、後述する染色による「機能葉脈長」を、直接の流量測定と区別して読む理由でもある。
+
+#### 解剖モデルが示す $K_\mathrm{ox}$ の構成
+
+14種の葉横断面から34の解剖パラメータを測り、areole内の水移動を空間的に計算したMOFLOモデルでは、VLAを2倍にすると $K_\mathrm{ox}$ が121%増加した。これは、bundle sheath表面積が増える効果よりも、葉脈から蒸発面までの水平距離が短くなる効果によるところが大きかった [@buckley2015]。既定条件で計算された $K_\mathrm{ox}$ は4.0--28.6 mmol m$^{-2}$ s$^{-1}$ MPa$^{-1}$、bundle sheathが道管外抵抗に占める割合は12--71%（中央値18%）で、多くの抵抗は低い細胞間接触率と大きい空隙率をもつ海綿状葉肉に置かれた。
+
+ただし、これは直接測定ではなくモデル予測である。実測 $K_\mathrm{ox}$ があった8種では、モデル値と実測値は種間で相関しなかった。apoplastの有効孔径、細胞膜透水性、bundle sheathの障壁、細胞壁厚、葉内温度勾配など6パラメータの真値が不明だったためである。特に、葉内温度勾配を0から0.2°Cに変えるだけで、気相輸送の寄与は16%から65%へ変化した [@buckley2015]。この研究の価値は、VLA以外の候補機構を定量的に並べた点にあり、個々の割合を確定値として提示した点にはない。
+
+葉肉も一様な抵抗体ではない。網状脈をもつ40種をmicroCTで三次元比較した研究では、海綿状葉肉に規則的な蜂の巣状構造と、より等方的で不規則な構造があり、細胞サイズ、充填密度、葉肉表面積／体積比、VLA、最大光合成速度が協調して変化した。最大光合成速度は海綿状葉肉の表面積／体積比と正に対応した（$R^2=0.63$）一方、空隙率だけでは説明できなかった（$R^2=0.008$） [@borsuk2022]。ただし、最大光合成速度は実測値と既報値を併用した種間比較である。この結果は、二値葉脈像から得るVLAに加え、三次元の葉肉接触面積と気相経路が $K_\mathrm{ox}$ と $g_\mathrm{m}$ の両方を左右し得ることを示す。
+
+#### bundle sheathの木化はVLAと水理機能の関係を変える
+
+日本の温帯樹木11種では、8種で少なくとも主脈のbundle sheathに木化があり、6種では木化がminor veinまで及んだ。minor veinのbundle sheathが木化した種は、木化しない種より葉抵抗が低光下で2.3倍、高光下で2.8倍高かった。VLA単独は $K_\mathrm{leaf}$ を説明しなかったが、VLAと木化が及ぶ最高葉脈次数を組み合わせると決定係数は0.67--0.69、VLAとminor vein木化の有無では0.74--0.79となった [@ohtsuka2018]。これは「同じVLAでも、道管から水を外へ出せる葉脈かどうか」で性能が変わることを示す実証例である。
+
+木化は単なる不利とも限らない。低次脈で放射方向の漏出を抑えれば、水を葉先側や高次脈まで軸方向に運びやすくなる。さらに、道管の扁平化防止、力学的支持、病原体・食害への抵抗、葉寿命延長という便益があり得る。反対に、木化がminor veinまで及ぶと、葉肉への最終供給を阻害する [@ohtsuka2018]。したがって、木化の「有無」だけでなく、**どの次数まで、どの細胞壁に及ぶか**が解析単位になる。
+
+この結果にも手法上の限界がある。抵抗の分割に用いた葉脈切断法は、水が低次脈からほとんど漏れず、葉脈次数と葉肉経路が直列に並ぶと仮定する。低次脈から実際に放射方向へ水が漏れる種では、$R_\mathrm{x}$ の推定を粗くし、とくに全葉抵抗に占める割合（%$R_\mathrm{x}$）を過大評価する方向に偏らせ得る。また11種、1--3個体／種という比較であり、木化と系統・生活史の効果を完全には分離していない [@ohtsuka2018]。
+
+#### aquaporinは「固定された配管」を可変抵抗にする
+
+5種の樹木・つる植物で0.2 mM HgCl$_2$を用いてaquaporinを阻害すると、樹木では $K_\mathrm{leaf}$ が10--35%、$g_\mathrm{s}$ が5--19%低下し、つる植物 *Pueraria lobata* ではそれぞれ57%、69%低下した。種ごとの低下率は $r^2=0.84$ で対応した。またaquaporin阻害の影響はmajor vein densityが低い種ほど大きく、minor vein densityとは対応しなかった [@harayama2019]。著者らは、炭素コストの高いmajor veinによるapoplast経路への投資と、aquaporin依存のcell-to-cell経路との代替関係を提案している。
+
+ここで直接示されたのは、HgCl$_2$処理後に水理と気孔が協調して低下したことまでである。aquaporinの発現量、局在、チャネル活性、ABAは直接測っておらず、5種のうちつる植物は1種だけである。したがって、*P. lobata* の急速な気孔閉鎖と比較的高い葉水ポテンシャルがisohydricな戦略と整合するという著者の解釈は有力な仮説だが、生活形とaquaporin依存性の一般則を証明したものではない [@harayama2019]。
+
+### 水供給から気孔・葉肉・光合成へ
+
+$K_\mathrm{leaf}$ が高ければ、同じ土壌水分、VPD、葉水ポテンシャルの安全域の下で、より大きな蒸散流を支えられる。そのため気孔コンダクタンス $g_\mathrm{s}$ を高く保ち、葉内CO$_2$を確保し、高い面積当たり光合成速度を可能にする [@brodribb2007; @sack2013a]。ただし、これは「水理が光合成を単独で決める」という意味ではない。光合成は気孔だけでなく、CO$_2$が葉肉から葉緑体へ拡散するコンダクタンス $g_\mathrm{m}$、Rubisco、$V_\mathrm{cmax}$、電子伝達、窒素配分、光環境にも制限される [@sack2013; @flexas2013a]。
+
+23種で $g_\mathrm{m}$ と $K_\mathrm{leaf}$ の両方が得られた既存データの再解析では、両者はVLAとは独立に相関した。著者らは、細胞壁と細胞膜、aquaporinなどが $g_\mathrm{m}$ と $K_\mathrm{ox}$ の一部を共通に制御するという仮説を提示した。17種で $K_\mathrm{leaf}$ とLMAから $g_\mathrm{m}$ を予測したモデルは、neurofuzzy法で $R^2=0.64$、多変量回帰で $R^2=0.43$ だった [@flexas2013a]。この結果は生理統合を支持するが、同じ個体・同じ条件で3形質を同時測定したデータではなく、予測式の訓練標本も17種と小さい。著者ら自身が、$g_\mathrm{m}$、$K_\mathrm{leaf}$、LMAの同時計測による再検証を求めている。
+
+乾燥過程を同一栽培条件で追ったイネ2品種の研究では、2週間の土壌乾燥により、平均で光合成速度 $A$ は28.4%、$g_\mathrm{s}$ は43.0%、$g_\mathrm{m}$ は19.6%、$K_\mathrm{leaf}$ は50.2%低下した。短期乾燥では $A$ と $g_\mathrm{s}$ が $r^2=0.78$、$A$ と $g_\mathrm{m}$ が $r^2=0.69$、$K_\mathrm{leaf}$ と $g_\mathrm{s}$ が $r^2=0.39$、$K_\mathrm{leaf}$ と $g_\mathrm{m}$ が $r^2=0.31$ で対応した。葉水ポテンシャルが−1.0 MPaまで下がると、相対的な拡散制限の内訳では気孔と葉肉を合わせて80%以上を占めたが、全光合成低下への寄与では両者を合わせて約50%だった [@wang2018]。
+
+さらに、$K_\mathrm{leaf}$ の50%低下点は測定法により−0.64、−0.84、−0.87 MPa、$g_\mathrm{s}$ と $g_\mathrm{m}$ の50%低下点は−0.93、−1.03 MPaで、著者らは $K_\mathrm{leaf}$ の低下が気孔・葉肉コンダクタンス低下の引き金になり得ると解釈した [@wang2018]。ただし、ABAなどのホルモンは測定せず、気孔モデルの非水理成分として当てはめた。$K_\mathrm{x}$ と $K_\mathrm{ox}$ も分離していない。したがって「水理低下が大部分を説明した」はモデルに基づく因果候補であり、ホルモン制御を除外した実験ではない。
+
+葉から個体へ尺度を上げると、VLAだけでは気孔応答を説明しきれない。地中海性樹木作物5種を同所で灌水栽培し、幹のsap flux、$g_\mathrm{s}$、VPD、個体水理形質を同時測定した研究では、sapwood area / leaf areaであるHuber valueが、VPD上昇時の蒸散と気孔応答を最もよく説明した。Huber valueと $g_\mathrm{s}$--sap flux/VPD関係の傾きは $R^2=0.54$ で対応し、モデルではHuber valueが説明分の大半を担った [@hernandez-santana2023]。葉脈密度は個体水理と概ね協調したが、隣接個体で測定され、5種平均しかないため定量相関は限定された。この結果は、葉脈形態を幹の供給面積、根・茎抵抗、VPDから切り離さない必要性を示す。
+
+形態的な「供給」と「損失」も常に一緒に可塑変化するわけではない。*Populus fremontii* の6集団、3遺伝子型／集団、2つのcommon gardenを比較した研究では、予定108本、最終102本についてminor veinと気孔を測定した。高温園で葉脈密度と気孔密度が高い個体ほど成長は大きかったが、葉脈と気孔の可塑応答の方向は集団内外で独立し、それらの可塑性が2環境平均の成長を高めることもなかった [@garthwaite2024]。葉脈と気孔は機能的には直列でも、発生的・遺伝的には常に固定比で調整されるとは限らない。
+
+### 乾燥時の時間順序：道管外低下から塞栓へ
+
+乾燥応答を理解するには、「塞栓が起きるか」だけでなく、**どの水ポテンシャルで、どの組織が先に機能を失うか**を分ける必要がある。所蔵文献を時間順に接続すると、次の像が最も整合的である。
+
+ただし、乾燥耐性そのものもVLAだけでは表せない。common gardenで育てた *Ceanothus* 10種（3個体／種）では、TLPの浸透ポテンシャルが原産地の乾燥度と系統補正後も対応した一方、乾燥系統群は予想に反して葉脈間距離が大きかった。深い気孔crypt、多層hypodermis、厚いcuticle、葉柄断面／葉面積比といった組織構成が、典型的な「高VLAによる乾燥適応」とは別の設計を作っていた [@fletcher2018]。これはTLPが有用な統合指標である一方、同じ耐乾性へ複数の解剖経路が到達し得ることを示す。
+
+#### 1. 軽度から中程度の乾燥：まず $K_\mathrm{ox}$ が下がる
+
+14種の葉を乾燥させた研究では、葉厚は最大23--83%収縮し、turgor loss point（TLP）ですでに4.6--38%収縮した。初期の $K_\mathrm{leaf}$ 低下は葉全体・葉肉細胞の収縮率と対応し、湿潤環境種ほど収縮が大きかった [@scoffoni2014]。ただし、収縮そのものを水理低下の直接原因とみなすべきではない。後の空間モデルでは、経路が短くなるため、幾何学的な収縮だけなら $K_\mathrm{ox}$ は4--55%上昇すると予測された [@scoffoni2017a]。観測された低下を生むには、膜透水性、細胞壁、細胞間接触などの変化が必要である。したがって、収縮は水分状態と組織変化の有用な指標ではあるが、単独の機構ではない。
+
+8科8種を高光下で測定し、4種ではmicroCTも併用した研究では、TLP時点で $K_\mathrm{leaf}$ がすでに60%以上低下していたのに、塞栓した主脈道管は5--8.5%、minor veinでは0%だった。$K_\mathrm{x}$ の50%低下点は $K_\mathrm{leaf}$ より平均1.6 MPa低く、$K_\mathrm{ox}$ の50%低下点はわずか0.1 MPa高かった。抵抗増加を分割すると、TLPでの $K_\mathrm{leaf}$ 低下の86--100%（平均96%）、$P_{50}$で95--100%（平均98%）、$P_{88}$でも75--100%（平均93%）が $K_\mathrm{ox}$ に由来した [@scoffoni2017a]。
+
+同研究のMOFLO計算では、bundle sheathにapoplast障壁がある条件で膜透水性を80%低下させると、$K_\mathrm{ox}$ が58--86%低下した。もっとも、膜透水性、細胞壁厚、細胞接触、bundle sheath細胞の収縮は直接測定せず、観測値に合う変化量を探索した結果である。$K_\mathrm{ox}$ 自体も $K_\mathrm{leaf}$ と $K_\mathrm{x}$ の抵抗差から計算された [@scoffoni2017a]。したがって、軽度乾燥で道管外経路が主に低下するという結論は複数手法で支持されるが、その分子・細胞機構の割合は未確定である。
+
+この早い $K_\mathrm{ox}$ 低下は、単なる故障ではなく「hydraulic circuit breaker」として働き得る。葉の末端抵抗を先に上げ、気孔を閉じ、蒸散を抑えることで、葉脈・茎・根の道管が塞栓域まで低下するのを防ぐという解釈である [@scoffoni2017a; @wang2018]。ただし気孔閉鎖にはABA、孔辺細胞の膨圧、VPD応答も関与するため、$K_\mathrm{ox}$ は唯一の信号ではない。
+
+#### 2. TLP以降の強い乾燥：葉脈塞栓が増え、ネットワークが破綻する
+
+4被子植物種で葉脈を連続撮影したoptical methodでは、可視化された塞栓の50%発生水ポテンシャルが、水理測定による50%機能低下点と概ね一致し、塞栓はTLP後に急増した [@brodribb2016]。これは、重度乾燥では葉脈道管の塞栓が実在し、最終的な水理破綻と対応することを示す。一方、各種3枝、木本種は実質1個体／種で、細い葉脈を解像できない種があり、画素を葉脈次数・道管径にかかわらず同じ重みで数えた。したがって、塞栓の「場所」と水理寄与を完全には定量していない。
+
+この結果と道管外経路優位の結果は対立しない。前者が主にTLP後の強い乾燥と破綻を捉え、後者がTLP前後の初期低下を組織別に分けたためである [@brodribb2016; @scoffoni2017a]。また低光・暗所で行うrehydration法と、高光下で定常蒸散させるEFMではaquaporinや蒸発位置が異なり、脆弱性曲線も変わる [@flexas2013a; @wang2018]。文献間の差は、生物学的差だけでなく、乾燥段階と測定条件の差として読む必要がある。
+
+#### 3. 葉脈階層と冗長性が塞栓の影響を変える
+
+乾燥・湿潤環境の10種と42枚の仮想葉を比較した研究では、$P_{50}$・$P_{80}$ とmajor vein densityまたは葉面積との相関が $|r|=0.78$--0.90で、乾燥環境種はmajor vein densityが18%高く、葉面積が30%小さかった。major veinまたはminor veinの断面伝導度を90%低下させたシミュレーションでは、whole-leaf xylem hydraulic conductance（$K_\mathrm{x}$）の損失率は、それぞれ22--87%、62--90%となった。対応する葉脈階級のVLAが高いほど、その階級の障害影響は小さかったが、majorとminorの間には相対的leverageの交差効果もあった [@scoffoni2011]。ここで塞栓の影響はネットワークモデルによる予測であり、脆弱性曲線の初期低下をすべて塞栓に帰した当時の解釈は、後のmicroCT研究で修正された。それでも、密なmajor veinが迂回路を増やし、損傷の全葉波及を抑えるという「冗長性」の役割は残る。
+
+1種の *Acer pseudoplatanus* を葉軸方向に追った研究では、主脈道管の水理直径が葉先の5.5--6.5 µmから葉柄基部の20--25 µmへ約4倍増え、塞栓は切断後7--10時間で基部に現れ、葉先ではさらに2.5--3.3時間遅れた [@lechthaler2019]。主脈のtaperingが基部側の高効率と高脆弱性、先端側の低効率と安全性を作る可能性を示す。ただし、解剖は7葉、塞栓観察は3葉、1種の切断個体であり、一般的な「基部から先に壊れる」法則とはまだ言えない。
+
+#### 4. 再水和で回復する場合もあるが、野外での修復とは区別する
+
+ヒマワリ70個体を用いた脱水系列では、約−1.25 MPaまで乾燥させると、染色で機能的と判定されたminor vein長は2.7から0.6 mm mm$^{-2}$へ約78%減少したが、$K_\mathrm{leaf}$ の低下は46%にとどまった。これとは別の再水和実験では、−1.1 MPaまで乾燥させた切断葉の葉柄を50 mM KCl溶液へ直接つなぐと、葉水ポテンシャル、$K_\mathrm{leaf}$、染色された葉脈機能が約10分で回復した [@trifilo2003]。これは、道管外抵抗が塞栓の影響を緩衝し、好条件では葉脈機能が速やかに戻り得ることを示す。
+
+ただし、切断した葉をKClへ直接つなぐ条件は、根・茎を経由する負圧下の生葉よりはるかに再水和しやすい。染料通過を道管の完全な再充填と同一視することもできない。この論文は「回復可能性」を示すが、野外の蒸散中にembolized vesselが能動的に再充填されることの決定的証拠ではない [@trifilo2003]。
+
+回復を水理だけで評価しないことも重要である。仏領ギアナの熱帯樹木8種では、乾燥・再水和後にも残るPSII最大量子収率（$F_\mathrm{v}/F_\mathrm{m}$）の35%、50%低下点は平均−2.43、−3.14 MPaで、35%の再水和能力低下点（−2.02 MPa）より遅かった。光化学損傷閾値は葉脈塞栓の50--88%発生点と $r^2=0.50$--0.56で対応し、4種8個体では光化学損傷に対する安全余裕が大きいほど、乾燥後のsap flow回復が良かった（$r^2=0.76$--0.79） [@fortunel2023]。一方、種数は8、sap flowは4種各2個体であり、相関は塞栓が光化学損傷を直接起こしたことまでは証明しない。強い乾燥後の「回復」は、葉脈の通水、葉肉の再膨張、光化学、気孔再開を別々に測る必要がある。
+
+### major veinとminor vein：分業はあるが、固定的ではない
+
+葉脈次数別の機能は、次のように整理できる。
+
+| 機能 | major veinに期待される寄与 | minor veinに期待される寄与 | 主な注意点 |
+|---|---|---|---|
+| 平常時の水輸送 | 長距離・大流量の軸方向輸送 | 葉肉近傍への分配、短い道管外距離、多数の並列出口 | 道管径、木化、BSEで寄与が変わる |
+| 損傷・塞栓耐性 | 網目・掌状化・密度による大域的迂回路 | 局所的な細密冗長性 | VLAだけでなくtopologyが必要 |
+| 乾燥応答 | 大径道管の効率と脆弱性、全葉への障害波及 | $K_\mathrm{ox}$ と葉肉水分状態への接続 | 軽度乾燥と重度乾燥で支配組織が変わる |
+| 力学 | 大きな体積、木化組織による支持 | 薄い葉身内の補強はあるが体積は小さい | minor vein径が強度と対応する系もある |
+| 炭素輸送 | 葉外への長距離搬出 | mature leafでのphloem loading | 本章の水理測定だけからは評価できない |
+
+8種のブナ科では、1・2次脈密度はlamina tensile strengthと相関したが、$K_\mathrm{lamina}$ とは相関しなかった。反対にminor VLAは $K_\mathrm{lamina}$ と $r=0.75$（$P=0.032$）で相関し、力学形質とは独立だった。minor veinは平均87.7%の葉脈長を占めた [@kawai2016]。これは、major veinの支持とminor veinの灌水という「分業」を支持する。ただし8種、4--5個体／種のブナ科に限られ、$K_\mathrm{lamina}$ は真空ポンプ法、葉脈と力学は種平均相関である。
+
+一方、同じ地域の落葉木本11種では、TLPの葉水ポテンシャルはmajor VLAと $r=-0.80$、minor VLAと $r=-0.79$ で相関し、両方が密な種ほどより低い水ポテンシャルまで膨圧を維持した。しかしmajorとminor VLA自体が $r=0.82$ で相関し、一方を統制すると他方とTLPの関係は有意でなくなった（$P>0.22$） [@kawai2018]。著者らは、葉脈密度がTLPを直接変えるというより、独立な形質が乾燥耐性戦略の中で協調進化・収束した可能性を示した。
+
+したがって、「majorは力学、minorは水理」という二分法は有用な出発点だが、普遍則ではない。minor veinの直径・木化・bundle sheathは構造コストと強度にも関わり、major VLAは水理冗長性や水ポテンシャル均一化にも関わる [@kawai2016; @kawai2018; @ohtsuka2018]。解析では、総VLAだけでなく、少なくともmajor VLA、minor VLA、次数別径、topologyを別々に保持する必要がある。
+
+この結論は、シダと被子植物122種、500万本超の葉脈segmentをsmall・medium・largeの幅階級に分けた比較でも支持された。葉脈密度、分岐／loop、loop形状と系統群は、支持、構築コスト、損傷抵抗を比較的よく説明したが、最大 $K_\mathrm{leaf}$ と損傷後の通水回復を含む効率・resilienceの説明力は低かった。階級間の交互作用も概して弱く（H-statistic < 0.3）、異なる太さの葉脈形質を部分的に独立に変えられる「複数の代替設計」が示唆された [@matos2024]。ただし $P_{50}$・$P_{88}$ は122種中32種だけで、欠測補完後には乾燥抵抗との関係が不明瞭になり、10 µm未満の葉脈も解析外だった。大規模データであっても、ネットワーク形態から生理機能を一意に復元できないことを示す重要な反証例である。
+
+### 水利用効率（WUE）は一つの量ではない
+
+葉脈とWUEの関係を読む前に、文献ごとの定義を分ける必要がある。
+
+| 指標 | 代表的な定義 | 時間・空間尺度 | この指標だけでは分からないこと |
+|---|---|---|---|
+| 瞬間WUE | $A/E$ | 1葉、測定時点 | 夜間蒸散、呼吸、成長量 |
+| intrinsic WUE | $A/g_\mathrm{s}$ | 1葉、測定時点 | VPDと境界層を介した実蒸散量 |
+| $\delta^{13}$C | 組織炭素同位体比 | 葉形成期間の積分 | 蒸散量そのもの、個体の総生産 |
+| 生態系WUE | GPP/ET | 群落・衛星画素 | ET中の土壌蒸発と植物蒸散の分離 |
+
+葉脈密度が高いと水供給が増え、$g_\mathrm{s}$ と $A$ の両方が上がり得るため、両者の**比**であるWUEは変わらない場合がある。8種のブナ科では、minor VLAは $K_\mathrm{lamina}$ と対応したが、長期WUE指標の $\delta^{13}$C はmajor・minorのいずれのVLAとも対応しなかった [@kawai2016]。落葉木本11種でも、$\delta^{13}$C と葉脈形質の明確な関係はほとんどなかった [@kawai2018]。これは「葉脈がWUEに無関係」というより、水供給増加が炭素獲得と水損失を同時に押し上げ、比では相殺され得ることを示す。
+
+ワタ1品種を3灌水処理・各3圃場反復で5週間栽培した研究では、中度水ストレスでwell-watered区に比べ、intrinsic WUEは195.2%、$A/E$ は31.1%、VLAは27.2%、PEPC活性は67.4%増加した。一方で光合成速度、$g_\mathrm{s}$、Rubisco活性は低下し、葉面積も減った [@lei2025]。したがって高WUEは、必ずしも高い炭素獲得や収量維持を意味せず、分母である気孔開度・蒸散がより強く下がった結果でもある。
+
+同論文は、VLA、PEPC、$\delta^{13}$C の協調から「C4経路の予備的誘導」を提案した。しかし $\delta^{13}$C は−28.75--−25.17‰でC3域にあり、完全なC4化を示さなかった。PPDK、decarboxylase、NADP-MEなどの局在・活性、炭素フラックスも測っていない [@lei2025]。したがって、ここから確実に言えるのは、乾燥に伴いVLAとPEPC活性が上がり、WUE指標と相関したことまでであり、「ワタがC4光合成へ移行した」とは言えない。
+
+所蔵されている2026年の *Alternanthera* 5種比較も、この慎重さを補強する。C3からC2、C4へのmesophyll--bundle sheath接続性の増加は、C2ではVLA増加、C4ではbundle sheath細胞密度、pit field、plasmodesmata密度の増加という異なる組合せで実現し、C4種のVLAはC2種より高くなかった。各種5個体で、bundle sheath表面の葉肉接触率はC3 39.4%、C2 66.6%、C4 82.5%だった [@roberts]。したがって、VLAやPEPCの上昇はC4化の必要十分条件ではなく、細胞配置、代謝酵素の局在、細胞間輸送を合わせて検証する必要がある。
+
+群落尺度では関係がさらに変わる。モンゴル高原とチベット高原の各10地点、各地点8区画、合計185種を調べた研究では、モンゴル高原でaridity約0.8の閾値が検出された。閾値未満では、モデル推定した $K_\mathrm{leaf}$ の生態系WUEへの総効果が0.63だったが、閾値以上ではaridityの効果が−0.61で支配的となり、VLAの正効果0.14とvein efficiencyの負効果−0.14はほぼ相殺した。チベット高原では $K_\mathrm{leaf}$ とaridityの総効果がそれぞれ0.28、−0.60だった [@han_aridity-dependent_nodate]。
+
+この研究は葉から群落へのスケールアップを試みた点で重要だが、$K_\mathrm{leaf}$ は実測ではなく、VLA、葉厚、葉脈径から $K_\mathrm{leaf}=12670D_\mathrm{m}^{-1.26}$ と推定した。WUEも2018年の衛星GPP/ETであり、強乾燥地では土壌蒸発がETの大部分を占め得る。単一生育期・2高原で得た閾値を一般化できないことも著者らが明記している [@han_aridity-dependent_nodate]。この結果は、極端な乾燥では葉形質の効果が消えるというより、群落交代、LAI低下、土壌蒸発が上位尺度の信号を覆うことを示す。
+
+### 本ページでの統合的解釈
+
+以上をつなぐと、葉脈と生理の関係は一つの相関ではなく、少なくとも次の4軸から成る。
+
+1. **容量軸**：VLA、道管断面、葉脈位置、bundle sheathと葉肉配置が $K_\mathrm{x}$ と $K_\mathrm{ox}$ を介して最大水供給を規定する。これが高い $g_\mathrm{s}$、$g_\mathrm{m}$、$A$ を支え得る [@brodribb2007; @buckley2015; @flexas2013a]。
+2. **安全軸**：major veinの冗長性、道管径のtapering、minor veinの密度、木化が、塞栓・損傷の発生と全葉への波及を変える [@scoffoni2011; @lechthaler2019; @ohtsuka2018]。
+3. **調節軸**：aquaporin、膜透水性、葉肉膨圧、ABA、気孔が、固定された解剖構造の上で時々刻々と抵抗を変える。軽度乾燥ではこの軸が先に動き、重度乾燥では道管塞栓が加わる [@harayama2019; @scoffoni2017a; @wang2018]。
+4. **尺度軸**：葉レベルの $A/E$、生育期間を積分する $\delta^{13}$C、個体のsap flux、群落のGPP/ETは同じWUEではない。葉脈形質の効果は、根・茎、VPD、LAI、群落交代、土壌蒸発を経るほど間接的になる [@hernandez-santana2023; @han_aridity-dependent_nodate]。
+
+この統合から得られる最も重要な結論は、**葉脈形態は生理機能の上限と壊れ方を規定するが、実際の瞬間値は道管外組織と気孔による動的調節の結果である**、ということである。VLAは重要だが、単独では木化、葉脈位置、葉肉構造、aquaporin、光、乾燥段階を代替できない。
+
+### 葉脈画像解析を生理・乾燥研究へ接続する設計
+
+`leaf-vein-workflow` の画像出力を生理学へ接続する場合、二値maskから総VLAだけを算出する設計では情報が不足する。文献から導かれる優先的な出力は次の通りである。これは個々の論文がソフトウェア仕様を直接推奨したという意味ではなく、本ページでの統合的な解析提案である。
+
+#### 形態側で分けて保持する量
+
+- total VLA、major VLA、minor VLA、および可能なら次数別VLA
+- 葉脈径または幅の分布、次数別平均径、主脈の基部--先端tapering
+- intervein distance、areole面積・周長・形、free-ending vein密度
+- loop、迂回路、edge connectivityなどの冗長性指標
+- 葉脈から表皮までの垂直距離、葉厚、葉脈位置を加えた $D_\mathrm{m}$
+- bundle sheath extensionの有無、木化が及ぶ最高次数
+- minor veinを解像できるpixel size、倍率、透明化・染色条件
+
+VLAは撮像解像度に強く依存する。低倍率でminor veinを失うと、VLAだけでなく $D_\mathrm{m}$、areole、冗長性、$K_\mathrm{leaf}$ との相関まで系統的に偏る [@sack2013a; @tamang2022]。したがって、解析値と同時に「最小検出可能幅」と原画像pixel sizeを保存する必要がある。
+
+#### 同時に測るべき生理量
+
+| 研究質問 | 最低限の生理測定 | 追加すると機構が分かる測定 |
+|---|---|---|
+| 最大水輸送能 | $K_\mathrm{leaf}$、測定光、温度、VPD | $K_\mathrm{x}$ と $K_\mathrm{ox}$ の分割、葉脈断面 |
+| 光合成との接続 | $A$、$g_\mathrm{s}$ | $g_\mathrm{m}$、$V_\mathrm{cmax}$、$J_\mathrm{max}$、葉N |
+| 乾燥耐性 | $\Psi_\mathrm{leaf}$、TLP、$K_\mathrm{leaf}$ vulnerability | microCT／optical embolism、細胞収縮、ABA、aquaporin |
+| WUE | 指標の定義を明記した $A/E$ または $A/g_\mathrm{s}$ | $\delta^{13}$C、個体蒸散、成長・収量 |
+| 大気乾燥応答 | VPDと $g_\mathrm{s}$ の同時計測 | sap flux、Huber value、根・茎水理 |
+
+#### 統計解析で検証できる仮説
+
+1. **VLAの効果は $K_\mathrm{ox}$ に媒介されるか**：total VLAだけでなく、minor VLA、$D_\mathrm{m}$、葉厚、木化を同じモデルに入れ、$K_\mathrm{x}$ と $K_\mathrm{ox}$ を別応答にする。
+2. **major veinは最大値より故障耐性を説明するか**：major VLA、loop、葉面積を、$K_\mathrm{max}$ だけでなく $P_{50}$、$P_{80/88}$、局所切断後の機能残存率と対応させる。
+3. **minor veinは葉肉への最終供給を説明するか**：minor VLAと $K_\mathrm{ox}$ の関係が、bundle sheath木化、BSE、葉肉構造で変わる交互作用を検定する。
+4. **乾燥段階で支配因子が交代するか**：TLP前後を分け、TLP前は $K_\mathrm{ox}$・$g_\mathrm{s}$・$g_\mathrm{m}$、TLP後はembolism・$K_\mathrm{x}$ の寄与が増えるかを調べる。
+5. **水供給増加がWUEでは相殺されるか**：$A$ と $E$ を別々に解析してから比を解釈し、WUEだけを応答変数にしない。
+
+#### 解釈上の落とし穴
+
+- **測定法を混ぜない**：EFM、rehydration kinetics、HPFM、vacuum法は流れの向き、光、圧力、蒸発位置が違う。EFMは、切断葉を水源へつなぎ、定常蒸散流と葉水ポテンシャル差から $K_\mathrm{leaf}$ を求め、VPDから $g_\mathrm{s}$ も同時推定する手法である [@sack2012]。イネでは同じ材料でも $K_\mathrm{max}$ が8.5と15.5、$P_{50}$ が−0.64から−0.87 MPaまで変わった [@wang2018]。
+- **葉を独立反復とみなさない**：種比較では個体、処理実験ではplot・potが推論単位である。多数葉を測っても個体数が1--3なら種内一般化は弱い。
+- **系統・環境交絡を避ける**：広い系統群での強い相関は進化史や生育環境に駆動され得る。近縁種比較、common garden、種内処理を組み合わせる。
+- **majorとminorの共線性を確認する**：11種比較では両VLAの相関が0.82で、個別効果を分離できなかった [@kawai2018]。総VLAだけから次数別の因果を推定しない。
+- **比率の相関に注意する**：WUE、LMA基準値、VLAはいずれも分母をもつ。分子・分母を別解析し、面積基準と質量基準の結果を混同しない [@sack2013; @flexas2013a]。
+- **形態を生理実測の代わりにしない**：VLAから推定した $K_\mathrm{leaf}$ は仮説生成には有用だが、木化、膜透水性、光応答を含まない。生態系WUEのような上位尺度では推定誤差が連鎖する [@han_aridity-dependent_nodate]。
+
+### 現時点での証拠の強さ
+
+| 統合命題 | 所蔵文献内での支持 | 判断 |
+|---|---|---|
+| $K_\mathrm{leaf}$ は $K_\mathrm{x}$ と $K_\mathrm{ox}$ の双方で決まる | 実験、切断、圧測定、モデル、総説が一致 | 強い |
+| VLA・短い $D_\mathrm{m}$ は高い水輸送能を可能にする | 43種比較、10種比較、14種モデル、作物比較 | 強いが、VLA単独の予測力は条件依存 |
+| 軽度--中程度乾燥では道管外低下が主である | 高光水理、microCT、組織モデル、イネ乾燥実験 | 強い。ただし分子機構の割合は未確定 |
+| 重度乾燥では葉脈塞栓が最終破綻に寄与する | optical imagingと水理曲線が対応 | 強いが、細脈・次数別寄与は不十分 |
+| bundle sheath木化が $K_\mathrm{leaf}$ を下げる | 11種比較で大きい効果、解剖と抵抗分割が対応 | 中程度。系統比較と切断法の仮定が残る |
+| major/minor veinに力学・水理の分業がある | ブナ科8種で支持、別の11種では共線性 | 中程度。分類群・環境依存 |
+| aquaporin依存性がisohydryを決める | 5種の阻害実験とモデル解釈 | 仮説段階 |
+| VLA増加とPEPC上昇がC3作物のC4化を示す | ワタ1品種・3処理の相関 | 非常に予備的 |
+| 葉脈形質が生態系WUEを規定する | 185種の群落集約とSEM | 仮説支持。ただし $K_\mathrm{leaf}$ とWUEがともに間接推定 |
+
+### 主に使用した論文と本文情報源
+
+以下は、この章で結果を具体的に用いた論文である。「全文」はZotero添付本文を確認したことを示す。「抄録」は数値や方法の詳細を本文から検証できなかったため、補助的にのみ扱った。
+
+| Citekey | この章での役割 | 確認範囲 |
+|---|---|---|
+| [@sack2013a] | 葉脈階層、major/minor、VLA、冗長性の総合枠組み | 全文 |
+| [@sack2013] | 葉脈と葉経済・光合成の関係、VLA単独説の限界 | 全文 |
+| [@brodribb2007] | $D_\mathrm{m}$--$K_\mathrm{leaf}$--$A_\mathrm{max}$ の43種比較 | 全文 |
+| [@sack2006] | 熱帯樹木10種の葉脈・葉肉・抵抗分配 | 全文 |
+| [@cochard2004] | 葉内主要抵抗の切断・圧測定・モデル検証 | 全文 |
+| [@canny1990] | tracer解釈と葉内の水・溶質移動経路 | 全文 |
+| [@buckley2015] | 道管外水移動の空間モデルと解剖感度解析 | 全文 |
+| [@borsuk2022] | 海綿状葉肉の三次元構造と光合成 | 全文 |
+| [@ohtsuka2018] | bundle sheath木化と $K_\mathrm{leaf}$ | 全文 |
+| [@harayama2019] | major vein閉塞、aquaporin阻害、$g_\mathrm{s}$ | 全文 |
+| [@flexas2013a] | $g_\mathrm{m}$ と $K_\mathrm{leaf}$ の測定・統合 | 全文 |
+| [@sack2012] | EFMによる $K_\mathrm{leaf}$・$g_\mathrm{s}$ 同時計測 | 全文 |
+| [@wang2018] | イネ乾燥時の水理、気孔、葉肉、光合成制限 | 全文 |
+| [@hernandez-santana2023] | VPD、sap flux、Huber value、気孔制御 | 全文 |
+| [@garthwaite2024] | 葉脈・気孔の遺伝的／環境的可塑性 | 全文 |
+| [@scoffoni2014] | 葉収縮、TLP、水理脆弱性 | 全文 |
+| [@scoffoni2017a] | 道管外脆弱性とmicroCTによる塞栓分離 | 全文 |
+| [@fletcher2018] | *Ceanothus* の解剖多様化とTLP・気候乾燥度 | 全文 |
+| [@brodribb2016] | optical methodによる重度乾燥時の塞栓可視化 | 全文 |
+| [@scoffoni2011] | major/minor VLA、乾燥脆弱性、冗長性モデル | 全文 |
+| [@lechthaler2019] | 主脈軸方向のtaperingと塞栓順序 | 全文 |
+| [@trifilo2003] | ヒマワリ切断葉の塞栓・再水和回復 | 全文 |
+| [@fortunel2023] | 葉脈塞栓、光化学損傷、乾燥後の個体回復 | 全文 |
+| [@kawai2016] | major/minor veinの力学・水理分業、$\delta^{13}$C | 全文 |
+| [@kawai2018] | TLP、次数別VLA、乾燥耐性、共線性 | 全文 |
+| [@matos2024] | 122種の葉脈幅階級と多機能trade-off | 全文 |
+| [@tamang2022] | ダイズ葉形、葉厚、ガス交換、水理、解像度限界 | 全文 |
+| [@wang2026b] | 乾燥地草本の葉形、水理解剖、ガス交換 | 全文 |
+| [@lei2025] | ワタ乾燥時のWUE、VLA、PEPCとC4解釈の限界 | 全文 |
+| [@roberts] | C3--C2--C4間の葉肉--bundle sheath接続性 | 全文 |
+| [@han_aridity-dependent_nodate] | 群落葉脈形質、aridity閾値、生態系WUE | 全文 |
+| [@gao2023] | 光強度に対するダイズ葉脈・葉肉・$K_\mathrm{leaf}$ の協調 | 抄録のみ |
+
+抄録のみ確認できたダイズ光環境研究では、低光により $K_\mathrm{leaf}$、葉脈密度・太さ、道管径、葉肉細胞接触が低下し、$K_\mathrm{leaf}$ と $g_\mathrm{s}$ の協調は維持されたと報告されている [@gao2023]。方向性は本章の枠組みと整合するが、標本数、効果量、処理条件、統計、限界を本文で確認できていないため、主要な定量根拠には用いていない。
+
+
+## 第2章　力学
+
+> **この章の範囲。** 以下は、筆者のZoteroライブラリに収録されていた葉脈関連文献を基礎にまとめたものである。とくに、原著論文の本文を取得できたものを優先し、要旨または索引ページしか取得できなかった論文に依存する箇所は、そのことが分かるように記した。論文著者が直接示した結果と、複数論文をつないだ本章の解釈は区別している。
+
+### 1. 葉脈の力学を一つの「硬さ」で表せない理由
+
+葉は、光を受けるために面を広く保つ必要がある一方、風、重力、自重、雨滴、接触、乾燥収縮などに応じて形を変えなければならない。この二つの要請は、単純な「硬いほどよい」という設計則では両立しない。大きな葉脈、とくに主脈は葉身を支える梁として働くが、過度に硬ければ風を受け流す再配置が妨げられる。反対に、柔らかすぎれば葉身は垂れ、光合成面を保てない。さらに、同じ構造でも曲げ、ねじり、軸方向の引張り・圧縮では応答が異なる [@sack2013a; @pierantoni2019]。
+
+Sack and Scoffoni の総説では、太い葉脈は水輸送だけでなく、葉身の支持、損傷の局在化、破断後の機能維持にも関与すると整理されている。また、基部ほど太く先端ほど細いテーパーは、片持ち梁として基部に大きくなる曲げモーメントに対応しながら、材料費を抑える形と解釈される [@sack2013a]。ただし、この記述は多数の研究を統合した総説上の一般化であり、すべての葉型に同じ最適則が当てはまることを直接実証したものではない。
+
+本章では、葉脈の力学を次の階層に分けて考える。
+
+1. **材料・組織**：維管束、繊維、柔組織、結晶などが、弾性率、強度、靱性をどう変えるか。
+2. **梁・板**：主脈を梁、葉身を薄い板または膜としてみたとき、曲げ、ねじり、座屈、乾燥収縮がどう生じるか。
+3. **ネットワーク**：分岐、ループ、横断連結、葉脈次数が、荷重の分散や亀裂停止にどう寄与するか。
+4. **全葉・生態**：葉の大きさ、形、寿命、光環境、風、乾燥と支持投資がどう対応するか。
+
+この階層を混同すると、たとえば「葉脈密度が高い葉は強い」という相関を、どの次数の葉脈が、どの荷重様式に対して、どの材料特性を通じて強度を高めたのか説明できない。実際、低次脈と細脈では機能的対応が異なる場合があり、同じ葉脈密度でもネットワークのループ性や方向性によって力学的挙動は変わる [@kawai2016; @matos2024]。
+
+### 2. 主脈と低次脈：テーパーをもつ複合梁
+
+#### 2.1 主脈は均質な棒ではない
+
+Pierantoni らは、*Ficus microcarpa*、*Prunus dulcis*、*Olea europaea* の3種について、直径約1 mm、長さ30 mmの主脈片を用い、引張り、圧縮曲げ、ねじりを microCT 内で観察した。支点間距離は15 mmで、引張りは20 mm s^-1^、圧縮曲げは7 mm変位を20 mm s^-1^、ねじりは0°から90°まで0.15° s^-1^で与えた。引張りの標本数はそれぞれ15、19、15、圧縮は17、15、15、ねじりは17、18、15であった [@pierantoni2019]。
+
+**著者らが示した結果。** 3種の主脈は外形だけでなく内部補強が異なった。*Ficus* ではシュウ酸カルシウム結晶が長軸方向に列をつくり、圧縮曲げでは主脈が破断し、その破断経路は結晶列とそれに伴う繊維に沿った。*Prunus* では結晶がより孤立し、らせん状に分布し、主脈は大きく座屈しても破断しなかった。結晶をもたない *Olea* では木化繊維が補強材となり、引張り・ねじりの有効弾性率が高く、圧縮時の座屈は小さかった。*Olea* の有効弾性率は約100 MPaで、他2種のおよそ5倍と報告された。全葉を曲げた試験では各種30葉を観察し、*Ficus* の97%は主脈が凹側となって破断したのに対し、*Prunus* の80%は主脈突出側が凸となり破断しなかった。*Olea* は曲げ方向が53%対47%に分かれたが、破断は生じなかった [@pierantoni2019]。
+
+この研究が重要なのは、単に「木化すると硬い」ことではなく、**補強材の種類と三次元配置によって、曲げ抵抗、ねじりコンプライアンス、座屈様式、破断様式の組合せが変わりうる**ことを示した点にある。一方、測定値は複合断面を一つの梁に置き換えた「有効」弾性率であり、個々の組織の材料定数ではない。対象は3種、切り出した標準寸法の主脈片であり、結晶や木化繊維を操作的に除去した因果実験でもない。したがって、結晶配置が機械応答に寄与するという解釈は支持されるが、その因果は材料組成などから分離されておらず、広い系統群への一般化にも追加検証が必要である [@pierantoni2019]。
+
+フキを対象とした一連の研究も、主脈・低次脈が葉身より高弾性の補強材であることを示唆する。静的引張試験から葉脈の引張強度2.24 MPa、ヤング率63.6 MPaが報告され、葉身より大きかった。また、葉身単位面積あたりの葉脈体積が葉内でほぼ一定とされた [@sakuma2001; @kobayashi2002]。別の有限要素解析では、葉脈のヤング率を約60 MPa、葉身の約11倍とし、総質量をそろえた比較で実際に近い葉脈配置が単純化した配置より大きな荷重を支持した [@kobayashi2000]。ただし、Zotero から取得できたこれらの資料は J-STAGE の短い要旨・索引本文で、標本数や全解析条件を確認できない。したがって数値は有用な手掛かりだが、一般的な材料定数として扱うべきではない。
+
+#### 2.2 基部の支持と先端の輸送
+
+Hong らは147種、主脈長30–307 mmの葉を比較し、葉幅の長軸方向分布と主脈径のテーパーを、輸送最適化モデルと片持ち梁モデルに照合した。各種1–3葉を撮影・走査し、葉幅を $w(x/L)=a(x/L)^b(1-x/L)^c$ で表したところ、多くの葉で決定係数は0.90を超えた。輸送モデルは、師部流を Darcy 型流れで近似し、局所的な積載量を葉幅に比例させ、濃度、粘度、材料体積を固定した。一方、力学モデルは円形断面の片持ち梁が自重を受け、許容応力以下で材料量を最小にする条件を置いた [@hong2025]。
+
+**著者らが示した結果。** 100枚を超える葉の比較で、主脈の先端側は輸送モデルに、基部側は力学モデルに近く、転換点は先端からの相対位置 $x/L \approx 0.3$ 付近に現れることが多かった。すなわち、主脈全体が一つの目的に最適化されるのではなく、先端では輸送、基部では支持の要請が強く表れるという結論である [@hong2025]。
+
+ただし、この結果は「基部30%が必ず支持専用」という境界を意味しない。モデルは円形断面、均一材料、静的な自重を仮定し、側脈、空間的な師部経路、風による動的荷重を含めない。また、掌状脈や主脈が3本ある葉は一次元幅モデルから除外され、各種1–3葉なので種内変異の推定には弱い [@hong2025]。したがって、本章では $x/L\approx0.3$ を普遍定数ではなく、**機能優勢が長軸上で切り替わるという仮説を検証するための参照位置**とみなす。
+
+#### 2.3 支持投資は葉の姿勢まで含む
+
+*Liriodendron tulipifera* の樹冠内勾配を扱った研究では、葉柄と葉身を梁として扱い、光環境が高い場所ほど重く長い葉に対応して葉柄の曲げ剛性が増すこと、葉の傾きを変えて重心の腕の長さを減らすことが示された。葉柄と太い葉脈への支持投資は葉全体のバイオマスの最大約30%に達しうる [@niinemets2002]。これは、支持を評価するときに主脈断面だけでなく、葉柄、葉の角度、重心位置、葉身質量の組合せを見る必要があることを示す。ただし、この研究の梁モデルも静荷重と均質化した葉身を主に扱い、強風時の非線形再配置を直接試験したものではない。
+
+#### 2.4 浮葉では「自重を支える梁」から「軽い浮体」へ問題が変わる
+
+オニバス *Euryale ferox* の要旨報告では、葉脈と葉身の幾何を測り、部位別の準静的引張試験を行ったところ、葉脈下面のヤング率が他部位の約4–5倍だった。この材料特性と形状を入れた有限要素モデルの浮力は実験値と概ね一致した [@morishita2009]。サンタクルスオオオニバス *Victoria cruziana* を含む一連の研究を振り返った総説的講演要旨では、太い主脈が内部に多数の空隙を含む涙滴形断面をもち、曲げ剛性と軽量化を同時に実現すると解釈されている [@kobayashi2019]。
+
+これらは、葉脈の「支持」が陸上葉の自重支持だけではないことを示す。浮葉では、水面からの分布反力、浮力、浸水回避が境界条件になり、空隙を含む断面は剛性だけでなく密度も変える。ただし、前者は会議要旨で標本数がなく、後者も複数研究をまとめた講演要旨である。*Victoria* の個別報告 [@kobayashi2009] は Zotero では題名とキーワードしか取得できず、数値的主張の根拠には用いなかった。
+
+### 3. 曲げ・ねじり・座屈：平らに保つことと受け流すこと
+
+#### 3.1 曲げ剛性とねじり剛性は分けて測る
+
+主脈が大きな曲げ剛性をもつと、葉身を光に向けて保ちやすい。しかし、風に対しては葉身がねじれ、流れと平行に再配置することで抗力を減らせる。Pierantoni らの3種比較は、曲げに強い構造が必ずしもねじりにも同程度に硬いわけではないことを示した。とくに孤立した結晶は曲げ補強を弱く保ちつつねじりコンプライアンスを許し、長軸方向に連続した補強は曲げを強くする一方、圧縮時の局所破断様式を変えた [@pierantoni2019]。
+
+**本章での統合。** 葉脈を画像から解析するとき、径または面積だけを「強さ」の代理にせず、少なくとも次を分ける必要がある。
+
+- 曲げに効く断面二次モーメント：断面形状と、荷重方向に対する向きに強く依存する。
+- ねじりに効く極断面特性：閉じた組織配置か、繊維や結晶がどの方向に並ぶかに依存する。
+- 座屈長さ：分岐点や横断連結の間隔が、圧縮を受ける自由長を変える可能性がある。
+- 材料特性：同じ外径でも木化度、維管束配置、結晶配置によって異なる。
+
+これは複数研究をつないだ解析上の提案であり、画像だけから弾性率を推定できるという主張ではない。画像は幾何を測り、材料特性は別の力学試験または組織観察で補うべきである。
+
+側脈の寄与を非破壊で測ろうとした方法として、*Epipremnum aureum* の葉を楕円窓のある金属板で固定し、スピーカーで励振し、レーザー変位計と高速フーリエ変換で共振周波数を求め、有限要素解析から側脈に平行・直交する面内ヤング率 $E_{\parallel}$ と $E_{\perp}$ を逆推定した会議報告がある。全測定領域で $E_{\parallel}/E_{\perp}$ が側脈による曲げ剛性増加を示し、一次側脈の寄与は二次側脈より大きいとされた [@yoshitsugu2017]。標本数と不確実性は取得要旨から確認できないが、同一葉を破壊せず、方向別の有効弾性を測れる点は、含水率変化や発達を追跡する方法として有望である。
+
+#### 3.2 座屈は故障ではなく、損傷回避にもなりうる
+
+圧縮時に主脈が座屈することは、形状保持の観点では変形だが、破断回避の観点では有利な場合がある。*Prunus* の主脈は大きく座屈しても破断せず、*Ficus* は比較的曲げに抵抗した後に主脈が破断し、その経路は結晶列と関連した [@pierantoni2019]。したがって、「最大荷重が高い」ことと「変形後も機能を保持する」ことは別の性能である。
+
+この区別は、葉脈研究で強度だけでなく、降伏後の変形量、吸収エネルギー、除荷後の回復、局所損傷後の輸送維持を測る必要性につながる。Nardini らの総説も、硬さを示す LMA、組織密度、厚さと、破壊抵抗や乾燥耐性の相関はデータセット間で一貫しないと整理しており、解剖学的基盤と系統を分けて検討する必要を強調する [@nardini2022]。
+
+#### 3.3 風への応答は発生・可塑性の問題でもある
+
+Wu らは8種の *Quercus* を、無風対照、約4 m s^-1^、約6 m s^-1^の3条件で3月から10月まで育てた。各種54実生を選び、各処理3室、各室6実生／種とし、1日2回、各1時間送風した。形態は各室・処理・種30葉、解剖は20葉を測定した。6 m s^-1^では全種で比葉面積が低下し、6種で葉または葉脈の厚さが8.4–31.85%増加した。葉の形状指数は比葉面積、茎径、根バイオマスの風応答とそれぞれ $R^2=0.710$、0.768、0.927で関連した [@wu2016]。
+
+**著者らの結論。** 葉形によって風への形態応答が異なり、細長い葉ほど抗力を減らしやすい可能性がある [@wu2016]。ただし、独立な実験単位は葉数ではなく室に近く、室反復は3である。葉形、種、系統の効果も完全には分離されず、葉脈そのものの曲げ・ねじり剛性は直接測定していない。したがって、これは葉脈が瞬時に再配置する試験ではなく、長期間の風に対する全植物の可塑的応答を示す研究である。
+
+### 4. 破壊と損傷：葉脈は亀裂の経路を変える
+
+#### 4.1 網状脈と平行脈では破壊様式が異なる
+
+Liu らは、網状脈をもつ双子葉3種（*Populus alba*、*Syringa oblata*、*Ailanthus altissima*）と、平行脈をもつ単子葉3種（*Canna*、*Hosta*、*Rhapis*）を比較した。試験片は主に4.5 × 30 mm、一部10 mm幅、自由長12 mmで、3 mm min^-1^で引張り、デジタル顕微鏡下で準その場観察した。種・採取位置あたりの反復は3で、初期ノッチは設けていない [@liu2020a]。
+
+**著者らが示した結果。** 引張方向に太い葉脈または多数の葉脈を含むほど、最大荷重、強度、弾性率は大きかった。*Ailanthus* の主脈を含む試験片は他位置より強度が約16倍、弾性率が約52倍、*Rhapis* では主脈位置が約6倍の強度を示した。網状脈葉では、亀裂がまず葉肉に生じ、大葉脈や二次脈で偏向、遅延、停止した。平行脈葉は亀裂開始まで高い荷重に耐える場合がある一方、一本の主要な平行脈が破断すると急速で脆性的な全断面破壊に進みやすかった [@liu2020a]。
+
+この結果は、ループと横断連結が代替荷重経路をつくるという仮説と整合するが、ループ性そのものを操作・測定した実験ではない。直接観察されたのは、太い葉脈による亀裂の偏向、遅延、停止である。また6種、各条件3標本で、試験片の形と葉脈本数は一定ではなく、構造差と組織組成差を分離していない。切欠きのない試験なので、破壊靱性の標準値を測ったわけでもない。したがって、「網状脈は常に平行脈より強い」ではなく、**網状脈と平行脈では亀裂発生後の荷重再分配様式が異なる**という範囲で読むのが妥当である [@liu2020a]。
+
+#### 4.2 葉脈だけでなく葉肉の組織構成も破壊を決める
+
+Balsamo らは、外形が近いバラ科の落葉性中生植物 *Prunus serrulata* と常緑硬葉植物 *Heteromeles arbutifolia* を比較した。形態と全葉引張りは各種25葉、圧力–体積曲線は各種6葉、横断切片は項目により5または10標本であった。全葉を20 mm min^-1^、把持間隔10 mmで引っ張った [@balsamo2003]。
+
+*Heteromeles* は *Prunus* より2–3倍厚く、乾燥質量／新鮮質量比が35%高く、破断荷重は6倍超、強度は約4倍、靱性と見かけの弾性率は約5倍、破断ひずみは25%高かった。*Prunus* では亀裂が二次脈沿いに不規則に進み、大葉脈が最後までつなぎ止めたのに対し、*Heteromeles* の破断面は比較的滑らかだった [@balsamo2003]。
+
+この比較は、葉脈が亀裂障害物になることを支持すると同時に、葉全体の破壊は葉肉厚、細胞壁化学、組織の充填状態にも強く依存することを示す。対象は2種で採取・保存条件にも差があり、著者ら自身、試験片のアスペクト比と把持端の影響で絶対的な弾性率が高く見積もられる可能性を指摘している。よって、数値は種間の相対差として読むべきである [@balsamo2003]。
+
+#### 4.3 ネットワーク指標と損傷抵抗には複数の解がある
+
+Matos らは共通圃場で育てたシダ・被子植物122種を対象に、13の機能形質と葉脈ネットワークを対応づけた。種あたり1–5個体を使い、穿刺・せん断と三点曲げは3–4葉、LMAは3–5葉、葉の水力コンダクタンスは4–10葉を測定した。10–500 µmの500万本を超える葉脈区間から、密度、最小全域木、ループ数、ループ伸長度などを小・中・大の空間スケール別に求め、80%を学習、20%を評価に使う勾配ブースティングモデルを3分割交差検証した [@matos2024]。
+
+**著者らが示した結果。** 力学的支持・損傷抵抗は、流量や水力的レジリエンスよりネットワーク構造との関係が強かった。大きい葉脈の高密度、小さいスケールのループ増加、中間スケールの細長いループなどが力学性能に関連したが、単一の最適構成ではなく、同じ性能に至る複数の代替設計が認められた。密な大小葉脈は建設費を高め、性能間の一般的な二者択一は予想ほど強くなかった [@matos2024]。
+
+ただし、直径10 µm未満の細脈は解析外で、長い単子葉では全葉でなく部分画像を使った。形質反復は少なく、全データの16.8%を補完し、脆弱性指標P50・P88は122種中32種だけで欠測率が74%だった。機械学習の寄与度は予測上の関連であり、因果効果ではない [@matos2024]。この研究は、Hong らの長軸方向の単純化モデル [@hong2025] と対立するのではなく、前者が「主脈内で輸送と支持の優勢がどう切り替わるか」を、後者が「全ネットワークで複数の設計がどう同等の性能を生むか」を扱う、異なる粒度の研究と理解できる。
+
+#### 4.4 破壊抵抗は葉寿命と被食防御にもつながる
+
+Kitajima らはボリビアの熱帯樹木19種で、葉身と葉脈の破壊靱性をせん断試験で別々に測り、主成分分析と構造方程式モデルで葉寿命、被食性、実生の生存・成長、更新時の光要求との対応を調べた。17種では少なくとも4個体、2種では3個体の稚樹から成熟葉を採取し、採取後4時間以内に試験した。葉身・葉脈の組織密度と破壊靱性は互いに正に相関したが、葉身厚とは独立だった。構造レベルの仕事量（work-to-shear）には組織靱性と厚さが加算的に寄与した [@kitajima2010]。
+
+葉脈の組織レベル破壊靱性は葉寿命と $r=0.82$（$p<0.0001$）、稚樹生存率と $r=0.69$（$p=0.0009$）で正に、被食性と $r=-0.65$（$p=0.0051$）、成長率と $r=-0.73$（$p=0.0004$）、更新時の光要求と $r=-0.76$（$p=0.0001$）で負に相関した。一方、葉身厚はこれらと有意に関連しなかった [@kitajima2010]。著者らの結論は、厚いこと自体より、葉身・葉脈組織の密度と破壊靱性が、長寿命、耐陰性、低被食性と結びつくというものである。ただし、種間観察と既存の生態データを統合した研究で、破壊靱性を操作して寿命を変えた実験ではない。
+
+さらに186種、40形質（うち力学12形質）を扱った研究では、穿刺、引張り、せん断の三試験を比較し、破壊長さで規格化した形質が面積・質量規格化形質より落葉分解速度をよく予測した。最良は穿刺力、次いでせん断仕事量で、力学形質を含む主成分軸は分解率変異の44.3%を説明し、除くと31.6%に低下した。平行脈葉で引張力だけを使うと分解率を過小推定する可能性も示された [@wang2025c]。これは葉脈配置そのものの因果試験ではないが、**どの破壊試験を選ぶかが生態的結論を変えうる**こと、葉の力学が落葉後の分解という「after-life」効果にまで及ぶことを示す。
+
+### 5. 葉脈角度、折り畳み、展開
+
+#### 5.1 葉脈角度は収納性と展開時間を結ぶ
+
+Kobayashi らは、セイヨウシデとヨーロッパブナの葉を、主脈と側脈に沿う平行な山折り・谷折りをもつ平面として近似し、ベクトル解析で展開をモデル化した。展開後の側脈は主脈に対して30–50°で、高い角度ほど芽内でコンパクトに収納できる一方、展開に長い時間を要するという結果を報告した [@kobayashi1998]。ただし、取得できた本文は出版社要旨であり、観察葉数や角度別モデル数を確認できない。
+
+続く紙模型と数値計算では、葉脈角度を変えたモデルについて、葉脈と折り区画の三次元位置、展開中の運動エネルギーを比較した [@kobayashi1998a]。さらに、谷折りと山折りの間隔比 $a^*=a_2/a_1$ に注目した研究では、シデは $a^*\approx1.0$、ハンノキは $a^*\approx1.3$で、細い葉脈をもつ前者は対称間隔で収納体積を小さくし、太い葉脈をもつ後者は葉脈の重なりによる局所的な体積増加を避けるため非対称間隔をとると解釈された [@kobayashi1999]。別の5種類の紙模型と数値解析では、葉脈角度が主脈伸長と展開速度に及ぼす効果を検討し、実葉の主脈伸長は初期に遅く、その後ほぼ一定となること、一定運動エネルギー条件のモデルが同様の時間変化を再現すると報告された [@kobayashi2002b]。これらも Zotero で取得できたのは主に要旨・索引本文であり、定量値の再利用には原PDFの確認が必要である。
+
+**著者らの主張。** 角度と折り間隔は、芽内での収納体積、葉脈同士の干渉、展開速度を結ぶ幾何学的変数である [@kobayashi1998; @kobayashi1999; @kobayashi2002b]。
+
+**本章での統合。** 成熟葉の葉脈角度は、支持・破壊だけでなく、展開過程の履歴を残す可能性がある。したがって、成熟葉の角度と力学性能の相関だけから「この角度は荷重支持のために最適化された」と結論するのは危険である。同じ角度が、芽内収納と展開の制約、発生、輸送域の分割、亀裂偏向の複数機能に同時に関わりうるからである。
+
+#### 5.2 成熟葉での角度と破壊の直接証拠はまだ弱い
+
+Liu らは一次脈と二次脈の分岐角を41–75°、より高次の葉脈を概ね90°に近いと記載し、斜交する脈が亀裂を偏向させる様子を観察した [@liu2020a]。しかし、角度だけを操作した破壊実験ではない。角度と径、次数、組織、葉脈本数が同時に変わるため、角度の独立効果は不明である。
+
+Sun らは、葉柄で固定され一様な自重圧を受ける葉をトポロジー最適化し、葉脈面積率5%の条件で、最初の二つの主脈区間の長さ比が黄金比付近のとき曲げ変位が小さくなるとした。モクレン、ライラック、*Ilex lohfauensis* の卵形葉103枚では平均比1.61203、103枚中51枚が1.618±0.01に入った。モデルの比率走査では最小変位が約1.619に現れた [@sun2018]。
+
+これは明瞭な力学仮説だが、選ばれた卵形葉と特定の区間定義、一様静荷重、単一の曲げ剛性目的に依存する。著者らも黄金比は一般的だが必須ではないと述べる [@sun2018]。したがって、黄金比からのずれを「非最適」と評価するのではなく、風、輸送、展開、非対称形など別の目的を含む多目的設計の結果として検討すべきである。
+
+### 6. 乾燥収縮、巻き、折れ：水理と力学の接点
+
+#### 6.1 乾燥変形は水分損失の副作用ではなく、組織構造の応答である
+
+Scoffoni らは14種で、脱水時の葉厚・葉面積の収縮と水力低下を実測・シミュレーションした。形態・解剖には種あたり概ね4–10葉、収縮回復には10種で各5ディスク、4種では追加の圧力–体積曲線に各5葉を用いた。最大乾燥時の厚さ収縮は23–83%、膨圧喪失点で4.6–38%、面積収縮は膨圧喪失点で0.5–14%、炉乾燥時で4.9–69%に達した。初期の葉厚収縮は葉の水力コンダクタンス低下と対応し、湿潤環境由来の種ほど大きく縮んだ [@scoffoni2014]。
+
+厚さ収縮の種間差は細胞そのものの体積変化だけでなく、細胞間隙率の変化と強く関連し、葉厚と細胞間隙の相関は Spearman $r_s=0.94$、Pearson $r=0.96$（ともに $p<0.001$）だった。再吸水後の回復率は10種間で60–99%だった [@scoffoni2014]。この研究は、二次元画像で見える面積収縮だけでは、厚さ方向の大きな変形と水力低下を捉えられないことを示す。ただし、一部の水力データは既報10種を利用し、種間相関に基づく。圧力–体積曲線から水ポテンシャルを推定し、弾性が一定という仮定も含む。
+
+#### 6.2 主脈と葉身の収縮差が三次元形状をつくる
+
+Guo らは、均一・等方的に収縮する葉身を薄板、ほとんど収縮しない円筒状主脈を梁として結合し、非ユークリッド弾性理論と ABAQUS 2023 で乾燥変形を解析した。既定値は主脈弾性率1 GPa、葉身30 MPaで、主脈と葉身の曲げ剛性比 $B_v/B_l$ によって、全体の巻きと主脈に直交する折れ・葉縁の波打ちが切り替わった。主脈が相対的に硬いほど長軸方向の曲率が抑えられ、横方向の折れと縁の波打ちが増えた。座屈後の曲率は収縮ひずみにほぼ比例した [@guo2026]。
+
+著者らは *Gardenia*、*Cyrtophyllum*、*Plumeria*、*Excoecaria* の乾燥葉を例示したが、定量的な標本数や、モデル予測と実測曲率の統計的検証は示していない。モデルは葉身の均一等方収縮、主脈の無収縮、一定径、線形弾性を仮定し、二次脈、細胞レベルの異方性、老化過程、湿度履歴を省略する。著者ら自身もテーパー、サイズ、組成、環境を今後の要因として挙げる [@guo2026]。したがって、この論文は乾燥葉形を説明する有力な**機構モデル**であり、種間一般則を実証した比較実験ではない。
+
+#### 6.3 乾燥耐性と機械抵抗は単一軸ではない
+
+Nardini らの総説では、高い LMA、厚い葉、高密度組織、木化した葉脈は、しばしば機械抵抗と乾燥耐性の双方に関係する一方、相関の符号や強さはデータセット間で一貫しないと整理されている。大葉脈密度の増加は支持と水路冗長性を高めうるが、厚い細胞壁や木化の位置が異なれば、同じ LMA でも硬さ、靱性、膨圧維持は変わる [@nardini2022]。
+
+**本章での統合。** 乾燥に伴う変形は、少なくとも (i) 葉身の膨圧低下と細胞間隙の変化、(ii) 主脈と葉身の収縮差、(iii) 組織の木化と異方性、(iv) 葉脈ネットワークによる面内拘束、の重ね合わせとして扱うべきである。Scoffoni ら [@scoffoni2014] は主に水分状態と組織収縮、Guo ら [@guo2026] は主脈–葉身の剛性差と座屈を扱うため、両者を統合すると、含水率を記録せずに乾燥標本の葉脈幾何を生葉と比較する危険性が明確になる。
+
+### 7. 輸送と支持のトレードオフ、または分業
+
+#### 7.1 低次脈と細脈の「分業」
+
+Kawai らはブナ科8種で、成木を原則各種5個体（*Quercus gilva* は4個体）調べた。主脈を除いた葉身ストリップの引張りは種あたり16–20標本、水力測定は5–7標本で、葉脈次数別の長さ密度を測った。一次・二次脈密度は引裂き力と $r=0.87$（$p=0.005$）、引張強度と $r=0.76$（$p=0.028$）、質量規格化強度と $r=0.88$（$p=0.004$）で相関したが、水力形質とは相関しなかった。細脈密度は葉身水力コンダクタンスと $r=0.75$（$p=0.032$）で相関したが、力学形質とは対応しなかった。低次脈密度と細脈密度自体も有意に相関しなかった（$r=0.39$, $p=0.339$）[@kawai2016]。
+
+**著者らの結論。** 低次脈は主に構造・力学、細脈は主に水輸送を担う「分業」がある [@kawai2016]。ただし、8種の同一科内比較で、主脈を除いた葉身ストリップを使い、種平均の相関を見た研究である。細脈は総葉脈長の87.7%を占めたが、細脈が力学に寄与しないことを操作的に証明したわけではない。
+
+#### 7.2 分業が見えない系もある
+
+同じ研究グループが冷温帯の落葉性木本11種を調べた研究では、各種3–5成木を用い、圧力–体積曲線は個体あたり2–3枝、低次脈密度は個体あたり4葉、細脈密度は1葉、穿刺試験は8–10葉で測定した。低次脈密度と細脈密度はいずれも膨圧喪失点と負に相関し（それぞれ $r=-0.80$, $p=0.003$；$r=-0.79$, $p=0.004$）、両密度自体が $r=0.82$（$p=0.002$）で強く相関した。偏相関では各次数の独立効果は消えた（$p>0.22$）。細脈密度は組織密度・乾物含量と正、厚さと負、細脈径は穿刺力・LMAと正に関連した [@kawai2018]。
+
+**著者らの結論。** この11種では低次脈密度と細脈密度が協調的に変化し、水分欠乏耐性への各次数の独立寄与は分離できなかった。一方、構造形質との関連は主に細脈密度・細脈径に見られ、次数間の力学的協働を直接示したものではない [@kawai2018]。2016年研究との違いは、単純な矛盾というより、常緑を含むブナ科8種と、単一地域の落葉性木本11種という対象差、力学試験、形質共分散の違いを示す。どちらも観察的な種間相関で、次数間の共線性が因果分離を難しくする。
+
+#### 7.3 木化は輸送断面を増やさず水理を変える
+
+Ohtsuka らは日本の温帯林の被子植物11樹種、各種1–3成木を調べ、水力測定には表により8–16葉／種を用いた。11種中8種で主脈の維管束鞘が木化し、6種では細脈まで木化していた。細脈の維管束鞘が木化した種は、非木化種より葉の水力抵抗が低光下で2.3倍、高光下で2.8倍高かった。葉脈密度だけでは葉の水力コンダクタンスを説明しなかったが、葉脈密度と木化が到達する最高次数を組み合わせると低光・高光で67%、69%、葉脈密度と細脈木化の有無では79%、74%を説明した [@ohtsuka2018]。
+
+著者らは、木化が葉脈の機械的安定性や長寿命化にも寄与しうると論じたが、この研究では力学試験をしていない [@ohtsuka2018]。したがって、木化を「支持と水理を結ぶ機構」とする部分は妥当な仮説だが、支持機能の直接証拠ではない。また、葉脈切断法は抵抗の直列性と半径方向漏出の小ささを仮定し、対象は11種である。
+
+#### 7.4 支持費の配分は葉内で置き換え可能である
+
+Niinemets らは温帯草本と木本実生44種、20科を比較した。単葉33種、複葉11種、羽状脈28種、平行脈6種、掌状脈10種で、各種少なくとも2個体、平均3.0±0.7個体を測定した。主脈乾燥質量分率は0.017–0.40で約24倍に変化し、中型葉では0.1–0.2、大型で深裂した葉では0.3–0.4に達した。主脈と細脈を合わせた葉内の総支持バイオマス分率は約8倍変動した。主脈質量分率は葉サイズと正に関係し（全データ $r^2=0.48$、外れ値除外 $r^2=0.57$、$p<0.001$）、細脈密度はサイズ依存を示さなかった。主脈質量分率と細脈密度は負に関連し、支持を中央の太い主脈に集中する設計と、細い網に分散する設計の置換可能性が示唆された [@niinemets2007]。
+
+葉形そのものが支持費を決めるという仮説は支持されず、葉形より脈系型の影響が大きかった。羽状脈の細脈密度は平均0.62±0.05 mm mm^-2^で、平行・掌状脈の0.48±0.07より高かった（$p<0.02$） [@niinemets2007]。ただし、調査地と育成条件が混在し、草本が多く、種平均の相関である。細脈バイオマスは直接秤量でなく密度と炭素費から推定し、複葉では小葉を葉の類似単位として扱った。
+
+#### 7.5 「トレードオフ」は一つの直線ではない
+
+Hong ら [@hong2025] は一本の主脈の長軸上で輸送と支持の最適形が競合することを示し、Kawai ら [@kawai2016; @kawai2018] は次数間の分業または協調を、Niinemets ら [@niinemets2007] は支持投資の空間的な置換を、Matos ら [@matos2024] はネットワーク全体に複数の代替設計があることを示した。これらを統合すると、輸送–支持関係は単一の負相関ではなく、少なくとも次の三種類に分かれる。
+
+- **同じ組織内の競合**：主脈径の長軸方向テーパーが、輸送抵抗と基部応力で異なる最適形をもつ [@hong2025]。
+- **次数間の役割配分**：低次脈と細脈が力学と水理を分担する場合と、両者が協調する場合がある [@kawai2016; @kawai2018]。
+- **ネットワーク間の代替解**：密度、ループ、方向性の異なる複数構造が類似性能に達しうる [@matos2024]。
+
+したがって、「水力効率が高いほど弱い」または「葉脈密度が高いほど強い」という単純な回帰だけでは、機能配置の違いを見落とす。本章での統合的結論は、**トレードオフの有無を問う前に、どの空間スケール、葉脈次数、荷重方向、機能指標の間の関係かを定義する必要がある**、ということである。
+
+### 8. スケーリング：葉が大きくなると何が変わり、何が保たれるか
+
+#### 8.1 大型化は太い支持組織への投資を増やす
+
+44種比較では、葉の新鮮質量は約15,000倍、寿命は約6倍の範囲にわたり、葉が大きいほど主脈質量分率が増えた一方、細脈密度は葉サイズに依存しなかった [@niinemets2007]。これは、葉面積の増大に対して細脈を単純に高密度化するのではなく、主脈・低次脈の断面と質量を増して基部応力に対応する可能性を示す。
+
+ただし、質量分率の増加は弾性率の増加と同義ではない。断面の材料配置、テーパー、葉柄角度によって、同じ質量でも曲げ抵抗は変わる [@niinemets2002; @pierantoni2019]。したがって、大型葉の比較では、主脈径だけでなく断面形状、木化組織の位置、葉身質量の長軸分布を測る必要がある。
+
+#### 8.2 総葉脈量は葉面積に比例しても、局所設計は変わりうる
+
+Shi らはモクレン科9種について、当初各種300–500葉を収集し、解析可能な120–380葉／種を3–5個体から得た。透明化・染色後に600 dpiで撮影し、LEAF GUIで葉脈と網目を測定した。9種中5種で葉面積は主脈長の二乗に比例し、9種中8種で総葉脈長と総葉脈面積が葉面積にほぼ比例した。総葉脈面積は葉面積の17–37%で、平均網目面積は葉面積に依存せず、網目密度と逆関係を示した [@shi2022]。
+
+これは、葉が大きくなっても局所的な網目サイズを概ね保ち、同じ基本単位を増やすようなスケーリングを示唆する。一方、Hong らの結果では、主脈の局所径は葉幅と荷重の長軸分布に応じて変わる [@hong2025]。両者を合わせると、**細脈網の局所単位は比較的保存されても、主脈は全葉サイズと荷重分布に応じて非一様にスケールする**という階層的像が得られる。
+
+Shi らの調査は同一庭園内だが採集年が異なり、日向・日陰葉を区別せず、画像処理で5%未満の葉脈欠失を許容した。主脈長は葉長で近似され、対象はモクレン科に限られる [@shi2022]。したがって、等尺性を全被子植物へ直接拡張するのではなく、科内基準として用いるべきである。
+
+#### 8.3 面積比や黄金比は結果であって原因とは限らない
+
+フキで報告された葉身単位面積あたりほぼ一定の葉脈体積 [@sakuma2001; @kobayashi2002]、モクレン科での総葉脈長・面積の面積比例 [@shi2022]、卵形葉の特定区間での黄金比付近の長さ比 [@sun2018] は、幾何学的規則性を示す。ただし、それぞれ対象、測定階層、機能モデルが異なる。規則性が見つかった後には、発生制約だけで生じるのか、輸送、支持、収納の性能を実際に高めるのかを、操作実験または独立データで区別する必要がある。
+
+### 9. 力学仮説を生態・形態へ拡張するときの注意
+
+Givnish and Kriebel は、薄い葉では二次脈が支える葉身領域が独立しやすく、二次脈が葉縁まで達して鋸歯を形成するという support–supply 仮説を整理した。253種の非全縁葉と362種の全縁葉を含む系統比較では、葉厚との関係が強く、厚さ効果は緯度効果の3.82倍と報告された [@givnish2017]。これは、葉脈が輸送と支持を同時に担うため、葉縁形態にまで力学的制約が及ぶという仮説である。
+
+しかし、Zohner らは落葉性木本151種に対象を限定し、系統を制御したベイズモデルで葉厚、芽内葉原基数、生育季節長を比較した。最良モデルは鋸歯の有無を94%の精度で予測したが、最も強い予測因子は生育季節長で、葉厚も芽内葉原基数も葉縁型に有意な効果を示さなかった。著者らは support–supply 仮説と芽内収納仮説を棄却し、短い生育季節での早春の炭素獲得利益を代替説明として提示した [@zohner2019a]。
+
+この二論文の違いは、葉脈力学から大域的な生態パターンを説明するときの重要な注意点になる。Givnish and Kriebel は常緑・落葉を含む全球的勾配を扱い、Zohner らは葉寿命の交絡を避けるため落葉種だけを扱った。後者にも、植物園での芽形質測定、GBIF分布中央値による気候代表値、種内変異・局所適応を扱えないという限界がある [@zohner2019a]。したがって、葉厚–葉脈–鋸歯の力学機構は検証可能な仮説だが、現在の文献集合からは気候勾配の主要因として確定できない。
+
+### 10. 解析へ落とし込むための測定設計
+
+以下は、上記論文を統合して導いた**本章の提案**であり、各論文がそのまま提示した標準法ではない。
+
+#### 10.1 画像から最低限分けて測る量
+
+| 階層 | 推奨変数 | 対応する力学仮説 | 主な根拠 |
+|---|---|---|---|
+| 全葉 | 葉面積、主脈長、葉幅の長軸分布、重心位置、葉柄角度 | 自重による曲げモーメントと支持投資 | [@niinemets2002; @hong2025] |
+| 主脈 | 長軸位置ごとの幅・径・面積、テーパー、曲率 | 基部支持と先端輸送の機能勾配 | [@hong2025] |
+| 低次脈 | 次数別長さ密度、分岐角、径、主脈から縁までの到達 | 面内支持、荷重分配、亀裂偏向 | [@kawai2016; @liu2020a] |
+| 細脈網 | 長さ密度、ループ密度、横断連結、ループ伸長度、方向性 | 代替荷重経路の候補、局所座屈長、損傷局在化 | [@matos2024] |
+| 葉身 | 厚さ、LMA、乾物含量、含水率、収縮率 | 板剛性、葉肉破壊、乾燥変形 | [@balsamo2003; @scoffoni2014; @nardini2022] |
+| 組織 | 木化位置、維管束・繊維・結晶の配置、断面形状 | 外径からは推定できない材料・断面効果 | [@pierantoni2019; @ohtsuka2018] |
+
+主脈幅は一本の平均値にせず、先端を $x/L=0$、基部を1など一貫した規約で正規化し、位置ごとのテーパー曲線として保存する。Hong らの $x/L\approx0.3$ 付近を事前に決めた境界として固定するのではなく、輸送型と支持型のモデル適合度が切り替わる位置を各葉で推定し、その分布を種間比較する方がよい [@hong2025]。
+
+#### 10.2 角度は一つの平均にしない
+
+葉脈角度は、少なくとも次数、長軸位置、左右、親脈径で層別する。展開研究では30–50°の角度域が収納性と展開時間に関係し [@kobayashi1998]、破壊研究では一次–二次脈の41–75°と高次脈の約90°が異なる亀裂経路に共存した [@liu2020a]。全分岐角を平均すると、発生・収納に関係する低次脈と、横断補強に関係しうる高次脈を混ぜる。
+
+角度の機能を検証するには、実葉相関に加え、(i) 径と材料を固定した数値モデル、(ii) 角度だけを変えた切欠き試験または紙・樹脂模型、(iii) 展開前後の同一葉追跡、を組み合わせるのが望ましい。現行文献集合では、角度を操作した研究は主に折り畳み模型であり [@kobayashi1998a; @kobayashi2002b]、成熟葉の破壊に対する独立効果はまだ十分に分離されていない。
+
+#### 10.3 力学試験は荷重様式を分ける
+
+同じ標本について可能なら、三点曲げまたは片持ち曲げ、ねじり、引張り、穿刺・せん断を別々に測定する。少なくとも「強度」「弾性率」「靱性」「破断ひずみ」「除荷回復」を混同しない。主脈だけの試験と、主脈を除いた葉身、主脈を含む全葉試験を組み合わせると、葉脈と葉肉の寄与を切り分けやすい [@pierantoni2019; @balsamo2003; @kawai2016]。
+
+亀裂伝播を扱う場合は、試験片幅、自由長、葉脈本数、葉脈方向を規格化し、切欠きの有無を明記する。Liu らの観察 [@liu2020a] は機構発見に有効だが、各条件3標本、非規格な葉脈配置、無切欠きなので、次段階では破壊靱性と亀裂偏向角の定量が必要である。
+
+#### 10.4 水分状態を共変量ではなく実験軸にする
+
+採取直後、完全吸水、膨圧喪失点付近、風乾、炉乾燥を区別し、質量含水率と面積・厚さ・曲率を同時記録する。厚さ収縮は面積収縮より大きくなりうる [@scoffoni2014] ため、二次元スキャンだけで乾燥変形を評価しない。主脈と葉身の曲率を長軸・横軸に分けると、主脈–葉身の剛性比モデル [@guo2026] を検証できる。
+
+#### 10.5 統計モデルは階層構造を反映する
+
+葉を独立反復とみなさず、葉／個体／種／科の階層を入れる。種比較では系統を制御し、葉サイズ、LMA、葉厚、生活型、光環境、含水率を候補交絡として扱う。Wu ら [@wu2016] のような風洞・室実験では室または風処理単位を真の反復とし、葉数をそのまま自由度にしない。機械学習を使う場合も、Matos ら [@matos2024] のように学習・評価を分けるだけでなく、同一種・同一個体由来の葉が両方へ漏れないようグループ分割する。
+
+### 11. 現時点で強く言えること、まだ言えないこと
+
+#### 比較的強く支持されること
+
+- 主脈と低次脈は葉身より高い剛性・強度をもちうるが、その挙動は外径だけでなく、木化繊維や結晶の三次元配置で変わる [@pierantoni2019; @kobayashi2000]。
+- 曲げ、ねじり、座屈、破断は別性能であり、座屈して破断を避ける設計と、強く抵抗した後に破断する設計がある [@pierantoni2019]。
+- 太い葉脈が亀裂を偏向・停止することは直接観察され、細脈のloop性と曲げ支持には種間関連がある。loopや横断連結が損傷後の代替荷重経路をつくるという説明は、これらと整合する仮説である [@liu2020a; @matos2024]。
+- 主脈の基部側には支持、先端側には輸送の形状要請が強く表れ、同じ主脈内でも機能優勢が位置で変わる [@hong2025]。
+- 乾燥変形は葉身の一様な縮小ではなく、厚さ収縮、細胞間隙変化、主脈と葉身の収縮・剛性差から生じる [@scoffoni2014; @guo2026]。
+- 葉の大型化は主に主脈・低次脈への支持投資増加と結びつき、細脈網の局所単位は相対的に保存される場合がある [@niinemets2007; @shi2022]。
+
+#### 現在の文献集合だけでは確定できないこと
+
+- 葉脈密度が高ければ、すべての種・荷重様式で機械抵抗が高いとは言えない。次数、ループ、組織、葉身形質が交絡する [@kawai2016; @kawai2018; @matos2024]。
+- 低次脈が力学、細脈が水理という完全な分業は普遍則ではない。対象群によって協調も見える [@kawai2016; @kawai2018]。
+- 特定の葉脈角や黄金比が、成熟葉の多目的性能に普遍的に最適とは言えない [@kobayashi1998; @sun2018]。
+- support–supply 機構だけで、緯度に沿った葉縁鋸歯の頻度を説明できるとは言えない [@givnish2017; @zohner2019a]。
+- 画像由来の幾何指標だけから、弾性率、靱性、水力抵抗を一意に推定することはできない。組織、含水率、荷重方向の独立測定が必要である [@pierantoni2019; @scoffoni2014; @ohtsuka2018]。
+
+### 12. 主要論文の証拠水準と、この章での役割
+
+| 文献 | この章で使った主な内容 | Zoteroで確認できた範囲 |
+|---|---|---|
+| [@sack2013a] | 葉脈の支持、テーパー、階層性、冗長性の総説的枠組み | 論文本文（総説） |
+| [@pierantoni2019] | 3種の主脈の引張り・圧縮・ねじり、microCT、結晶・木化繊維 | 論文本文 |
+| [@hong2025] | 147種、主脈の輸送–支持モデル、長軸上の機能転換 | 論文本文 |
+| [@niinemets2002] | 葉柄・葉脈・姿勢を含む支持投資と光環境 | 論文本文 |
+| [@niinemets2007] | 44種、主脈質量分率、細脈密度、サイズスケーリング | 論文本文 |
+| [@kawai2016] | ブナ科8種、低次脈の力学と細脈の水理という分業 | 論文本文 |
+| [@kawai2018] | 落葉木本11種、次数間協調、乾燥耐性・構造形質 | 論文本文 |
+| [@liu2020a] | 6種の準その場引張り、亀裂偏向、網状脈・平行脈の破壊 | 論文本文 |
+| [@balsamo2003] | 2種各25葉の全葉引張り、葉肉と葉脈の複合的破壊 | 論文本文 |
+| [@kitajima2010] | 熱帯樹木19種、葉身・葉脈の破壊靱性と葉寿命・被食・生存 | 論文本文 |
+| [@matos2024] | 122種、マルチスケールネットワークと力学・水理の代替設計 | 論文本文 |
+| [@scoffoni2014] | 14種、脱水収縮、水力低下、細胞間隙 | 論文本文 |
+| [@guo2026] | 主脈–葉身剛性比による乾燥座屈の理論・有限要素解析 | 論文本文；実測は例示中心 |
+| [@wu2016] | 8種のコナラ属実生、長期風処理に対する形態可塑性 | 論文本文 |
+| [@shi2022] | モクレン科9種、葉面積に対する総葉脈・網目のスケーリング | 論文本文 |
+| [@ohtsuka2018] | 11種、維管束鞘木化と水力抵抗；力学機能は仮説 | 論文本文 |
+| [@nardini2022] | 機械抵抗と乾燥耐性の統合、相関の非一貫性 | 論文本文（総説） |
+| [@givnish2017] | 葉縁形態の support–supply 仮説 | 論文本文（総説・比較解析） |
+| [@zohner2019a] | 落葉木本151種による support–supply 仮説の反証 | 論文本文 |
+| [@sun2018] | 黄金比仮説、103葉の観察とトポロジー最適化 | 論文本文 |
+| [@wang2025c] | 186種、三つの破壊試験と落葉分解性 | 論文本文 |
+| [@yoshitsugu2017] | 共振と有限要素解析による方向別弾性率の非破壊推定 | J-STAGE要旨・索引本文 |
+| [@morishita2009; @kobayashi2019] | 浮葉の葉脈断面、浮力、軽量化 | J-STAGE要旨・索引本文 |
+| [@kobayashi1998] | 葉脈角度、収納性、展開時間 | 出版社要旨のみ |
+| [@kobayashi1998a] | 角度を変えた紙模型・展開シミュレーション | J-STAGE要旨・索引本文 |
+| [@kobayashi1999] | 折り間隔比、葉脈径、芽内収納 | J-STAGE要旨・索引本文 |
+| [@kobayashi2002b] | 葉脈角度と主脈伸長・展開速度 | J-STAGE要旨・索引本文 |
+| [@sakuma2001; @kobayashi2000; @kobayashi2002] | フキ葉脈の材料特性、体積配分、有限要素解析 | J-STAGE要旨・索引本文 |
+
+なお、同じ Zotero 集合にはロンドンプラタナスの掌状脈の力学評価 [@kobayashi2001]、フキの分岐と構造剛性 [@kobayashi2003a]、羽状脈葉の葉身角度 [@kobayashi2004]、サンタクルスオオオニバスの葉脈力学 [@kobayashi2009] も含まれていた。しかし、ローカルAPIで得られたテキストには題名・書誌情報または第1ページしかなく、要旨・方法・結果を確認できなかったため、本章では題名から内容を推測しなかった。これらは原PDFを確認した後に、フキの有限要素研究、角度研究、浮葉研究へ追補すべき文献である。
+
+最後に、Blonder らの東南アジア樹木260種の研究は、1–4 cm^2^の葉片を用いたマルチスケール葉脈指標が機能形質を説明する割合は各モデルで10%未満だったと報告した。機械的穿刺との結びつきは光合成・建設費より相対的に強かったが、方向は事前予測と一致しない場合があった [@blonder2020]。この研究では通常、一次・二次脈を含まない部分画像を使い、最大径約0.2 mmまでしか捉えない。これは否定的結果というより、**測定窓から主脈・低次脈を除けば、全葉支持の信号を回収しにくい**という解析設計上の警告である。力学研究では、全葉、主脈、低次脈、細脈網を別スケールで測り、最後に統合する必要がある。
+
+
+## 第3章　葉脈次数・ネットワーク
+
+### 「次数」と「太さの階級」は似ているが同じではない
+
+葉脈を階層化する方法は大きく二つある。一つは、主脈から二次脈、三次脈へと分岐関係を追う**形態学的な次数**である。もう一つは、線幅や半径の閾値を変えながらネットワークを観察する**連続的なサイズ階級**である。前者は分類学、発生、器官形成の議論に適し、後者は画像からネットワークを一貫した数値として取り出して種間比較するのに適している。しかし、太い線を一次脈、細い線を三次脈と機械的に読み替えることはできない。葉脈は末端に向かって細くなり、同じ次数の内部でも幅が変化し、平行脈や掌状脈では分岐関係も単純な一本の木にならない。1,000分類群を対象とした進化研究も、small・medium・largeのサイズ区分は従来の一次・二次・三次脈と必ずしも一致せず、tapering（先細り）も表さないと明記している [@matos2025]。
+
+したがって、画像解析では「次数ラベル」と「局所幅」を別の変数として保持すべきである。次数は、葉柄側からの連結、分岐元、走向、葉縁との関係などを用いた意味的ラベルであり、幅は各中心線位置に付随する連続量である。幅による自動候補は有用だが、最終的な次数判定そのものではない。この区別を崩すと、幅の測定誤差がそのまま次数の誤分類になり、生理・力学の解釈にも誤差が伝播する。
+
+### 二値マスクから空間グラフへ
+
+葉脈網を機能と結び付けるには、葉脈画素の集合だけでなく、どの脈がどこで接続し、どの閉領域を囲むかを表す必要がある。実用上は、二値マスクから中心線を得て、分岐点と端点をノード、ノード間の中心線をエッジ、閉じた網目領域をareoleとして空間グラフを構成する。各エッジには、長さ、平均・最小・最大幅、走向、曲率、次数候補、元画像上の位置を保持する。LEAF GUIは、この考え方を対話的な閾値処理、骨格化、ノード・エッジ・端点の分離、距離変換による幅推定、areole計測として早くから実装した [@price2011]。phenoVeinも、自動抽出後に骨格を目視修正し、長さ、密度、幅、areole、分岐点、端点を得る構成を採る [@buhler_phenoveintool_2015]。
+
+ネットワークの基本量は、次の四層に分けると解釈しやすい。
+
+| 層 | 代表量 | 主に表すもの | 注意点 |
+|---|---|---|---|
+| 幾何 | 総延長、VLA、幅、角度、曲率 | 資源投資と空間充填 | 解像度と葉面積マスクに敏感 |
+| 位相 | ノード次数、端点数、loop数、連結成分 | 分岐・冗長性・切断耐性 | 1画素の切れや偽接続に敏感 |
+| 閉領域 | areole面積、形状、elongation、circularity | 末端供給距離と網目形状 | 葉縁やcropで切れた領域を除外する必要 |
+| 階層 | vein order、幅別統計、loop nesting | 大脈から細脈への役割分担 | 次数と幅階級を混同しない |
+
+### 単一の葉脈密度では失われる情報
+
+VLA（vein length per area、単位面積当たりの葉脈長）は重要だが、同じVLAでも、細い脈が密に分布する網、太い脈が多い網、loopが多い網、木状に分岐する網は機能的に同じではない。Blonderらは、ネットワークを四つの統計で記述した。VDは葉脈総延長を面積で割った密度、ERは各loopに当てた楕円の長軸/短軸比の中央値から1を引いた伸長度、CRは各loopについて $4\pi \times \mathrm{area}/\mathrm{perimeter}^2$ を求めた円形度、MSTは全葉脈長に対する最小全域木の長さの比である。MSTが1に近いほど木状でloopが少なく、低いほど冗長なloopが多い [@blonder2020]。
+
+さらに、hierarchical loop decompositionでは、最も細い境界脈から順に隣接areoleを融合し、その都度VD・ER・CR・MSTを再計算する。これにより「細脈を含む網」と「太い脈だけを残した網」を同じ試料内で連続的に比較できる [@blonder2020]。260種の解析では、細い脈を含む側ほど高密度でloopが多く、太い脈だけを残すほどMSTが1に近い木状構造になる傾向があった一方、その移行の仕方は種ごとに異なった。VDの急な変化は離散的な次数を、滑らかな変化は連続的なtaperingを反映する可能性がある。ただし、この研究は最大約2 cm²の葉片を対象とし、通常は一次・二次脈を含まなかった。したがって、結果はminor veinを中心とする観察範囲であり、全葉・全次数へそのまま拡張できるわけではない [@blonder2020]。
+
+Magnoliaceae 9種の全葉解析では、8種で総葉脈長と総葉脈面積がおおむね葉面積に比例し、種内では総VLAが葉サイズから概ね独立だった。また、平均areole面積はどの種でも葉面積と有意に結び付かず、areole密度とは強い逆関係を示した [@shi2022]。これは「大きな葉は自動的に粗い網になる」とは限らないことを示す。ただし、Magnoliaceae 9種に限られた比較であり、葉形、系統、画像解像度を越えて直ちに一般化すべきではない。
+
+### ネットワーク形態と機能は多目的・スケール依存である
+
+理論上、木状ネットワークは少ない材料で供給経路を構成し、loopは切断後の迂回路を与えうる。この直観は有用だが、実葉で一つの指標から機能を予測できるほど単純ではない。260種の多スケール解析では、各モデルが機能形質の変異を説明した割合は10%未満で、光合成能力やLMAよりも、穿孔力とタンニン量との関係が相対的に強かった。ただし、前者は力学的強度、後者は食害防御の代理形質であり、実際の食害量を測ったものではない [@blonder2020]。続く122種の研究では、葉脈構造は流量効率や損傷後の水理的回復より、力学的支持、損傷抵抗、構築コストとの結び付きが強かった。葉脈構造と機能形質を合わせたPCAで最初の3軸が全変異の44%しか説明せず、異なるスケールの形質間相互作用もH-statistic 0.3未満だったため、全植物に共通する一本のトレードオフ軸より、複数の代替設計を想定する方が妥当である [@matos2024]。
+
+ただし、水理的な二つの解釈は分けて読む必要がある。第一に、太い脈の密度が高いネットワークでは、大脈の塞栓が葉全体の通水性に及ぼす相対的影響が小さくなり、乾燥耐性が高まる可能性が示された。しかし、P50・P88は122種中32種だけで測定され、欠測率は74%だった。さらに、補完値を用いた反復モデルでは葉脈構造の明瞭な効果が得られなかったため、この乾燥耐性との関係は暫定的である [@matos2024]。
+
+第二に、機械的切断後の通水性維持という損傷後レジリエンスでは、大脈のloopが長距離輸送の迂回路を増やす一方、細脈の過度なloopは損傷の広がりを助ける可能性があり、「大脈では冗長、細脈ではsectorial」という組合せが候補として提案された。ただし、この機能軸に対する葉脈構造の寄与自体は低く、切断実験は食害を機械的に模したもので化学シグナルを含まない。これはP50・P88の欠測とは別の留保である [@matos2024]。同研究では、大脈密度と細脈のloop性が力学的支持に、細脈のloop形状が物理的損傷抵抗に関連したが、力学的支持の結果は少数の平行脈をもつ単子葉類の影響を強く受けていた。したがって、読み方は「loopが多いほど常によい」ではなく、**どのスケールに、どの形のloopがあり、どの機能を評価したか**である。
+
+### 進化史は大脈と細脈で異なる
+
+現生880分類群と化石120分類群を合わせた1,000分類群、約4億年の比較では、方向的な変化は主にsmall・medium階級に現れ、葉脈密度（VD）の増加とloop境界の平滑化（CRの増加）が進んだ一方、large階級には同様の一方向変化が認められなかった [@matos2025]。形態空間のdisparityは最初の約2億年間に拡大し、約2億～1億5,000万年前に最初のピークへ達した後、白亜紀に縮小し、K–Pg境界後に再び拡大した。後期に多様化した被子植物では、loopの中にloopが入る階層的網状脈と、その内部に分散するfree-ending veinletが一般化した。
+
+気温・大気CO2との広い時間スケールでの対応は全体として弱かった一方、small・medium階級の複数形質は昆虫多様化率と相関した。ただし、用いたのは全昆虫群の多様化率であり、植物食昆虫は昆虫種の約25–35%にすぎず、植物食性だけを分離できていない。第三の変数や花粉媒介を介した共進化でも相関を説明できるため、これは食害圧による因果を証明したものではない。化石葉の食痕と葉脈形質を直接対応させるための仮説として扱うべきである [@matos2025]。
+
+この進化解析にも観測上の制約がある。各種を1画像で代表させているため種内変異を扱わず、画像条件によって10 µm未満の細脈を一部検出できず、化石記録は保存されやすい葉へ偏る可能性がある。したがって、約4億年の大局的傾向と、個々の種・葉で成立する機能関係を同一視しないことが重要である [@matos2025]。
+
+### 次数・ネットワーク解析で最低限残すべきもの
+
+1. 元画像、葉身マスク、葉脈確率画像、確定二値マスクを分けて保存する。
+2. skeletonだけでなく、各エッジの局所幅と元の面積マスクへの対応を保持する。
+3. 次数ラベル、連続幅、major/minor区分を別フィールドにする。
+4. 葉縁で切れたareole、crop境界に接するloop、未接続片を明示的にフラグ化する。
+5. VLAだけでなく、端点、分岐点、loop、areole、MST、階層別統計を計算できる空間グラフを残す。
+6. 自動ラベルと修正後ラベルを別versionとして記録し、どこを人が直したか監査可能にする。
+
+この設計により、生理学では末端供給距離、力学では太い支持脈と横方向の補強、進化・分類では次数とloop階層という、異なる問いを同じデータ基盤から検証できる。
+
+## 第4章　画像解析・セグメンテーション
+
+### 解析は撮像前に始まっている
+
+葉脈解析の最大の誤解は、セグメンテーションを画像処理だけの問題とみなすことである。実際には、標本選択、透明化、染色、封入、照明、解像度、撮像範囲の選択が、回復可能な葉脈階層の上限を決める。透明化・染色法の包括的プロトコルでは、典型的な設備条件で標本選択から封入まで約1週間を要し、週20時間の作業なら大きな全葉5–10枚、または小葉・葉片30–40枚が妥当な処理量とされる。消化は数日から数週間、漂白は数秒から数時間で通常は約30秒である。処理時間の小さな違いが品質を大きく変え、過消化は裂けを、過漂白は使用不能な損傷を生じうる [@niewiadomski2025]。
+
+失敗像は解析誤差と直結する。過消化や強いscrubbingは葉身を破壊してminor vein構造を変え、trichome・病斑・既存食害・気泡は葉脈と誤認されうる像を作り、折れ・裂けは偽の端点や連結成分として数えられうる。染色不足や過染色はいずれもコントラストを損なう [@niewiadomski2025]。これらは画像解析上の帰結であり、論文がセグメンテーション誤差率を直接測定したわけではない。品質管理では、単に「使える／使えない」とするのではなく、折れ、裂け、気泡、傷、毛、染色むら、crop境界を別々のアーティファクト・マスクとして記録する方がよい。
+
+撮像法には明確なextent–resolutionの交換関係がある。透過scannerは全葉を取得しやすく、macro lensと移動stageのpanoramaは広い範囲と高解像度の折衷、顕微鏡は最高解像度だが最小範囲になる [@niewiadomski2025]。したがって、全葉一枚だけで全次数を正確に測る設計には限界がある。目的に応じて、全葉画像で主脈・二次脈・全体形状を、標準化した複数ROIの顕微鏡像でminor vein・free-ending veinlet・areoleを測り、物理座標とスケールを介して統合する多解像度設計が合理的である [@blonder2020; @matos2024]。
+
+### 古典的な対話型解析は今も基準になる
+
+LEAF GUIは、global thresholdと局所平均を用いたadaptive thresholdを組み合わせ、不均一照明に対応する。処理途中で二値像、連結性、areoleの閉じ方を目視確認し、骨格化した後にノード・エッジ・端点を分離し、距離変換から幅を推定する [@price2011]。Table Iの三つの代表画像では、閾値処理とクリーニング後の全葉統計の計算に、1.86 GHzサーバーで58–84秒、998 MHzノートPCで190–264秒を要した。areole統計単独の計算時間は、それぞれ19–38秒と26–57秒だった。これは異なる計算内容の差ではなく、主に二つの計算機環境の差を示す例であり、現代環境の速度比較には使えない。重要なのは、人が前処理とセグメンテーションを確認し、その結果が後段の統計を変えることを明示した点である [@price2011]。
+
+phenoVeinは、背景輝度むらの補正、自動segmentation、骨格overlay、手動修正、モデルベース幅推定を一つの流れにした。Arabidopsisの18枚の葉で、手描き法による総葉脈長と非常に高い一致（$R^2=0.9996$）を示し、第6葉では純粋な手描き約20分に対し1–2分で結果を得た。回転角による変化は、葉面積0.6%未満、骨格長0.1%未満、葉脈密度0.8%未満だった [@buhler_phenoveintool_2015]。一方、同一画像をdown-samplingした試験では、VLAが安定するには約400 dpi以上、幅が解像度から独立するには約3,000 dpi以上が必要だった。これはArabidopsisと当該撮像条件における実験値であり、固定的な普遍閾値ではない。しかし、**存在検出に足りる解像度と幅測定に足りる解像度は違う**ことを端的に示す。
+
+古典法の強みは、少数データでも使え、どの操作が結果を変えたか追跡しやすいことである。弱みは、調整が画像ごと・操作者ごとに変わりやすく、大規模処理や撮像条件が変わる場合の一貫性を保ちにくいことである。したがって、深層学習へ置き換える場合も、手動修正可能な確率マスク、閾値、修正履歴という長所は残すべきである。
+
+### 深層学習は細脈回復を改善するが、二値精度だけでは足りない
+
+CUDU-Netは、bilinear interpolationが太い一次・二次脈を、学習可能なdeconvolutionが細い三次脈を回復するという補完関係をdecoderに組み込み、strip poolingと二重skip connectionで細線構造を保つ [@cai2024]。SoyVein500は、50 soybean cultivarから各10枚、計500枚を600 dpi・48-bit透過scanし、315/35/150枚に分割した。学習時には512×512 patchをstride 128で切り、推論時に重なり領域の確率を平均した。ImageNet事前学習ありのCUDU-Netはtest setでIoU 74.38%、F1 85.05%、accuracy 99.06%を示した。細線である葉脈は背景より画素数が少ないため、99.06%というaccuracyだけを見れば性能を過大評価しうる。IoUやF1を併記する必要がある。
+
+別種への一般化試験では、soybeanで学習したモデルを、同じ撮像・注釈手順で作った20枚のcotton画像へ適用し、CUDU-NetはIoU 57.82%、F1 73.98%だった [@cai2024]。同じ論文内の比較法より良かったが、同種testからIoUが16.56ポイント低下した。これは種差だけでも性能が低下しうることを示す一方、装置・施設の変更までは検証していない。したがって、random image splitに加え、個体・品種・種・撮像装置・研究施設を段階的に分けた外部検証が必要である。また、SoyVein500のground truthは「葉脈／背景」の二値であり、細脈の回復が改善しても、生物学的な次数が正しく付いたことを意味しない。
+
+### 階層segmentationと注釈コスト
+
+HALVSは、soybean 2,610枚、sweet cherry 1,947枚、London planetree 500枚、計5,057枚の未処理葉を600 dpi・48-bit RGBの透過scanで撮像し、一次・二次・三次脈を区別するために構築された。全次数を密に注釈したのは各種50枚、計150枚で、4人の経験者が合計83.8 person-daysを費やした。1枚当たりの平均注釈時間はsoybean 2.1時間、sweet cherry 3.5時間、London planetree 7.8時間で、三次脈が最も時間を要した [@liu2026]。これは、完全教師ラベルを無制限に増やす計画が現実的でないことを定量的に示す。
+
+同研究のPSSSは、一次・二次脈だけを付けた部分ラベルと未ラベル画像から、背景と三次脈の高信頼擬似ラベルを作る。DDLRは、拡散過程に一次・二次脈の構造priorを与え、三次脈の切断や境界を修復する。FixMatchでは、PSSS追加により三次脈IoUが22.32%から36.69%へ、さらにDDLR追加で38.64%へ上がり、mIoUは45.32%から55.58%へ上がった。UniMatchでは、PSSSへDDLRを追加すると三次脈clDiceが55.13%から62.30%へ上がった [@liu2026]。重要なのは、IoUだけでなく、細線の連続性を評価するclDiceを併用した点である。ただし、HALVS自身も階層segmentationはなお難しいと述べ、二次脈を「一次と三次の間にある脈の集合」とする実務的定義を採っている。分類学で用いられる全次数体系を、そのまま学習したデータではない。
+
+### マスク精度、位相精度、形質精度を分けて評価する
+
+葉脈解析の目的は、見栄えのよいマスクを作ることではなく、生物学的形質を再現可能に測ることである。評価は少なくとも次の四段階に分ける必要がある。
+
+| 評価段階 | 推奨指標・比較 | 検出する失敗 |
+|---|---|---|
+| 画素 | 次数別IoU、precision、recall、F1 | 背景優勢でaccuracyが高く見える問題、細脈の欠落 |
+| 中心線・位相 | clDice、Betti error、連結成分、端点・分岐点、loop数 | 1画素の切断、偽bridge、spur |
+| 幾何 | 中心線距離、局所幅誤差、長さ誤差、角度誤差 | skeleton偏位、太さの膨張・収縮 |
+| 生物学的形質 | VLA、次数別密度、areole面積、MST、ER、CRの一致・bias | 小さなマスク誤差が形質へ非線形に増幅する問題 |
+
+例えば、太い脈の境界が数画素ずれてもIoUへの影響は比較的小さいが、幅の比較には系統的biasを生みうる。反対に、loop境界上で細脈が1画素切れると、画素F1をほとんど変えないまま端点を二つ増やし、閉じたareoleを一つ失わせ、MSTやloop数を変えうる。したがって、pixel-levelで最良のmodelが、生理・力学形質でも最良とは限らない。CUDU-NetがBetti errorを、HALVSがclDiceを採用したことは、この問題への重要な前進である [@cai2024; @liu2026]。
+
+### 推奨する解析パイプライン
+
+1. **研究仮説を固定する。** VLAだけか、幅か、次数か、loopか、free-ending veinletかで必要解像度とground truthが変わる。
+2. **標本と撮像のprovenanceを残す。** 生／乾燥、透明化条件、染色、scanner・lens、dpiまたはµm/pixel、extent、orientation、crop、照明を記録する。
+3. **葉身とartifactを先に分ける。** 葉縁マスクに加え、裂け、穴、気泡、毛、病斑、fold、crop境界を除外またはフラグ化する。
+4. **確率画像を保存する。** 閾値後マスクだけでなくmodel出力を残し、不確実な領域を手動確認の優先順位に使う。
+5. **二値マスクを明示的にcleanする。** 小片除去、gap closing、spur除去を自動segmentationとは別工程にし、各操作の前後を保存する。
+6. **骨格と幅を分離して得る。** topologyは中心線graphから、幅は元の面積マスクまたは強度profileから測る。
+7. **次数を候補提示して人が確定する。** 幅、葉柄側からの距離、親edge、分岐角、走向を組み合わせ、曖昧箇所だけをレビューする。
+8. **形質レベルで検証する。** 少なくとも一部を専門家の完全修正マスクと比較し、VLA・幅・次数・loop・areoleのbiasを報告する。
+9. **domain splitを設ける。** 同じ葉から切ったpatchをtrainとtestにまたがらせず、可能なら個体・種・撮像日・装置を分ける。
+10. **再解析可能な成果物を残す。** 元画像、scale、各マスク、graph、手動修正履歴、集計表を一意のsample IDで結ぶ。
+
+この順序なら、自動化は人の判断を隠すものではなく、確認すべき箇所を減らす手段になる。Iwamasaらが未処理葉の撮像、DNN segmentation、無向graph、network feature計算をつなぎ、5種を90.6%で分類した例は、画像からnetwork phenotypingまでの接続可能性を示す。ただし、この数値と一次元のloopiness morphospaceは抄録に基づくため、詳細な再現条件の判断には本文確認が必要である [@iwamasa2023]。
+
+## 四つの章を横断する研究設計
+
+葉脈研究を一貫させるには、観察量と機能仮説を直接つなぐのではなく、間に解剖・ネットワーク・材料の層を置く必要がある。
+
+| 研究上の問い | 主な画像・実験 | 直接測る形質 | 接続する機能 | 主要な交絡 |
+|---|---|---|---|---|
+| 水供給能力は高いか | 全葉＋minor vein高解像、Kleaf | minor VLA、areole、末端距離、幅 | 水理伝導・気孔・光合成 | outside-xylem抵抗、葉厚、bundle sheath |
+| 乾燥でどこが壊れるか | embolism可視化、water potential系列 | 塞栓開始位置、次数別連結、Kleaf低下 | 脆弱性・sectoriality・回復 | xylemとoutside-xylemの分離 |
+| 葉をどう支えるか | 3D断面、曲げ・引張、全葉network | 大脈幅・慣性、角度、loop、局所ひずみ | 剛性、強度、破壊伝播 | turgor、材料異方性、lamina厚 |
+| 損傷後も機能するか | 切断実験＋flow/Kleaf | 大脈loop、MST、代替path | 冗長性・resilience | 損傷位置・大きさ、化学signal |
+| 種・環境で網がどう違うか | 標準化scan、複数種・複数個体 | 階層別VD、MST、ER、CR、次数 | 進化・適応・分類 | 系統、葉齢、光環境、解像度 |
+| 自動解析は信頼できるか | 専門家annotation＋外部test | IoU、clDice、幅・VLA・loop bias | 測定の再現性 | domain shift、patch leakage、class imbalance |
+
+統計設計では、葉内ROIを独立標本として扱わず、個体・葉・ROIの階層を保つ必要がある。種間比較では系統を、処理実験では葉齢、位置、光、水状態を共変量として記録する。今回の文献群でも、Matos et al. は広い系統範囲を優先して1–5成熟個体/種を調べ、別の進化研究では1画像/種で1,000分類群を代表させている。そのため、種内変異を評価する研究では、これらとは異なる反復設計が必要になる [@matos2024; @matos2025]。自動解析で画像数を増やす価値は、modelの精度競争だけでなく、個体内・個体間・種間の分散を分離できる点にある。
+
+最終的な解析単位は「一枚の二値画像」ではなく、同じsample IDで結ばれた、標本条件、物理scale、全葉形状、階層マスク、空間graph、解剖形質、生理測定、力学測定の組である。この構造を保てば、将来segmentation modelを更新しても、過去の測定を再計算し、結論がどの工程に依存したかを追跡できる。
+
+
+
+## 総合結論
+
+葉脈は、水と光合成産物を動かす配管、葉面を支える骨組み、損傷を迂回するnetwork、そして発生・進化の履歴を同時に担う。これらの機能は同じ構造に重なるが、同じ形質で最大化されるわけではない。minor veinを密にしてmesophyllまでの距離を短縮する設計、major veinを太く配置して長距離輸送と支持を担う設計、loopを増やして切断後の迂回路を持つ設計は、それぞれ費用と副作用を伴う。122種および260種の比較で一般的なarchitecture–function関係が弱かったことは、葉脈が重要でないことではなく、異なる階層と周辺組織が機能を分担し、複数の設計が同程度の性能に到達できることを示している [@blonder2020; @matos2024]。
+
+そのため、今後の解析で最も重要なのは、二値maskを最終成果としないことである。元画像とscale、葉身・artifact mask、葉脈確率、修正済みmask、中心線graph、局所幅、次数、areoleを分けて保持し、生理・力学の実測値へ結び付ける。画像解析の改良は、IoUを数ポイント上げることだけでなく、VLA、幅、loop、次数がどの程度安定して再現されるかで評価する。こうして初めて、Zotero文献群に蓄積された生理学・力学の仮説を、再現可能な画像計測として検証できる。
+
+## 解釈上の限界
+
+- 本稿の文献母集団は筆者のZoteroライブラリであり、未収集の重要研究を含む世界全体の網羅的検索ではない。
+- 82報中6報は抄録ベースである。該当文献の方法、数値、限界を研究判断に使う場合は、本文をZoteroへ追加した後に再確認する必要がある。
+- PDFのテキスト抽出には、数式、表、段組、OCRの欠落がありうる。定量値は本文の対応箇所を確認したが、再利用時には原PDFの表・図へ戻ることが望ましい。
+- 葉脈の定義、major/minor区分、次数、最小検出幅、葉面積の扱いは論文間で統一されていない。値の横断比較では測定protocolを共変量または階層として扱う必要がある。
+- 種間相関には系統、葉齢、光環境、水状態、葉厚、mesophyll・bundle sheathなどの交絡が残る。network形質だけを機能の原因と断定しない。
+- segmentation研究の多くは同一dataset内の性能を示す。異種、異装置、異施設へのdomain shiftと、最終的な生物学的形質の誤差は別に検証する必要がある。
+
+## 文献別クイックリファレンス
+
+以下では、主文で詳しく扱った文献も含め、対象82報を再掲する。各項目の `Zotero` はローカルitem key、`根拠` はこのレビューで確認できた情報源を示す。これは結論の強さを格付けするものではなく、後日どの文献へ戻るべきかを判断するための目印である。
+
+::: {.table-responsive}
+| # | 文献 | Zotero item key | 主題タグ | 内容の簡単な要約 | 根拠 |
+|---:|---|---|---|---|---|
+| 1 | **106 Mechanical Characteristics of Vein Network in Butterbur Leaves** [@sakuma2001] | `I325IECF` | 力学・ネットワーク | フキ葉の葉脈角度・長さ・直径と葉身厚を測り、葉脈量の面内配分と引張特性を調べた研究で、葉脈が葉身より高い強度と剛性を担うことを示す。 | 全文索引 |
+| 2 | **617 Vein Structure and Mechanical Properties of a Leaf of Santa Cruz Water Lily (Victoria cruziana)** [@kobayashi2009] | `DMATMNJW` | 力学 | オオオニバスの葉脈断面、引張試験、ヤング率、曲げ剛性を扱う講演報告。Zotero抽出本文は書誌・キーワード中心のため、個別の結果は原文確認が必要である。 | 全文索引 |
+| 3 | **A 3D study of the relationship between leaf vein structure and mechanical function** [@pierantoni2019] | `JYGBNA8W` | 力学・計測法 | 荷重下の中肋をmicroCTで三次元観察し、シュウ酸カルシウム結晶や木化繊維の配置が曲げ、ねじり、座屈、破壊にどう寄与するかを3種で比較した。 | 全文索引 |
+| 4 | **A comprehensive illustrated protocol for clearing, mounting, and imaging leaf venation networks** [@niewiadomski2025] | `TVMTI32J` | 画像解析・計測法 | 葉の前処理、透明化、染色、封入、撮像、保存までを一続きに示し、大型葉や処理困難な試料を含む多様な植物群に適用できる実践的プロトコルである。 | 全文索引 |
+| 5 | **A high-resolution model of the grapevine leaf morphospace predicts synthetic leaves** [@chitwood2025] | `TA2IN3DW` | 画像解析・形態発生 | ブドウの葉身と葉脈の高密度ランドマークを用いて遺伝・発生による形態変異を表すモルフォスペースを構築し、現実的な合成葉と分類モデルへ展開した。 | 全文索引 |
+| 6 | **A Modern Ampelography: A Genetic Basis for Leaf Shape and Venation Patterning in Grape** [@chitwood2014] | `HLRWCWY2` | 形態発生・遺伝・画像解析 | 多数のブドウ系統を輪郭の楕円フーリエ記述子と葉脈ランドマークのProcrustes解析で比較し、葉形・葉脈パターンに強い遺伝的基盤があることを示した。 | 全文索引 |
+| 7 | **A trade-off between transport and mechanics determines plant leaf vein architecture** [@hong2025] | `HR2VCZ4Q` | 生理学・力学 | 多様な種の中肋と葉形を比較し、流体輸送と重力支持のモデルから、先端側では輸送効率、基部側では機械支持が葉脈径を主に規定するという機能分担を示した。 | 全文索引 |
+| 8 | **Allometry of cells and tissues within leaves** [@john2013] | `7EQRS9M5` | 生理学・形態発生・周辺 | 葉面積・厚さと、組織厚、葉肉・木部細胞、細胞壁寸法のアロメトリーを多様な被子植物で検討し、葉の構築と機能を細胞スケールから結ぶ基礎を与える。 | 全文索引 |
+| 9 | **Anatomical determinants of gas exchange and hydraulics vary with leaf shape in soybean** [@tamang2022] | `9HX4HLT5` | 生理学・形態発生 | ダイズ系統間で細長い葉ほど厚く、葉肉構成、光合成、気孔コンダクタンス、葉の水力コンダクタンスも変化することを示し、葉形選抜を群落光合成へつなぐ。 | 全文索引 |
+| 10 | **Aridity-dependent regulation of water-use efficiency by leaf vein traits across grassland communities** [@han_aridity-dependent_nodate] | `SAQM6IGT` | 生理学・生態 | 草原群集の乾燥度勾配で葉脈形質と水利用効率を比較し、モンゴル高原では閾値を伴う応答、チベット高原では低温制約下の異なる応答が現れることを示した。 | 全文索引 |
+| 11 | **Axial anatomy of the leaf midrib provides new insights into the hydraulic architecture and cavitation patterns of Acer pseudoplatanus leaves** [@lechthaler2019] | `Q6HIK3ZD` | 生理学 | セイヨウカジカエデの中肋内でも木部道管径と本数が軸方向に変化することを示し、同一葉脈次数内のテーパリングが流量配分とキャビテーションパターンに関わると論じる。 | 全文索引 |
+| 12 | **Branching Pattern of Veins and Structural Stiffness in Butterbur Leaf** [@kobayashi2003a] | `MVGRM54F` | 力学・ネットワーク | フキ葉の葉脈分岐パターンと構造剛性の関係を扱う講演報告。Zotero抽出本文は書誌ページ中心で、具体的な試験条件と結果は原文確認が必要である。 | 全文索引 |
+| 13 | **Bundle sheath lignification mediates the linkage of leaf hydraulics and venation** [@ohtsuka2018] | `N7RR7AQY` | 生理学・解剖 | 複数樹種で葉脈次数ごとの維管束鞘の木化を比較し、細脈まで木化する種ほど木部内外の通水性と葉の水力コンダクタンスが低いことを示した。 | 全文索引 |
+| 14 | **Causes of ecological gradients in leaf margin entirety: Evaluating the roles of biomechanics, hydraulics, vein geometry, and bud packing** [@givnish2017] | `VPU74D6V` | 力学・生理学・生態進化 | 葉縁鋸歯の緯度勾配について、冷却、支持・供給、光合成、排水、防御、芽内収納という複数仮説を比較し、葉脈幾何と機能を含む説明の証拠を整理したレビューである。 | 全文索引 |
+| 15 | **Classification of the Architecture of Dicotyledonous Leaves** [@hickey1973] | `ZCFLWGY6` | ネットワーク・形態分類 | 双子葉類の葉形、葉端・葉脚、葉縁、主脈走向、葉脈次数などを統一的に記載する分類体系を提示した、葉脈形態記述の基礎文献である。 | 抄録 |
+| 16 | **Computer vision cracks the leaf code** [@wilf2016] | `HKP4PPEH` | 画像解析・生態進化 | 葉形と葉脈画像から機械学習で高次分類群を識別し、人が設定した少数形質だけでは捉えにくい系統学的シグナルを画像全体から抽出できることを示す。 | 全文索引 |
+| 17 | **CUDU-Net: Collaborative up-sampling decoder U-Net for leaf vein segmentation** [@cai2024] | `VBDAWK9M` | 画像解析 | 階層的で細線状の葉脈と複雑な背景に対応するため、ResNet特徴抽出器と協調的アップサンプリングデコーダを組み合わせたU-Net系セグメンテーションモデルを提案した。 | 全文索引 |
+| 18 | **Decline of Leaf Hydraulic Conductance with Dehydration: Relationship to Leaf Size and Venation Architecture** [@scoffoni2011] | `IBAPWKXC` | 生理学・ネットワーク | 小型葉と高い主要脈密度は迂回路を増やし、主要脈の塞栓や損傷に対する水理的脆弱性を下げることを、空間モデルと種間比較の両方から示した。 | 全文索引 |
+| 19 | **Decoding Leaf Hydraulics with a Spatially Explicit Model: Principles of Venation Architecture and Implications for Its Evolution** [@mckown2010] | `ZLXEJRQC` | 生理学・ネットワーク・モデリング | 空間明示モデル `K_leaf` で葉脈次数の伝導度、階層性、テーパリング、葉脈密度を操作し、それぞれが木部および葉全体の通水性へ与える影響を分離した。 | 抄録 |
+| 20 | **Effect of Crease Interval on Unfolding Manner of Corrugated Tree Leaves** [@kobayashi1999] | `BM5P63BQ` | 力学・形態発生 | シデやハンノキ型の平行な折り筋をもつ葉を数値モデル化し、山折り・谷折り間隔の比が展開軌道と折り筋運動をどう変えるかを検討した。 | 全文索引 |
+| 21 | **Effects of major vein blockage and aquaporin inhibition on leaf hydraulics and stomatal conductance** [@harayama2019] | `97UPQS5L` | 生理学・ネットワーク | 主要脈の遮断とアクアポリン阻害を異なる葉脈型の種で比較し、葉脈網の冗長性と木部外水輸送の双方が葉の通水性と気孔応答を制御することを示した。 | 全文索引 |
+| 22 | **Evolution and Function of Leaf Venation Architecture: A Review** [@roth-nebelsick2001] | `ZFK7R2B2` | ネットワーク・生理学・生態進化 | 樹状から網状へ至る葉脈構築、吻合、密度の可塑性を、輸送、損傷回避、力学支持、進化という観点から整理した初期の総合レビューである。 | 全文索引 |
+| 23 | **Evolution of leaf structure and drought tolerance in species of Californian Ceanothus** [@fletcher2018] | `3V4B4J58` | 生理学・生態進化 | 共通圃場のCeanothus近縁種群で、葉サイズ、葉脈密度、LMA、膨圧喪失点などを比較し、乾燥適応における系統差と形質協調を検証した。 | 全文索引 |
+| 24 | **Examining the support–supply and bud-packing hypotheses for the increase in toothed leaf margins in northern deciduous floras** [@zohner2019a] | `HM4LS29P` | 力学・生理学・生態進化 | 落葉木本の比較では生育期間が鋸歯葉を最もよく説明し、葉厚による支持・供給仮説と芽内収納仮説は支持されず、春先の炭素獲得仮説を今後の検証対象とした。 | 全文索引 |
+| 25 | **Functional consequences of light intensity on soybean leaf hydraulic conductance: Coordinated variations in leaf venation architecture and mesophyll structure** [@gao2023] | `H8MCECWR` | 生理学・解剖 | 低光量で葉脈密度・太さ・道管径と葉肉細胞間の連結性が低下し、木部経路と木部外経路の双方を通じてダイズの葉の水力コンダクタンスが下がると示した。 | 抄録 |
+| 26 | **Hard and tough: the coordination between leaf mechanical resistance and drought tolerance** [@nardini2022] | `GJJCKUTI` | 力学・生理学・生態進化 | 硬く丈夫な葉と乾燥耐性が、厚い細胞壁、膨圧喪失、収縮抑制などの解剖学的機構を介して結びつく場合と結びつかない場合を整理したレビューである。 | 全文索引 |
+| 27 | **Higher PEPC activity and vein density contribute to improve cotton leaf water use efficiency under water stress** [@lei2025] | `28TYNHMC` | 生理学 | 水ストレス下のワタでガス交換、葉脈・気孔解剖、PEPC・Rubisco活性、炭素同位体を測り、葉脈密度とPEPC活性の上昇が水利用効率の維持に寄与すると論じた。 | 全文索引 |
+| 28 | **How are leaf mechanical properties and water-use traits coordinated by vein traits? A case study in Fagaceae** [@kawai2016] | `3H6Z9MW2` | 力学・生理学 | ブナ科8種の比較で、主要脈密度は葉の強度・構造、細脈密度は葉身の通水性と対応し、葉脈次数間に力学支持と水利用の分業があることを示した。 | 全文索引 |
+| 29 | **How do leaf veins influence the worldwide leaf economic spectrum? Review and synthesis** [@sack2013] | `IZYAVRKQ` | 生理学・生態進化 | 葉脈密度がLMAを起点として葉経済スペクトルを決めるという仮説を再検討して支持せず、葉脈密度が水理、気孔、光合成へ独立に作用する「flux trait network」を提案した。 | 全文索引 |
+| 30 | **How Does Leaf Anatomy Influence Water Transport outside the Xylem?** [@buckley2015] | `6YYSFX4I` | 生理学・モデリング | 最小葉脈区画であるareoleの解剖を組み込んだモデルにより、葉脈密度、維管束鞘表面積、葉肉経路などが木部外水力コンダクタンスをどう決めるかを定量化した。 | 全文索引 |
+| 31 | **Hybrid network of leaf veins observed in tree species** [@muraleedharan2026b] | `ZE3YSYSC` | ネットワーク | 樹木8種の葉脈グラフを解析し、中位次数までは規則格子、自由終端細脈ではランダム性が強まる、低冗長で頑健な「ハイブリッドネットワーク」として特徴づけた。 | 抄録 |
+| 32 | **Hydraulic architecture of leaf blades: where is the main resistance?** [@cochard2004] | `8IWI3RPA` | 生理学 | 月桂樹とクルミで処理実験、圧力測定、モデルを組み合わせ、葉の水理抵抗の大部分が葉脈内ではなく葉肉など木部外にあるという古典的像を支持した。 | 全文索引 |
+| 33 | **Improved mesophyll–bundle sheath connectivity is achieved via different mechanisms in C2 vs C4 Alternanthera** [@roberts] | `N5BL3NCS` | 生理学・形態発生 | AlternantheraのC3、C2、C4種を三次元解剖し、C2では主に葉脈密度、C4では維管束鞘細胞・pit field・原形質連絡の密度を通じて葉肉—維管束鞘連結が高まることを示した。 | 全文索引 |
+| 34 | **Investigating the Functional and Architectural Diversity of Leaf Venation Networks** [@matos2025a] | `NE6KUEDL` | ネットワーク・生理学・データセット | 系統的に多様な122種について多数の葉脈構築・水理・力学・生理形質を収集し、構築—機能トレードオフを研究するプロジェクトを写真とともに紹介する。 | 全文索引 |
+| 35 | **Kinetics of recovery of leaf hydraulic conductance and vein functionality from cavitation-induced embolism in sunflower** [@trifilo2003] | `AXZMIFGW` | 生理学 | ヒマワリ葉の脱水と再吸水を追跡し、機能する染色葉脈の減少と通水性低下が対応し、再吸水後には葉脈機能と通水性が速やかに回復することを示した。 | 全文索引 |
+| 36 | **Leaf architecture and functional traits for 122 species at the University of California Botanical Garden at Berkeley** [@matos2024a] | `EH58HWAG` | ネットワーク・データセット | シダから被子植物まで122種について、葉脈構築と水理・力学・解剖・生理・経済・化学を含む31形質を収めた再利用可能な比較データセットである。 | 全文索引 |
+| 37 | **Leaf biomechanical traits predict litter decomposability** [@wang2025c] | `ULFEUXXR` | 力学・周辺 | 多数種のパンチ、引張、せん断試験を比較し、葉の固有の破壊抵抗がLMAや厚さだけでは表せない落葉分解性の予測因子で、特にパンチ力とせん断仕事が有用と示した。 | 全文索引 |
+| 38 | **Leaf biomechanics, morphology, and anatomy of the deciduous mesophyte Prunus serrulata and the evergreen sclerophyllous shrub Heteromeles arbutifolia** [@balsamo2003] | `7NMYKDT3` | 力学・生態進化 | 湿潤性落葉樹と乾燥地常緑硬葉樹を比較し、後者の高い引張抵抗と異なる破断経路が、厚いクチクラ、葉肉構築、細胞壁特性の組合せに由来すると論じた。 | 全文索引 |
+| 39 | **Leaf Extraction and Analysis Framework Graphical User Interface: Segmenting and Analyzing the Structure of Leaf Veins and Areoles** [@price2011] | `I7PTR295` | 画像解析・ネットワーク | 葉画像から葉脈とareoleを分割し、部分標本ではなくネットワーク全体の幾何・トポロジーをGUIで計測するLEAFフレームワークを提示した。 | 全文索引 |
+| 40 | **Leaf hydraulic vulnerability triggers the decline in stomatal and mesophyll conductance during drought in rice** [@wang2018] | `BKH3JJZ2` | 生理学 | 短期・長期土壌乾燥下のイネで、葉の水力コンダクタンス低下が気孔および葉肉コンダクタンスの低下を誘発し、光合成制限の主要経路になることを示した。 | 全文索引 |
+| 41 | **Leaf Maximum Photosynthetic Rate and Venation Are Linked by Hydraulics** [@brodribb2007] | `X4IRNXJK` | 生理学 | 葉脈終端から蒸発部位までの木部外経路長を葉脈密度が短縮し、それが葉の水力コンダクタンスと最大光合成速度を結びつけるという機構を種間比較で示した。 | 全文索引 |
+| 42 | **Leaf mesophyll conductance and leaf hydraulic conductance: an introduction to their measurement and coordination** [@flexas2013a] | `GK9PH72M` | 生理学・計測法 | CO2の葉肉コンダクタンスと葉の水力コンダクタンスの測定法を整理し、両者の共変が主に木部外経路を介して気孔・光合成を統合するという仮説を提示した。 | 全文索引 |
+| 43 | **Leaf morphology correlates with water and light availability: What consequences for simple and compound leaves?** [@xu2009] | `BK4FKI2M` | 形態発生・生態進化 | 水分と光の勾配下で単葉と複葉を育て、資源不足時の葉小型化や葉形変化、主要脈・細脈への支持／機能投資の可塑的調整を比較した。 | 全文索引 |
+| 44 | **Leaf shape and venation pattern alter the support investments within leaf lamina in temperate species** [@niinemets2007] | `LJPSJY7X` | 力学・生理学 | 温帯44種で中肋への支持投資と細脈密度を比較し、両者の負の関係が葉サイズ、寿命、形、羽状脈か平行・掌状脈かによる支持コスト差を補うと示した。 | 全文索引 |
+| 45 | **Leaf Shrinkage with Dehydration: Coordination with Hydraulic Vulnerability and Drought Tolerance** [@scoffoni2014] | `DINNFMSB` | 生理学・力学 | 脱水時の葉厚・面積・細胞・空隙の収縮を測り、膨圧喪失前の葉厚収縮が木部外経路を狭め、軽度脱水時の通水性低下と生育地の乾燥適応に結びつくことを示した。 | 全文索引 |
+| 46 | **Leaf Structural Diversity Is Related to Hydraulic Capacity in Tropical Rain Forest Trees** [@sack2006] | `436NLEIC` | 生理学・解剖 | 熱帯樹種間で葉の水理抵抗が中肋の理論軸抵抗、葉脈密度、柵状・海綿状葉肉構造と対応する一方、葉面積や全厚などの外形とは独立しうることを示した。 | 全文索引 |
+| 47 | **Leaf venation network architecture coordinates functional trade-offs across vein spatial scales: evidence for multiple alternative designs** [@matos2024] | `9396YNTW` | ネットワーク・力学・生理学 | 122種を多機能・多スケールで比較し、葉脈構築は支持と損傷抵抗をよく予測するが輸送効率や回復性との関係は弱く、スケール別の独立調整が代替設計を許すと示した。 | 全文索引 |
+| 48 | **Leaf venation network evolution across clades and scales** [@matos2025] | `7W9C6BPS` | ネットワーク・生態進化 | 現生・化石植物の長期比較から、小・中径葉脈で密度とループ平滑性が増した複雑な進化史を復元し、構築多様化が気候より昆虫多様化と対応する可能性を示した。 | 全文索引 |
+| 49 | **Leaf venation networks of Bornean trees: images and hand-traced segmentations** [@blonder_leaf_2019] | `JSIRCDG9` | 画像解析・データセット | ボルネオ樹木の高解像度葉脈画像と手作業で検証したセグメンテーションを公開し、形態比較と機械学習による生物ネットワーク抽出の教師データを提供する。 | 全文索引 |
+| 50 | **Leaf venation: structure, function, development, evolution, ecology and applications in the past, present and future** [@sack2013a] | `3QMH67CL` | ネットワーク・生理学・生態進化 | 葉脈の主要構造形質を、水輸送、糖輸送、支持、損傷耐性、発生、可塑性、環境適応、化石・農業・技術応用まで統合した包括的レビューである。 | 全文索引 |
+| 51 | **Linking functional traits to multiscale statistics of leaf venation networks** [@blonder2020] | `AVEX3RL8` | ネットワーク・生態進化 | 東南アジア樹木の葉脈を伸長比、円形度、密度、最小全域木比で多スケール解析し、力学・損傷抵抗との関連が弱くスケール依存であることを示した。 | 全文索引 |
+| 52 | **Measurement of Leaf Hydraulic Conductance and Stomatal Conductance and Their Responses to Irradiance and Dehydration Using the Evaporative Flux Method** [@sack2012] | `3SLBS4UE` | 生理学・計測法 | 切葉を水源と天秤へ接続し、蒸散流、葉水ポテンシャル、飽差から葉の水力コンダクタンスと気孔コンダクタンスを同時測定するEFM手順を示す。 | 全文索引 |
+| 53 | **Mechanical Contribution of Laminar Angle in Plant Leaves with Pinnate Venation** [@kobayashi2004] | `FYLGTJHR` | 力学 | 羽状脈葉における葉身の角度が機械挙動へ与える寄与を扱う講演報告。Zotero抽出本文は書誌ページ中心で、モデルと結果の詳細は原文確認が必要である。 | 全文索引 |
+| 54 | **Mechanical evaluation of London plane leaves with pedate venation** [@kobayashi2001] | `K72URVE9` | 力学 | 掌状に分岐するモミジバスズカケノキ葉を力学評価した講演報告。抽出本文の抄録は「日本語」とのみ記録されているため、詳細な結果は原文確認が必要である。 | 全文索引 |
+| 55 | **Mechanical Properties of Lamina and Veins in Butterbur Leaf and Its Venation Pattern** [@kobayashi2002] | `MP67BIT2` | 力学・ネットワーク | フキ葉の幾何計測と静的引張試験から、葉脈量の面内配分が概ね一定で、葉脈が葉身より強く剛い支持材として働くことを示した。 | 全文索引 |
+| 56 | **Midveins regulate the shape formation of drying leaves** [@guo2026] | `97ILEZZM` | 力学・形態発生 | 一様に収縮する葉身と収縮しにくい中肋の力学的不適合をモデル化し、この拘束だけで乾燥葉の巻き上がりやしわなど多様な三次元形状が生じうると示した。 | 全文索引 |
+| 57 | **Morphological Response of Eight Quercus Species to Simulated Wind Load** [@wu2016] | `3FSR8L7Q` | 力学・生態進化 | 形の異なるコナラ属8種へ模擬風荷重を与え、切れ込みの深い葉ほど抗力低減や幹・根への配分変化を通じて風へ適応的に応答する傾向を示した。 | 全文索引 |
+| 58 | **Network feature-based phenotyping of leaf venation robustly reconstructs the latent space** [@iwamasa2023] | `WK7NZZQ7` | 画像解析・ネットワーク | 未透明化葉の撮像、深層学習分割、無向グラフ化、ネットワーク特徴量算出をつなぎ、ループ性を軸とする潜在空間と輸送・コスト・損傷耐性のトレードオフを復元した。 | 抄録 |
+| 59 | **Non-destructive acoustic measurement of elastic modulus of plant leaves** [@yoshitsugu2017] | `MDVRP8QL` | 力学・計測法 | 音響共振、レーザー変位計、有限要素解析を組み合わせて葉の方向別ヤング率を非破壊推定し、側脈、とくに一次側脈が曲げ剛性の異方性を高めることを示した。 | 全文索引 |
+| 60 | **OS1008 Unique Vein Structure and Buoyancy Observed in Leaf of Prickly Water Lily** [@morishita2009] | `N7WGNNFL` | 力学 | オニバス葉の葉脈・葉身形状と引張特性を測り、葉脈下面の高い剛性を組み込んだ有限要素モデルが実測浮力を妥当に再現することを示した。 | 全文索引 |
+| 61 | **Outside-Xylem Vulnerability, Not Xylem Embolism, Controls Leaf Hydraulic Decline during Dehydration** [@scoffoni2017a] | `YPFRTP3U` | 生理学 | 高解像度観察、実験、モデルを統合し、脱水初期の葉の通水性低下は葉脈木部の塞栓より先に、葉肉・維管束鞘など木部外経路の脆弱化で生じることを示した。 | 全文索引 |
+| 62 | **Petiole mechanics, leaf inclination, morphology, and investment in support in relation to light availability in the canopy of Liriodendron tulipifera** [@niinemets2002] | `N4W9Q2XG` | 力学・生理学・周辺 | ユリノキ樹冠内で葉柄・葉身の曲げ剛性と傾斜を解析し、光環境に応じて寸法と剛性を調整しつつ、大きな葉を所定角度に保つ支持投資の大きさを示した。 | 全文索引 |
+| 63 | **phenoVein—A Tool for Leaf Vein Segmentation and Analysis** [@buhler_phenoveintool_2015] | `YBT3UA9Z` | 画像解析・計測法 | 不均一照明を補正して葉脈を自動分割し、手動修正を併用しながら長さ、密度、幅、areole面積、分岐・終端などを計測するオープンソースツールである。 | 全文索引 |
+| 64 | **Plasticity in Hydraulic Architecture: Riparian Trees Respond to Increased Temperatures With Genotype-Specific Adjustments to Leaf Traits** [@garthwaite2024] | `9879KAWP` | 生理学・生態進化 | フレモントコットンウッドの相互移植で、葉脈密度と気孔形質の温度応答が集団・遺伝子型ごとに異なり、両形質の可塑性も独立していることを示した。 | 全文索引 |
+| 65 | **Researches into Structure and Motion of Plants from Mechanical View Point** [@kobayashi2019] | `PTB32FSC` | 力学・周辺 | 葉・花の折り畳みと展開、巨大スイレン葉の軽量高剛性葉脈、オジギソウ運動などを、植物バイオメカニクスと生物模倣の観点から総覧した講演論文である。 | 全文索引 |
+| 66 | **Revealing Hierarchical Structure of Leaf Venations via Diffusion-Refined Label-Efficient Segmentation: Dataset and Method** [@liu2026] | `DRJW7RG3` | 画像解析・ネットワーク | 三段階の葉脈次数を注釈したHALVSデータセットと、部分教師あり分割・拡散モデルによるラベル精緻化を組み合わせ、少ない注釈で階層葉脈を抽出する方法を提示した。 | 全文索引 |
+| 67 | **Role of hydraulic traits in stomatal regulation of transpiration under different vapour pressure deficits across five Mediterranean tree crops** [@hernandez-santana2023] | `YANDPUES` | 生理学・周辺 | 地中海性樹木作物5種で樹液流、気孔コンダクタンス、水理形質を同時測定し、蒸気圧飽差への種特異的な気孔応答が水供給構造、特にHuber値と結びつくことを示した。 | 全文索引 |
+| 68 | **Roles of major and minor vein in leaf water deficit tolerance and structural properties in 11 temperate deciduous woody species** [@kawai2018] | `YJNKJJGK` | 生理学・力学 | 温帯落葉木本11種の比較で、主要脈より細脈の形質が水欠乏耐性と葉の構造特性へ強く対応することを示し、葉脈次数別評価の重要性を示す。 | 全文索引 |
+| 69 | **Scaling relationships of leaf vein and areole traits versus leaf size for nine Magnoliaceae species differing in venation density** [@shi2022] | `DMZB9ZZ7` | ネットワーク・生理学 | モクレン科9種で葉面積、総葉脈長・面積、areole面積を比較し、総葉脈長は葉面積に比例する一方、平均areole面積は葉サイズに拘束されず、水理効率と冗長性を独立に変えうると示した。 | 全文索引 |
+| 70 | **Structural organization of the spongy mesophyll** [@borsuk2022] | `HLNVR9VV` | 生理学・ネットワーク・周辺 | microCTと位相解析により海綿状葉肉を秩序ある蜂の巣型と等方的ネットワークを含む連続体として捉え、その構造が葉脈密度や最大光合成速度と対応すると示した。 | 全文索引 |
+| 71 | **Tansley Review No. 22 What becomes of the transpiration stream?** [@canny1990] | `UVKFTWCS` | 生理学・周辺 | 葉脈を出た蒸散流のアポプラスト／シンプラスト経路に関する学説と証拠を批判的に整理し、色素トレーサーの限界と葉縁・鋸歯での溶質濃縮を論じた。 | 全文索引 |
+| 72 | **The Functional Significance of Leaf Shape Lies in Water Relations Over Thermoregulation: A Case Study With an Arid Legume Herb** [@wang2026b] | `7WCU52PX` | 生理学・形態発生 | 乾燥地マメ科草本の小葉数変異を調べ、細い有効葉幅による冷却効果は小さく、葉脈密度増加と道管寸法縮小の水理トレードオフが葉形維持をよりよく説明すると論じた。 | 全文索引 |
+| 73 | **The geometry of unfolding tree leaves** [@kobayashi1998] | `S6KDT7EE` | 力学・形態発生 | シデとブナの折り畳み葉を平面・平行折りモデルで解析し、側脈角度が芽内での収納効率と展開所要時間のトレードオフをつくることを示した。 | 全文索引 |
+| 74 | **The Heterogeneity and Spatial Patterning of Structure and Physiology across the Leaf Surface in Giant Leaves of Alocasia macrorrhiza** [@li2013] | `S8RM63G2` | 生理学 | 巨大葉の中心から外縁までを測り、外側ほど水供給、気孔コンダクタンス、光合成が低く温度が高い空間的不均一性を示し、遠距離水輸送が巨大単葉の制約になりうると論じた。 | 抄録 |
+| 75 | **The mechanical principles behind the golden ratio distribution of veins in plant leaves** [@sun2018] | `WMCPRYZ2` | 力学・ネットワーク | 逆最適化と力学解析から、葉脈の特定の比率配置が少ない材料で葉身支持と広い受光面を両立する構造解になりうると提案した。 | 全文索引 |
+| 76 | **Thresholds for persistent leaf photochemical damage predict plant drought resilience in a tropical rainforest** [@fortunel2023] | `7GEHMJAH` | 生理学・周辺 | 熱帯雨林8種で脱水・再水和後の光化学損傷閾値を測り、その閾値が葉脈塞栓抵抗や個体レベルの樹液流回復性と対応することを示した。 | 全文索引 |
+| 77 | **Tissue-level leaf toughness, but not lamina thickness, predicts sapling leaf lifespan and shade tolerance of tropical tree species** [@kitajima2010] | `L985AZE2` | 力学・生態進化 | 熱帯樹木の葉身・葉脈の破壊靱性を比較し、葉厚よりも組織密度と組織レベルの靱性が葉寿命、実生生存、被食、耐陰性をよく予測することを示した。 | 全文索引 |
+| 78 | **Unfolding Manners of Corrugated Plant Leaves** [@kobayashi1998a] | `8GNXXLEW` | 力学・形態発生 | シデ・ブナの芽から展開葉までを観察し、葉脈角度を変えた紙モデルと数値計算から、折り畳み葉の軌道と展開エネルギーへの影響を調べた。 | 全文索引 |
+| 79 | **Vein Angle and Growing/Deployable Speed of Tree Leaves with Corrugation Folding** [@kobayashi2002b] | `QBYRNXFH` | 力学・形態発生 | 葉脈角度の異なる折り紙モデルと中肋伸長の観測を組み合わせ、角度と成長速度が折り畳み葉の円滑な展開軌道と運動エネルギーを左右することを示した。 | 全文索引 |
+| 80 | **Vein Distribution on the Deformation Behavior and Fracture Mechanisms of Typical Plant Leaves by Quasi In Situ Tensile Test under a Digital Microscope** [@liu2020a] | `PNPESZQ6` | 力学・ネットワーク | 網状脈葉と平行脈葉の引張変形を顕微鏡下で比較し、網状脈は亀裂経路を長くして進展を抑え、平行脈は亀裂発生荷重を高めるという異なる耐破壊機構を示した。 | 全文索引 |
+| 81 | **Venation Pattern of Butterbur Leaf and Its Mechanical Contribution** [@kobayashi2000] | `DDKREUMY` | 力学・ネットワーク | フキ葉の楕円断面葉脈と相似的な配分を計測し、葉脈の高いヤング率を用いた力学モデルから、広い葉身を支える葉脈網の寄与を評価した。 | 全文索引 |
+| 82 | **Visual quantification of embolism reveals leaf vulnerability to hydraulic failure** [@brodribb2016] | `MTELLV3C` | 生理学・計測法 | 脱水葉で塞栓が発生・拡大する時空間パターンを非侵襲的な光学法で可視化し、塞栓進行と葉の水力コンダクタンス低下が強く対応し、極端な水ストレスで気孔閉鎖後に進むことを示した。 | 全文索引 |
+:::
+
+## 参考文献 {.unnumbered}
+
+::: {#refs}
+:::
