@@ -1,27 +1,29 @@
-"""Vein-length and VLA measurement from the manual order-label layer.
+"""Vein-length and VLA export from order labels and traced vein paths.
 
-Lengths are measured once per click; changing the leaf area afterwards only
-recomputes VLA from the stored lengths.  Export always re-measures so the files
-match the labels as they are at export time.
+Export measures the order labels and/or the traced 1°/2° paths as they are at
+that moment and writes the results to the chosen output folder.  Results are not shown in the dock (it is too
+narrow); only a short notification confirms the export.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 from napari.layers import Image, Labels
-from napari.utils.notifications import show_info
+from napari.utils.notifications import show_info, show_warning
 
 from ..calibration import CALIBRATION_MM_PER_PIXEL_KEY
 from ..order import (
     ExportedOrderPaths,
-    apply_leaf_area,
+    _safe_prefix,
     export_order_results,
     make_qc_overlay,
     measure_order_labels,
     validate_order_labels,
 )
+from ..paths import ExportedPathFiles, export_vein_paths, measure_vein_paths
 from ..skeleton import create_skeleton_helpers
 from .controls import WorkflowControls, parse_number_input
 from .layers import (
@@ -33,24 +35,31 @@ from .layers import (
     WorkflowLayers,
 )
 
-# 結果欄に出す行。uncertain は件数だけ別に警告する。
-DISPLAY_ORDER = (
-    ("primary", "1° primary"),
-    ("secondary", "2° secondary"),
-    ("tertiary", "3° tertiary"),
-    ("primary_secondary", "1°+2°"),
-    ("major", "major (1°–3°)"),
-)
+MM2_PER_UNIT = {"mm2": 1.0, "cm2": 100.0}
+
+
+@dataclass(slots=True)
+class MeasurementExport:
+    """Files written by one Export click; either part may be absent."""
+
+    labels: ExportedOrderPaths | None = None
+    paths: ExportedPathFiles | None = None
 
 
 class MeasurementWorkflow:
-    """Measure order labels, show per-order results, and export them."""
+    """Measure order labels and export per-order lengths and VLA."""
 
-    def __init__(self, layers: WorkflowLayers, controls: WorkflowControls):
+    def __init__(
+        self,
+        layers: WorkflowLayers,
+        controls: WorkflowControls,
+        vein_paths=None,
+    ):
         self.layers = layers
         self.controls = controls
-        self.rows: list[dict[str, Any]] = []
+        self.vein_paths = vein_paths
         self.uncertain_pixels = 0
+        self.unlabeled_vein_pixels = 0
 
     def active_order_labels_layer(self) -> Labels | None:
         """Resolve the selected workflow layer to its order-label layer."""
@@ -70,55 +79,100 @@ class MeasurementWorkflow:
         return None
 
     def leaf_area_mm2(self) -> float | None:
-        """Return the typed leaf area, ``None`` when blank, or raise ValueError."""
+        """Return the typed leaf area converted to mm², or ``None`` when blank."""
         if not self.controls.leaf_area_input.text().strip():
             return None
-        value = parse_number_input(self.controls.leaf_area_input, "Leaf area (mm²)")
+        value = parse_number_input(self.controls.leaf_area_input, "Leaf area")
         if value <= 0:
-            raise ValueError("Leaf area (mm²) must be greater than zero.")
-        return value
+            raise ValueError("Leaf area must be greater than zero.")
+        unit = str(self.controls.leaf_area_unit_combo.currentData())
+        return value * MM2_PER_UNIT[unit]
+
+    def output_dir(self) -> Path:
+        """Return the folder shown in the output field."""
+        return Path(self.controls.output_dir_input.text())
+
+    def set_output_dir(self, output_dir: str | Path) -> None:
+        """Change the export folder shown in the dock."""
+        self.controls.output_dir_input.setText(str(output_dir))
 
     def measure(self) -> list[dict[str, Any]] | None:
-        """Skeletonize each order class and show lengths and VLA."""
+        """Return per-order measurement rows for the active order labels."""
         order_layer = self.active_order_labels_layer()
         if order_layer is None:
             self.controls.warn("Create order labels before measuring.")
             return None
-
         try:
-            leaf_area = self.leaf_area_mm2()
-            rows = self._measure_layer(order_layer, leaf_area)
+            return self._measure_layer(order_layer, self.leaf_area_mm2())
         except ValueError as exc:
             self.controls.warn(str(exc))
             return None
 
-        self.rows = rows
-        self.controls.export_button.setEnabled(True)
-        self._show_rows()
-        self.controls.set_status(f"Measured {order_layer.name}.")
-        return rows
-
-    def on_leaf_area_changed(self, *args) -> None:
-        """Recompute VLA from stored lengths when the leaf area changes."""
-        if not self.rows:
-            return
-        try:
-            leaf_area = self.leaf_area_mm2()
-        except ValueError as exc:
-            self.controls.set_status(str(exc))
-            return
-        self.rows = apply_leaf_area(self.rows, leaf_area, source="input")
-        self._show_rows()
-
-    def export(self, output_dir: str | Path) -> ExportedOrderPaths | None:
-        """Re-measure current labels and write CSV, labels, QC image, branches."""
+    def export(self, output_dir: str | Path | None = None) -> MeasurementExport | None:
+        """Export traced paths and/or order labels for the active image."""
+        target = Path(output_dir) if output_dir is not None else self.output_dir()
         order_layer = self.active_order_labels_layer()
-        if order_layer is None:
-            self.controls.warn("Create order labels before exporting.")
+        paths_layer = (
+            self.vein_paths.active_paths_layer() if self.vein_paths is not None else None
+        )
+        has_paths = paths_layer is not None and len(paths_layer.data) > 0
+        if order_layer is None and not has_paths:
+            self.controls.warn("Trace vein paths or create order labels before exporting.")
             return None
 
         try:
             leaf_area = self.leaf_area_mm2()
+        except ValueError as exc:
+            self.controls.warn(str(exc))
+            return None
+
+        result = MeasurementExport()
+        if has_paths:
+            result.paths = self._export_paths(paths_layer, leaf_area, target)
+            if result.paths is None:
+                return None
+        if order_layer is not None:
+            result.labels = self._export_labels(order_layer, leaf_area, target)
+            if result.labels is None and result.paths is None:
+                return None
+
+        if leaf_area is None:
+            show_warning("Leaf area is empty: VLA columns were left blank.")
+        return result
+
+    def _export_paths(
+        self,
+        paths_layer,
+        leaf_area: float | None,
+        target: Path,
+    ) -> ExportedPathFiles | None:
+        paths, orders = self.vein_paths.collect(paths_layer)
+        pixel_size = self.vein_paths.pixel_size_mm(paths_layer)
+        image_name = str(paths_layer.metadata.get(SOURCE_IMAGE_KEY) or paths_layer.name)
+        try:
+            rows = measure_vein_paths(
+                paths,
+                orders,
+                pixel_size_mm=pixel_size,
+                leaf_area_mm2=leaf_area,
+                image_name=image_name,
+            )
+        except ValueError as exc:
+            self.controls.warn(str(exc))
+            return None
+        files = export_vein_paths(target, rows, paths, orders, _safe_prefix(image_name))
+        show_info(f"Exported {files.measurements_csv.name}")
+        if pixel_size is None:
+            show_warning("Paths image is not calibrated: lengths are in px.")
+        return files
+
+    def _export_labels(
+        self,
+        order_layer: Labels,
+        leaf_area: float | None,
+        target: Path,
+    ) -> ExportedOrderPaths | None:
+        try:
             rows = self._measure_layer(order_layer, leaf_area)
         except ValueError as exc:
             self.controls.warn(str(exc))
@@ -146,7 +200,7 @@ class MeasurementWorkflow:
             labels,
         )
         paths = export_order_results(
-            output_dir,
+            target,
             rows,
             labels,
             branch_table=branch_table,
@@ -154,21 +208,20 @@ class MeasurementWorkflow:
             prefix=self._image_name(order_layer),
         )
 
-        self.rows = rows
-        self._show_rows()
-        self.controls.set_status(f"Exported measurements to {paths.measurements_csv}")
         show_info(f"Exported {paths.measurements_csv.name}")
+        if self.unlabeled_vein_pixels:
+            show_warning(
+                f"{self.unlabeled_vein_pixels} vein_mask px have no order label "
+                "(0) and were excluded. Paint them or remove them from the mask."
+            )
+        if self.uncertain_pixels:
+            show_warning(
+                f"{self.uncertain_pixels} px are still labelled uncertain (4) "
+                "and were excluded from every order."
+            )
+        if mm_per_pixel is None:
+            show_warning("Image is not calibrated: lengths are in px and VLA is empty.")
         return paths
-
-    def default_export_dir(self) -> str:
-        """Suggest the folder of the source image file when napari knows it."""
-        order_layer = self.active_order_labels_layer()
-        name = self._image_name(order_layer) if order_layer is not None else ""
-        source = self.layers.by_name(name) if name else None
-        path = getattr(getattr(source, "source", None), "path", None)
-        if path:
-            return str(Path(path).parent)
-        return str(Path.cwd())
 
     def _measure_layer(
         self,
@@ -179,7 +232,15 @@ class MeasurementWorkflow:
         if labels.ndim != 2:
             raise ValueError("Measurement requires 2D order labels.")
 
-        validation = validate_order_labels(labels, labels > 0)
+        # mask と照合し、mask にあるのに次数が付いていない葉脈を数える。
+        mask_layer = self.layers.order_labels_to_mask.get(id(order_layer))
+        vein_mask = labels > 0
+        if mask_layer is not None and self.layers.is_present(mask_layer):
+            candidate = np.asarray(mask_layer.data)
+            if candidate.shape == labels.shape:
+                vein_mask = candidate > 0
+        validation = validate_order_labels(labels, vein_mask)
+        self.unlabeled_vein_pixels = validation.unlabeled_vein_pixels
         if validation.invalid_label_values:
             raise ValueError(
                 "Order labels contain unsupported values: "
@@ -197,36 +258,6 @@ class MeasurementWorkflow:
             label_layer_name=order_layer.name,
             leaf_area_mm2=leaf_area_mm2,
         )
-
-    def _show_rows(self) -> None:
-        by_name = {row["label_name"]: row for row in self.rows}
-        lines: list[str] = []
-        calibrated = any(row.get("length_mm") is not None for row in self.rows)
-        if not calibrated:
-            lines.append("Not calibrated: lengths in px, VLA unavailable.")
-
-        for key, title in DISPLAY_ORDER:
-            row = by_name.get(key)
-            if row is None:
-                continue
-            if row.get("length_mm") is not None:
-                length = f"{row['length_mm']:.4g} mm"
-            else:
-                length = f"{row['length_px']:.4g} px"
-            vla = row.get("vla_mm_per_mm2")
-            vla_text = f"{vla:.4g} mm/mm²" if vla is not None else "—"
-            lines.append(f"{title}: L = {length}, VLA = {vla_text}")
-
-        if calibrated and not any(
-            row.get("leaf_area_mm2") for row in self.rows
-        ):
-            lines.append("Enter leaf area (mm²) to compute VLA.")
-        if self.uncertain_pixels:
-            lines.append(
-                f"⚠ {self.uncertain_pixels} px still labelled uncertain (4); "
-                "they are excluded from every order."
-            )
-        self.controls.set_measurement_result("\n".join(lines))
 
     def _image_name(self, order_layer: Labels) -> str:
         return str(order_layer.metadata.get(SOURCE_IMAGE_KEY) or order_layer.name)

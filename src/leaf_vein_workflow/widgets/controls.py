@@ -4,7 +4,8 @@ This module only creates controls, arranges them, and changes their enabled
 state.  Layer operations and image processing belong to the workflow modules.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from napari.utils.notifications import show_warning
 from qtpy.QtCore import QLocale, Qt
@@ -86,6 +87,14 @@ class CollapsibleSection(QWidget):
         self.toggle_button.toggled.connect(self._set_expanded)
         self._set_expanded(expanded)
 
+    def set_expanded(self, expanded: bool) -> None:
+        """Open or close the section as if its header had been clicked."""
+        self.toggle_button.setChecked(expanded)
+
+    def is_expanded(self) -> bool:
+        """Return whether the section content is shown."""
+        return self.toggle_button.isChecked()
+
     def _set_expanded(self, expanded: bool) -> None:
         self.content.setVisible(expanded)
         arrow = (
@@ -107,6 +116,9 @@ class WorkflowControls:
     calibration_unit_combo: QComboBox
     draw_scale_bar_button: QPushButton
     apply_scale_button: QPushButton
+    path_order_combo: QComboBox
+    draw_vein_paths_button: QPushButton
+    vein_paths_hint_label: QLabel
     add_roi_button: QPushButton
     apply_gaussian_button: QPushButton
     otsu_button: QPushButton
@@ -115,9 +127,10 @@ class WorkflowControls:
     create_order_labels_button: QPushButton
     leaf_area_label: QLabel
     leaf_area_input: QLineEdit
-    measure_button: QPushButton
+    leaf_area_unit_combo: QComboBox
+    output_dir_input: QLineEdit
+    change_output_dir_button: QPushButton
     export_button: QPushButton
-    measurement_result_label: QLabel
     gaussian_sigma_label: QLabel
     gaussian_sigma_spinbox: QDoubleSpinBox
     threshold_label: QLabel
@@ -131,6 +144,7 @@ class WorkflowControls:
     closing_radius_spinbox: QSpinBox
     opening_radius_label: QLabel
     opening_radius_spinbox: QSpinBox
+    sections: dict[str, CollapsibleSection] = field(default_factory=dict)
 
     @classmethod
     def create(cls) -> "WorkflowControls":
@@ -157,11 +171,23 @@ class WorkflowControls:
         calibration_unit_combo.addItem("mm", "mm")
         calibration_unit_combo.setEnabled(False)
 
-        measurement_result_label = QLabel("No measurement yet.")
-        measurement_result_label.setWordWrap(True)
-        measurement_result_label.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
+        path_order_combo = QComboBox()
+        path_order_combo.addItem("1° primary", 1)
+        path_order_combo.addItem("2° secondary", 2)
+
+        vein_paths_hint_label = QLabel(
+            "Trace on the whole leaf: click vertices, double-click to finish. "
+            "Select paths and change the order to relabel them."
         )
+        vein_paths_hint_label.setWordWrap(True)
+
+        leaf_area_unit_combo = QComboBox()
+        leaf_area_unit_combo.addItem("mm²", "mm2")
+        leaf_area_unit_combo.addItem("cm²", "cm2")
+
+        # 既定の出力先は napari を起動したフォルダ直下の output。
+        output_dir_input = QLineEdit(str(Path.cwd() / "output"))
+        output_dir_input.setReadOnly(True)
 
         gaussian_sigma_spinbox = QDoubleSpinBox()
         gaussian_sigma_spinbox.setRange(0.0, 50.0)
@@ -187,7 +213,8 @@ class WorkflowControls:
         max_hole_size_spinbox = QSpinBox()
         max_hole_size_spinbox.setRange(0, 1_000_000)
         max_hole_size_spinbox.setSingleStep(10)
-        max_hole_size_spinbox.setValue(500)
+        # 葉脈が前景なので、大きな穴埋めは小さな網目（areole）を潰してしまう。
+        max_hole_size_spinbox.setValue(50)
 
         closing_radius_spinbox = QSpinBox()
         closing_radius_spinbox.setRange(0, 50)
@@ -207,17 +234,21 @@ class WorkflowControls:
             calibration_unit_combo=calibration_unit_combo,
             draw_scale_bar_button=QPushButton("Draw Scale Bar Line"),
             apply_scale_button=QPushButton("Apply Scale"),
+            path_order_combo=path_order_combo,
+            draw_vein_paths_button=QPushButton("Draw Vein Paths"),
+            vein_paths_hint_label=vein_paths_hint_label,
             add_roi_button=QPushButton("Add ROI"),
             apply_gaussian_button=QPushButton("Apply Gaussian"),
             otsu_button=QPushButton("Apply Otsu"),
             invert_threshold_checkbox=QCheckBox("Invert threshold"),
             clean_mask_button=QPushButton("Clean Mask"),
             create_order_labels_button=QPushButton("Create Order Labels"),
-            leaf_area_label=QLabel("Leaf area (mm²)"),
+            leaf_area_label=QLabel("Leaf area"),
             leaf_area_input=make_number_input("", "measured before preparation"),
-            measure_button=QPushButton("Measure Veins"),
-            export_button=QPushButton("Export Measurements..."),
-            measurement_result_label=measurement_result_label,
+            leaf_area_unit_combo=leaf_area_unit_combo,
+            output_dir_input=output_dir_input,
+            change_output_dir_button=QPushButton("Change..."),
+            export_button=QPushButton("Export Measurements"),
             gaussian_sigma_label=QLabel("Gaussian sigma"),
             gaussian_sigma_spinbox=gaussian_sigma_spinbox,
             threshold_label=QLabel("Mask threshold"),
@@ -231,6 +262,10 @@ class WorkflowControls:
             closing_radius_spinbox=closing_radius_spinbox,
             opening_radius_label=QLabel("Opening radius (px)"),
             opening_radius_spinbox=opening_radius_spinbox,
+        )
+        controls.invert_threshold_checkbox.setToolTip(
+            "Off: pixels brighter than the threshold become vein (1). "
+            "On: pixels darker than the threshold become vein."
         )
         controls.set_calibration_enabled(False)
         controls.add_roi_button.setEnabled(False)
@@ -262,12 +297,23 @@ class WorkflowControls:
         calibration_layout.addWidget(self.apply_scale_button)
         calibration_layout.addWidget(self.calibration_status_label)
 
+        path_order_layout = QHBoxLayout()
+        path_order_layout.addWidget(QLabel("Order"))
+        path_order_layout.addWidget(self.path_order_combo, 1)
+
+        vein_paths_layout = QVBoxLayout()
+        vein_paths_layout.addLayout(path_order_layout)
+        vein_paths_layout.addWidget(self.draw_vein_paths_button)
+        vein_paths_layout.addWidget(self.vein_paths_hint_label)
+
         roi_layout = QVBoxLayout()
         roi_layout.addWidget(self.add_roi_button)
 
         mask_creation_layout = QVBoxLayout()
-        mask_creation_layout.addWidget(self.gaussian_sigma_label)
-        mask_creation_layout.addWidget(self.gaussian_sigma_spinbox)
+        gaussian_layout = QHBoxLayout()
+        gaussian_layout.addWidget(self.gaussian_sigma_label)
+        gaussian_layout.addWidget(self.gaussian_sigma_spinbox, 1)
+        mask_creation_layout.addLayout(gaussian_layout)
         mask_creation_layout.addWidget(self.apply_gaussian_button)
         mask_creation_layout.addWidget(self.otsu_button)
         mask_creation_layout.addWidget(self.invert_threshold_checkbox)
@@ -290,33 +336,42 @@ class WorkflowControls:
 
         leaf_area_layout = QHBoxLayout()
         leaf_area_layout.addWidget(self.leaf_area_label)
-        leaf_area_layout.addWidget(self.leaf_area_input)
+        leaf_area_layout.addWidget(self.leaf_area_input, 1)
+        leaf_area_layout.addWidget(self.leaf_area_unit_combo)
+
+        output_dir_layout = QHBoxLayout()
+        output_dir_layout.addWidget(QLabel("Output"))
+        output_dir_layout.addWidget(self.output_dir_input, 1)
+        output_dir_layout.addWidget(self.change_output_dir_button)
 
         measurement_layout = QVBoxLayout()
         measurement_layout.addLayout(leaf_area_layout)
-        measurement_layout.addWidget(self.measure_button)
-        measurement_layout.addWidget(self.measurement_result_label)
+        measurement_layout.addLayout(output_dir_layout)
         measurement_layout.addWidget(self.export_button)
 
         scroll_content = QWidget()
         stages_layout = QVBoxLayout(scroll_content)
         stages_layout.setContentsMargins(0, 0, 0, 0)
-        stages_layout.addWidget(
-            CollapsibleSection("Scale calibration", calibration_layout)
+        stage_layouts = (
+            ("calibration", "Scale calibration", calibration_layout),
+            ("vein_paths", "Vein paths (1°/2°)", vein_paths_layout),
+            ("roi", "ROI", roi_layout),
+            ("mask_creation", "Mask creation", mask_creation_layout),
+            ("mask_cleanup", "Mask cleanup", mask_cleanup_layout),
+            ("order_labels", "Vein order labels", order_labels_layout),
+            ("measurement", "Measurement", measurement_layout),
         )
-        stages_layout.addWidget(CollapsibleSection("ROI", roi_layout))
-        stages_layout.addWidget(
-            CollapsibleSection("Mask creation", mask_creation_layout)
-        )
-        stages_layout.addWidget(
-            CollapsibleSection("Mask cleanup", mask_cleanup_layout)
-        )
-        stages_layout.addWidget(
-            CollapsibleSection("Vein order labels", order_labels_layout)
-        )
-        stages_layout.addWidget(
-            CollapsibleSection("Measurement", measurement_layout)
-        )
+        for key, title, stage_layout in stage_layouts:
+            section = CollapsibleSection(
+                title,
+                stage_layout,
+                expanded=(key == "calibration"),
+            )
+            section.toggle_button.toggled.connect(
+                lambda checked, key=key: self._on_section_toggled(key, checked)
+            )
+            self.sections[key] = section
+            stages_layout.addWidget(section)
         stages_layout.addStretch()
 
         scroll_area = QScrollArea()
@@ -332,6 +387,20 @@ class WorkflowControls:
         layout.addWidget(self.status_label)
         return layout
 
+    def _on_section_toggled(self, key: str, expanded: bool) -> None:
+        """Keep one stage open at a time so the dock rarely needs scrolling."""
+        if not expanded:
+            return
+        for other_key, section in self.sections.items():
+            if other_key != key and section.is_expanded():
+                section.set_expanded(False)
+
+    def open_section(self, key: str) -> None:
+        """Open one workflow stage and close the others."""
+        section = self.sections.get(key)
+        if section is not None:
+            section.set_expanded(True)
+
     def set_calibration_enabled(self, enabled: bool) -> None:
         """Enable calibration controls after at least one source image exists."""
         self.calibration_method_label.setEnabled(enabled)
@@ -344,6 +413,9 @@ class WorkflowControls:
         self.calibration_unit_combo.setEnabled(is_scale_bar)
         self.calibration_unit_combo.setVisible(is_scale_bar)
         self.draw_scale_bar_button.setEnabled(is_scale_bar)
+        self.path_order_combo.setEnabled(enabled)
+        self.draw_vein_paths_button.setEnabled(enabled)
+        self.set_measurement_enabled(enabled)
 
     def set_calibration_method(self, method: str) -> None:
         """Adapt the shared numeric field to the selected calibration method."""
@@ -399,22 +471,13 @@ class WorkflowControls:
         self.opening_radius_spinbox.setEnabled(enabled)
         self.clean_mask_button.setEnabled(enabled)
         self.create_order_labels_button.setEnabled(enabled)
-        self.set_measurement_enabled(enabled)
 
     def set_measurement_enabled(self, enabled: bool) -> None:
-        """Enable measurement once a mask (and so order labels) can exist.
-
-        Export stays disabled until a measurement has been taken.
-        """
+        """Enable measurement once a mask (and so order labels) can exist."""
         self.leaf_area_label.setEnabled(enabled)
         self.leaf_area_input.setEnabled(enabled)
-        self.measure_button.setEnabled(enabled)
-        if not enabled:
-            self.export_button.setEnabled(False)
-
-    def set_measurement_result(self, message: str) -> None:
-        """Show the latest per-order lengths and VLA."""
-        self.measurement_result_label.setText(message)
+        self.leaf_area_unit_combo.setEnabled(enabled)
+        self.export_button.setEnabled(enabled)
 
     def set_cleanup_unit_labels(self, mm_per_pixel: float | None) -> None:
         """Show physical equivalents while keeping cleanup inputs in pixels."""

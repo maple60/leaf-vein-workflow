@@ -19,6 +19,8 @@ ROLE_VEIN_MASK = "vein_mask"
 ROLE_ORDER_LABELS = "order_labels"
 ROLE_SCALE_BAR = "scale_bar"
 ROLE_SCALE_INDICATOR = "scale_indicator"
+ROLE_VEIN_PATHS = "vein_paths"
+VEIN_PATH_ORDER_KEY = "order"
 SOURCE_IMAGE_KEY = "source_image"
 SOURCE_CROP_KEY = "source_crop"
 SOURCE_MASK_KEY = "source_mask"
@@ -27,6 +29,13 @@ SMOOTHED_LAYER_NAME = "smoothed_image"
 VEIN_MASK_LAYER_NAME = "vein_mask"
 ORDER_LABELS_LAYER_NAME = "order_labels"
 ORDER_UNCERTAIN_LABEL = 4
+# vein_mask は 1 = 葉脈（着色）、0 = 背景（透明）。label 1 で塗ると葉脈を足せる。
+VEIN_MASK_LABEL = 1
+VEIN_MASK_COLORS = {
+    0: "transparent",
+    1: "#00d5ff",
+    None: "#00d5ff",
+}
 ORDER_LABEL_COLORS = {
     0: "transparent",
     1: "#ff4b00",
@@ -49,6 +58,8 @@ class WorkflowLayers:
         self.image_to_scale_bar: dict[int, Shapes] = {}
         # 校正結果を目で確かめるための表示用バー（計測には使わない）。
         self.image_to_scale_indicator: dict[int, Shapes] = {}
+        self.image_to_vein_paths: dict[int, Shapes] = {}
+        self.vein_paths_to_image: dict[int, Image] = {}
         self.crop_to_smoothed: dict[int, Image] = {}
         self.smoothed_to_crop: dict[int, Image] = {}
         self.crop_to_mask: dict[int, Labels] = {}
@@ -76,6 +87,8 @@ class WorkflowLayers:
             source = self.roi_to_image.get(id(layer))
             if source is None:
                 source = self.scale_bar_to_image.get(id(layer))
+            if source is None:
+                source = self.vein_paths_to_image.get(id(layer))
             if source is not None and self.is_present(source):
                 return source
 
@@ -100,6 +113,10 @@ class WorkflowLayers:
         scale_bar = self.image_to_scale_bar.get(id(source_image))
         if scale_bar is not None and self.is_present(scale_bar):
             self._replace_calibration(scale_bar, metadata)
+
+        vein_paths = self.image_to_vein_paths.get(id(source_image))
+        if vein_paths is not None and self.is_present(vein_paths):
+            self._replace_calibration(vein_paths, metadata)
 
         for roi_id, candidate_source in self.roi_to_image.items():
             if candidate_source is not source_image:

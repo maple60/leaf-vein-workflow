@@ -13,6 +13,7 @@ from .mask import MaskWorkflow
 from .measurement import MeasurementWorkflow
 from .order_labels import OrderLabelsWorkflow
 from .roi import RoiWorkflow
+from .vein_paths import VeinPathsWorkflow
 
 
 class CropWidget(QWidget):
@@ -34,9 +35,11 @@ class CropWidget(QWidget):
             self._layers,
             self._controls,
         )
+        self._vein_paths_workflow = VeinPathsWorkflow(self._layers, self._controls)
         self._measurement_workflow = MeasurementWorkflow(
             self._layers,
             self._controls,
+            self._vein_paths_workflow,
         )
 
         # 既存利用コードが同じ属性名でQt controlへアクセスできるよう明示的に公開する。
@@ -47,6 +50,8 @@ class CropWidget(QWidget):
         self.calibration_unit_combo = self._controls.calibration_unit_combo
         self.draw_scale_bar_button = self._controls.draw_scale_bar_button
         self.apply_scale_button = self._controls.apply_scale_button
+        self.path_order_combo = self._controls.path_order_combo
+        self.draw_vein_paths_button = self._controls.draw_vein_paths_button
         self.add_roi_button = self._controls.add_roi_button
         self.apply_gaussian_button = self._controls.apply_gaussian_button
         self.otsu_button = self._controls.otsu_button
@@ -54,9 +59,10 @@ class CropWidget(QWidget):
         self.clean_mask_button = self._controls.clean_mask_button
         self.create_order_labels_button = self._controls.create_order_labels_button
         self.leaf_area_input = self._controls.leaf_area_input
-        self.measure_button = self._controls.measure_button
+        self.leaf_area_unit_combo = self._controls.leaf_area_unit_combo
+        self.output_dir_input = self._controls.output_dir_input
+        self.change_output_dir_button = self._controls.change_output_dir_button
         self.export_button = self._controls.export_button
-        self.measurement_result_label = self._controls.measurement_result_label
         self.gaussian_sigma_label = self._controls.gaussian_sigma_label
         self.gaussian_sigma_spinbox = self._controls.gaussian_sigma_spinbox
         self.threshold_label = self._controls.threshold_label
@@ -100,16 +106,17 @@ class CropWidget(QWidget):
         )
         self.draw_scale_bar_button.clicked.connect(self.draw_scale_bar_line)
         self.apply_scale_button.clicked.connect(self.apply_scale)
+        self.draw_vein_paths_button.clicked.connect(self.draw_vein_paths)
+        self.path_order_combo.currentIndexChanged.connect(
+            self._vein_paths_workflow.on_order_changed
+        )
         self.add_roi_button.clicked.connect(self.add_roi)
         self.apply_gaussian_button.clicked.connect(self.apply_gaussian_filter)
         self.otsu_button.clicked.connect(self.use_otsu_threshold)
         self.clean_mask_button.clicked.connect(self.clean_mask)
         self.create_order_labels_button.clicked.connect(self.create_order_labels)
-        self.measure_button.clicked.connect(self.measure_veins)
+        self.change_output_dir_button.clicked.connect(self.choose_output_dir)
         self.export_button.clicked.connect(self.export_measurements)
-        self.leaf_area_input.textChanged.connect(
-            self._measurement_workflow.on_leaf_area_changed
-        )
         self.invert_threshold_checkbox.toggled.connect(self._schedule_mask_update)
         self.threshold_spinbox.valueChanged.connect(
             self._on_threshold_spinbox_changed
@@ -138,11 +145,21 @@ class CropWidget(QWidget):
 
     def apply_scale(self) -> None:
         """Apply the selected pixel-to-metric calibration method."""
+        source_image = self._layers.active_source_image()
+        before = None if source_image is None else dict(source_image.metadata)
         self._calibration_workflow.apply_scale()
+        if source_image is not None and dict(source_image.metadata) != before:
+            self._controls.open_section("roi")
+
+    def draw_vein_paths(self):
+        """Create or select the 1°/2° path layer for the active image."""
+        return self._vein_paths_workflow.draw_vein_paths()
 
     def add_roi(self) -> None:
         """Delegate explicit ROI confirmation to the ROI workflow."""
         self._roi_workflow.add_roi()
+        if self._layers.active_crop_layer() is not None:
+            self._controls.open_section("mask_creation")
 
     def apply_gaussian_filter(self) -> None:
         """Delegate explicit smoothing to the mask workflow."""
@@ -159,22 +176,30 @@ class CropWidget(QWidget):
     def create_order_labels(self) -> None:
         """Delegate manual order-label setup to the labeling workflow."""
         self._order_labels_workflow.create_order_labels()
+        if self._measurement_workflow.active_order_labels_layer() is not None:
+            self._controls.open_section("measurement")
 
     def measure_veins(self):
-        """Measure per-order vein length and VLA from the order labels."""
+        """Return per-order vein length and VLA rows without exporting."""
         return self._measurement_workflow.measure()
 
+    def choose_output_dir(self) -> None:
+        """Let the user pick a different export folder."""
+        current = self._measurement_workflow.output_dir()
+        start = current if current.exists() else current.parent
+        selected = QFileDialog.getExistingDirectory(
+            self,
+            "Choose output folder",
+            str(start),
+        )
+        if selected:
+            self._measurement_workflow.set_output_dir(selected)
+
     def export_measurements(self, output_dir=None):
-        """Export measurements; ask for a folder when none is given."""
-        if not output_dir:
-            output_dir = QFileDialog.getExistingDirectory(
-                self,
-                "Export measurements to folder",
-                self._measurement_workflow.default_export_dir(),
-            )
-            if not output_dir:
-                return None
-        return self._measurement_workflow.export(output_dir)
+        """Export to the output folder shown in the dock (or ``output_dir``)."""
+        if output_dir:
+            self._measurement_workflow.set_output_dir(output_dir)
+        return self._measurement_workflow.export()
 
     def _on_layer_inserted(self, event) -> None:
         self._prepare_image_layer(event.value)

@@ -15,8 +15,10 @@ napari plugin for leaf vein image workflow development.
 - Clean the current mask with explicit morphology settings before manual edits.
 - Create an editable order labels layer from the confirmed vein mask
   (1 primary, 2 secondary, 3 tertiary, 4 uncertain).
+- Trace 1° and 2° veins as paths on the whole leaf (segmented-line method of
+  Sack & Scoffoni 2013) and export their summed length and VLA.
 - Measure skeleton length per vein order and VLA against a leaf area typed in
-  mm², then export the results.
+  mm² or cm², and export the results.
 
 Saving cropped images, multiple ROIs, polygon ROIs, nD stacks, automatic vein
 order classification, and minor-vein (4th order and above) labels are outside
@@ -71,15 +73,28 @@ pixel values for reproducible morphology behavior; when the image is calibrated,
 their labels also show object/hole areas in mm² and closing/opening radii in µm
 or mm.
 
-In the `Measurement` section, type the leaf area in mm² (for example measured
-from a scan taken before specimen preparation) and click `Measure Veins`. The
-dock shows total length and VLA (mm mm⁻²) for 1°, 2°, 3°, 1°+2°, and major
-(1°–3°). Combined rows are the sum of the per-order skeleton lengths. Changing
-the leaf area afterwards recomputes VLA without re-measuring. Pixels still
-labelled 4 (uncertain) are excluded from every order and reported as a warning.
-`Export Measurements...` re-measures the current labels and writes a
-measurements CSV (lengths in px and mm, leaf area and its source, VLA), the
-order labels as `.npy`, a QC overlay PNG, and a skeleton branch table.
+In the `Measurement` section, type the leaf area (for example measured from a
+scan taken before specimen preparation) and choose mm² or cm²; it is converted
+to mm² internally. Click `Export Measurements` to measure the current labels and
+write them to the output folder, which defaults to `output/` under the folder
+napari was started from (`Change...` picks another one). The files are a
+measurements CSV with total length and VLA (mm mm⁻²) for 1°, 2°, 3°, 1°+2°, and
+major (1°–3°), the order labels as `.npy`, a QC overlay PNG, and a skeleton
+branch table. Combined rows are the sum of the per-order skeleton lengths.
+Results are not shown in the dock; a notification confirms the export and warns
+about pixels still labelled 4 (uncertain), which are excluded from every order.
+
+For 1° and 2° veins on a whole-leaf image, open `Vein paths (1°/2°)`, choose
+the order, click `Draw Vein Paths`, and trace each vein (click vertices,
+double-click to finish). New paths take the selected order; select existing
+paths and change the order to relabel them. `Export Measurements` then also
+writes `*_path_measurements.csv` (paths per order, length in px and mm, VLA for
+1°, 2°, and 1°+2°) and `*_path_vertices.csv` (every traced vertex). Tertiary
+veins are not traced here; measure them in sample boxes with order labels.
+
+Workflow sections open one at a time, and finishing a stage (Apply Scale, Add
+ROI, Create Order Labels) opens the next one, so the dock rarely needs
+scrolling.
 
 Run tests:
 

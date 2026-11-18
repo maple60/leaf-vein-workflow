@@ -41,14 +41,14 @@ class OrderLabelsWorkflow:
             return
 
         mask_data = np.asarray(mask_layer.data)
-        if not np.any(mask_data == 0):
-            self.controls.warn(f"{VEIN_MASK_LAYER_NAME} has no white-out pixels.")
+        if not np.any(mask_data > 0):
+            self.controls.warn(f"{VEIN_MASK_LAYER_NAME} has no vein pixels.")
             return
 
         if mask_data.ndim != 2:
             self.controls.warn("Order labels require a 2D vein mask.")
             return
-        labels = np.where(mask_data == 0, ORDER_UNCERTAIN_LABEL, 0).astype(np.uint8)
+        labels = np.where(mask_data > 0, ORDER_UNCERTAIN_LABEL, 0).astype(np.uint8)
 
         order_layer = self.create_or_select_order_labels_layer(mask_layer, labels)
         if order_layer is None:
@@ -153,7 +153,7 @@ class OrderLabelsWorkflow:
         if mask_layer is None or not self.layers.is_present(mask_layer):
             return indices, value
 
-        mask = np.asarray(mask_layer.data) == 0
+        mask = np.asarray(mask_layer.data) > 0
         try:
             keep = np.asarray(mask[indices], dtype=bool)
         except (IndexError, TypeError, ValueError):
@@ -210,10 +210,44 @@ class OrderLabelsWorkflow:
             self.layers.mask_clip_connected.add(mask_id)
 
     def clip_for_mask(self, mask_layer: Labels) -> None:
-        """Clip the order layer after its mask changes."""
+        """Sync the order layer after its mask changes.
+
+        Labels outside the new mask are cleared, and vein pixels added to the
+        mask become uncertain (4) so they are visible and cannot silently drop
+        out of the measurement.
+        """
         order_layer = self.layers.mask_to_order_labels.get(id(mask_layer))
-        if order_layer is not None and self.layers.is_present(order_layer):
-            self.clip_to_mask(order_layer)
+        if order_layer is None or not self.layers.is_present(order_layer):
+            return
+        self.clip_to_mask(order_layer)
+        self.mark_new_vein_uncertain(order_layer)
+
+    def mark_new_vein_uncertain(self, order_layer: Labels) -> None:
+        """Set unlabeled pixels inside the mask to the uncertain label."""
+        order_id = id(order_layer)
+        if order_id in self.layers.clipping_order_labels:
+            return
+
+        mask_layer = self.layers.order_labels_to_mask.get(order_id)
+        if mask_layer is None or not self.layers.is_present(mask_layer):
+            return
+
+        labels = np.asarray(order_layer.data)
+        mask = np.asarray(mask_layer.data) > 0
+        if labels.shape != mask.shape:
+            return
+
+        unlabeled_vein = mask & (labels == 0)
+        if not np.any(unlabeled_vein):
+            return
+
+        updated = labels.copy()
+        updated[unlabeled_vein] = ORDER_UNCERTAIN_LABEL
+        self.layers.clipping_order_labels.add(order_id)
+        try:
+            order_layer.data = updated
+        finally:
+            self.layers.clipping_order_labels.discard(order_id)
 
     def clip_to_mask(self, order_layer: Labels) -> None:
         """Clear nonzero order labels outside the associated mask."""
@@ -226,7 +260,7 @@ class OrderLabelsWorkflow:
             return
 
         labels = np.asarray(order_layer.data)
-        mask = np.asarray(mask_layer.data) == 0
+        mask = np.asarray(mask_layer.data) > 0
         if labels.shape != mask.shape:
             return
 

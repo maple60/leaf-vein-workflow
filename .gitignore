@@ -8,6 +8,7 @@ _site/
 __pycache__/
 *.pyc
 *.egg-info/
+/output/
 
 notebooks/skeletonization.qmd
 notebooks/skeletonization.qmd

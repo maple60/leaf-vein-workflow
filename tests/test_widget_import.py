@@ -127,20 +127,48 @@ def test_workflow_controls_are_scrollable_and_collapsible(widget_flow):
     assert scroll_area is not None
     assert scroll_area.widgetResizable()
 
-    section_button = flow.widget.findChild(
-        QToolButton,
-        "workflow_section_mask_cleanup",
-    )
-    assert section_button is not None
-    assert section_button.isChecked()
-    assert section_button.arrowType() == Qt.ArrowType.DownArrow
+    def button(name):
+        found = flow.widget.findChild(QToolButton, f"workflow_section_{name}")
+        assert found is not None
+        return found
 
-    section_content = section_button.parent().content
-    section_button.click()
+    calibration = button("scale_calibration")
+    cleanup = button("mask_cleanup")
+    assert calibration.isChecked()
+    assert not cleanup.isChecked()
+    assert cleanup.arrowType() == Qt.ArrowType.RightArrow
+    assert cleanup.parent().content.isHidden()
+
+    # 1つ開くと他は閉じる（アコーディオン）。
+    cleanup.click()
     flow.app.processEvents()
-    assert not section_button.isChecked()
-    assert section_button.arrowType() == Qt.ArrowType.RightArrow
-    assert section_content.isHidden()
+    assert cleanup.isChecked()
+    assert cleanup.arrowType() == Qt.ArrowType.DownArrow
+    assert not calibration.isChecked()
+    assert calibration.parent().content.isHidden()
+
+    cleanup.click()
+    flow.app.processEvents()
+    assert not cleanup.isChecked()
+    assert cleanup.parent().content.isHidden()
+
+
+def test_completed_stages_open_the_next_section(widget_flow):
+    from qtpy.QtWidgets import QToolButton
+
+    flow = widget_flow
+
+    def is_open(name):
+        return flow.widget.findChild(
+            QToolButton, f"workflow_section_{name}"
+        ).isChecked()
+
+    flow.widget.calibration_value_input.setText("300")
+    flow.widget.apply_scale()
+    assert is_open("roi") and not is_open("scale_calibration")
+
+    _advance_to_crop(flow)
+    assert is_open("mask_creation") and not is_open("roi")
 
 
 def test_widget_module_reexports_public_api(monkeypatch, tmp_path):
@@ -206,12 +234,12 @@ def test_cleanup_controls_show_metric_equivalents_and_keep_pixel_inputs(widget_f
     flow.widget.apply_scale()
 
     assert flow.widget.min_object_size_spinbox.value() == 100
-    assert flow.widget.max_hole_size_spinbox.value() == 500
+    assert flow.widget.max_hole_size_spinbox.value() == 50
     assert flow.widget.min_object_size_label.text() == (
         "Small object area: ≈ 1 mm² (100 px)"
     )
     assert flow.widget.max_hole_size_label.text() == (
-        "Maximum hole area: ≈ 5 mm² (500 px)"
+        "Maximum hole area: ≈ 0.5 mm² (50 px)"
     )
     assert flow.widget.closing_radius_label.text() == (
         "Closing radius: ≈ 100 µm (1 px)"
@@ -235,7 +263,7 @@ def test_cleanup_controls_show_metric_equivalents_and_keep_pixel_inputs(widget_f
         "Small object area: ≈ 0.015625 mm² (25 px)"
     )
     assert flow.widget.max_hole_size_label.text() == (
-        "Maximum hole area: ≈ 0.3125 mm² (500 px)"
+        "Maximum hole area: ≈ 0.03125 mm² (50 px)"
     )
     assert flow.widget.closing_radius_label.text() == (
         "Closing radius: ≈ 25 µm (1 px)"
@@ -435,7 +463,7 @@ def test_clean_mask_removes_small_object_and_keeps_paint_mode(widget_flow):
 def test_order_labels_restrict_edits_to_confirmed_mask(widget_flow):
     flow = widget_flow
     _, _, mask_layer = _advance_to_mask(flow)
-    mask_layer.data = np.array([[1, 0, 1], [1, 1, 1]], dtype=np.uint8)
+    mask_layer.data = np.array([[0, 1, 0], [0, 0, 0]], dtype=np.uint8)
 
     flow.widget.create_order_labels()
     order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
@@ -474,7 +502,7 @@ def test_order_labels_restrict_edits_to_confirmed_mask(widget_flow):
 def test_create_order_labels_reuses_layer_and_tracks_mask_changes(widget_flow):
     flow = widget_flow
     _, _, mask_layer = _advance_to_mask(flow)
-    mask_layer.data = np.array([[1, 0, 1], [1, 1, 1]], dtype=np.uint8)
+    mask_layer.data = np.array([[0, 1, 0], [0, 0, 0]], dtype=np.uint8)
     flow.widget.create_order_labels()
     order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
     order_layer.paint((0, 1), 2)
@@ -485,7 +513,7 @@ def test_create_order_labels_reuses_layer_and_tracks_mask_changes(widget_flow):
     assert flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME] is order_layer
     assert int(np.asarray(order_layer.data)[0, 1]) == 2
 
-    mask_layer.data = np.ones_like(mask_layer.data)
+    mask_layer.data = np.zeros_like(mask_layer.data)
     flow.app.processEvents()
     assert np.count_nonzero(order_layer.data) == 0
 
@@ -493,7 +521,7 @@ def test_create_order_labels_reuses_layer_and_tracks_mask_changes(widget_flow):
 def test_recrop_reuses_crop_and_removes_derived_layers(widget_flow):
     flow = widget_flow
     crop_layer, _, mask_layer = _advance_to_mask(flow)
-    mask_layer.data = np.array([[1, 0, 1], [1, 1, 1]], dtype=np.uint8)
+    mask_layer.data = np.array([[0, 1, 0], [0, 0, 0]], dtype=np.uint8)
     flow.widget.create_order_labels()
 
     flow.viewer.layers.selection.active = flow.roi_layer
@@ -510,53 +538,59 @@ def test_recrop_reuses_crop_and_removes_derived_layers(widget_flow):
 
 
 
-def test_measure_veins_reports_orders_and_recomputes_vla_from_leaf_area(
+def test_export_measurements_converts_leaf_area_units_and_uses_output_dir(
     widget_flow, tmp_path
 ):
+    import csv
+    from pathlib import Path
+
     flow = widget_flow
+    assert Path(flow.widget.output_dir_input.text()) == Path.cwd() / "output"
+
     mm_index = flow.widget.calibration_method_combo.findData("mm_per_pixel")
     flow.widget.calibration_method_combo.setCurrentIndex(mm_index)
     flow.widget.calibration_value_input.setText("0.1")
     flow.widget.apply_scale()
 
     _, _, mask_layer = _advance_to_mask(flow)
-    mask_layer.data = np.zeros((2, 3), dtype=np.uint8)
+    mask_layer.data = np.ones((2, 3), dtype=np.uint8)
     flow.widget.create_order_labels()
     order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
     order_layer.data = np.array([[1, 1, 1], [3, 0, 4]], dtype=np.uint8)
     flow.app.processEvents()
 
-    assert flow.widget.export_button.isEnabled() is False
+    assert flow.widget.export_button.isEnabled()
     flow.widget.leaf_area_input.setText("2")
     rows = flow.widget.measure_veins()
-    assert rows is not None, flow.widget.status_label.text()
     by_name = {row["label_name"]: row for row in rows}
-
     assert by_name["primary"]["length_mm"] == pytest.approx(0.2)
     assert by_name["primary"]["vla_mm_per_mm2"] == pytest.approx(0.1)
     assert by_name["secondary"]["length_mm"] == 0.0
     assert by_name["major"]["length_mm"] == pytest.approx(
         by_name["primary"]["length_mm"] + by_name["tertiary"]["length_mm"]
     )
-    assert flow.widget.export_button.isEnabled()
-    text = flow.widget.measurement_result_label.text()
-    assert "1° primary" in text and "major (1°–3°)" in text
-    assert "1 px still labelled uncertain" in text
 
-    flow.widget.leaf_area_input.setText("4")
-    flow.app.processEvents()
-    by_name = {
-        row["label_name"]: row for row in flow.widget._measurement_workflow.rows
-    }
-    assert by_name["primary"]["length_mm"] == pytest.approx(0.2)
-    assert by_name["primary"]["vla_mm_per_mm2"] == pytest.approx(0.05)
+    # 0.04 cm² = 4 mm²
+    flow.widget.leaf_area_input.setText("0.04")
+    flow.widget.leaf_area_unit_combo.setCurrentIndex(
+        flow.widget.leaf_area_unit_combo.findData("cm2")
+    )
+    flow.widget.output_dir_input.setText(str(tmp_path / "out"))
+    status_before = flow.widget.status_label.text()
 
-    paths = flow.widget.export_measurements(tmp_path)
-    csv_text = paths.measurements_csv.read_text(encoding="utf-8")
-    assert "tertiary" in csv_text
-    assert "leaf_area_source" in csv_text
+    result = flow.widget.export_measurements()
+    assert result.paths is None
+    paths = result.labels
+
+    assert paths.measurements_csv.parent == tmp_path / "out"
+    with paths.measurements_csv.open(encoding="utf-8") as file:
+        exported = {row["label_name"]: row for row in csv.DictReader(file)}
+    assert float(exported["primary"]["leaf_area_mm2"]) == pytest.approx(4.0)
+    assert float(exported["primary"]["vla_mm_per_mm2"]) == pytest.approx(0.05)
+    assert "tertiary" in exported
     assert paths.qc_overlay_png.exists()
     assert paths.branch_table_csv.exists()
+    assert flow.widget.status_label.text() == status_before
 
 
 def test_measure_veins_warns_without_order_labels(widget_flow):
@@ -592,3 +626,94 @@ def test_apply_scale_draws_10_mm_display_bar_without_stealing_selection(widget_f
     start, end = np.asarray(bar.data[0])
     assert np.linalg.norm(end - start) == pytest.approx(100.0)
     assert sum(1 for name in _layer_names(flow) if name.startswith("big ") and name.endswith(" bar")) == 1
+
+
+def test_vein_mask_colors_vein_pixels_and_paints_vein_label(widget_flow):
+    flow = widget_flow
+    _, _, mask_layer = _advance_to_mask(flow)
+
+    colors = mask_layer.colormap.color_dict
+    assert colors[0][3] == 0
+    assert colors[1][3] > 0
+    assert mask_layer.selected_label == 1
+
+
+def test_vein_added_to_mask_after_order_labels_becomes_uncertain(widget_flow):
+    flow = widget_flow
+    _, _, mask_layer = _advance_to_mask(flow)
+    mask_layer.data = np.array([[0, 1, 0], [0, 0, 0]], dtype=np.uint8)
+    flow.widget.create_order_labels()
+    order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
+    order_layer.data = np.array([[0, 2, 0], [0, 0, 0]], dtype=np.uint8)
+    flow.app.processEvents()
+
+    mask_layer.data = np.array([[0, 1, 1], [0, 0, 0]], dtype=np.uint8)
+    flow.app.processEvents()
+
+    np.testing.assert_array_equal(
+        order_layer.data,
+        np.array([[0, 2, 4], [0, 0, 0]], dtype=np.uint8),
+    )
+
+
+def test_export_counts_mask_pixels_without_order_label(widget_flow, tmp_path):
+    flow = widget_flow
+    _, _, mask_layer = _advance_to_mask(flow)
+    mask_layer.data = np.array([[1, 1, 1], [0, 0, 0]], dtype=np.uint8)
+    flow.widget.create_order_labels()
+    order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
+    # 次数ラベルを消しゴムで0にした（maskには残っている）状態。
+    order_layer.data = np.array([[1, 1, 0], [0, 0, 0]], dtype=np.uint8)
+    flow.app.processEvents()
+
+    flow.widget.export_measurements(tmp_path)
+
+    assert flow.widget._measurement_workflow.unlabeled_vein_pixels == 1
+
+
+def test_vein_paths_take_selected_order_and_export_lengths(widget_flow, tmp_path):
+    import csv
+
+    flow = widget_flow
+    image = flow.viewer.add_image(np.zeros((200, 300)), name="whole")
+    flow.app.processEvents()
+    flow.viewer.layers.selection.active = image
+    index = flow.widget.calibration_method_combo.findData("mm_per_pixel")
+    flow.widget.calibration_method_combo.setCurrentIndex(index)
+    flow.widget.calibration_value_input.setText("0.1")
+    flow.widget.apply_scale()
+    flow.viewer.layers.selection.active = image
+
+    paths_layer = flow.widget.draw_vein_paths()
+    assert paths_layer.name == "whole vein paths"
+    assert paths_layer.mode == "add_path"
+    assert paths_layer.metadata[flow.module.CALIBRATION_MM_PER_PIXEL_KEY] == 0.1
+
+    paths_layer.add_paths([np.array([[10.0, 10.0], [110.0, 10.0]])])
+    flow.widget.path_order_combo.setCurrentIndex(
+        flow.widget.path_order_combo.findData(2)
+    )
+    paths_layer.add_paths([np.array([[20.0, 10.0], [20.0, 40.0]])])
+    paths_layer.add_paths([np.array([[30.0, 10.0], [30.0, 30.0]])])
+    assert paths_layer.features["order"].tolist() == [1, 2, 2]
+
+    # 選択したパスの次数を付け替える。
+    paths_layer.selected_data = {2}
+    flow.widget.path_order_combo.setCurrentIndex(
+        flow.widget.path_order_combo.findData(1)
+    )
+    assert paths_layer.features["order"].tolist() == [1, 2, 1]
+
+    flow.widget.leaf_area_input.setText("1")
+    flow.widget.leaf_area_unit_combo.setCurrentIndex(
+        flow.widget.leaf_area_unit_combo.findData("cm2")
+    )
+    result = flow.widget.export_measurements(tmp_path)
+
+    assert result.labels is None
+    with result.paths.measurements_csv.open(encoding="utf-8") as file:
+        rows = {row["label_name"]: row for row in csv.DictReader(file)}
+    assert float(rows["primary"]["length_mm"]) == pytest.approx(12.0)
+    assert float(rows["secondary"]["length_mm"]) == pytest.approx(3.0)
+    assert float(rows["primary_secondary"]["vla_mm_per_mm2"]) == pytest.approx(0.15)
+    assert result.paths.vertices_csv.exists()

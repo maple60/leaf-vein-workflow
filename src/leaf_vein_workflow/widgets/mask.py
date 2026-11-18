@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 from napari.layers import Image, Labels
+from napari.utils.colormaps import direct_colormap
 from napari.utils.notifications import show_info
 from qtpy.QtCore import QTimer
 
@@ -26,6 +27,8 @@ from .layers import (
     SMOOTHED_LAYER_NAME,
     SOURCE_CROP_KEY,
     SOURCE_IMAGE_KEY,
+    VEIN_MASK_COLORS,
+    VEIN_MASK_LABEL,
     VEIN_MASK_LAYER_NAME,
     WorkflowLayers,
 )
@@ -247,6 +250,7 @@ class MaskWorkflow:
             existing.data = mask
             existing.translate = tuple(crop_layer.translate)
             existing.opacity = 0.65
+            existing.colormap = direct_colormap(VEIN_MASK_COLORS)
             existing.metadata.update(metadata)
             mask_layer = existing
         else:
@@ -255,8 +259,10 @@ class MaskWorkflow:
                 name=VEIN_MASK_LAYER_NAME,
                 translate=tuple(crop_layer.translate),
                 opacity=0.65,
+                colormap=direct_colormap(VEIN_MASK_COLORS),
                 metadata=metadata,
             )
+        mask_layer.selected_label = VEIN_MASK_LABEL
 
         self.layers.crop_to_mask[id(crop_layer)] = mask_layer
         self.layers.mask_to_crop[id(mask_layer)] = crop_layer

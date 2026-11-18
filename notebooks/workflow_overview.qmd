@@ -38,8 +38,10 @@ format:
 12. paint mode の `vein_mask` を手作業で修正する。
 13. mask を確認した後に `Create Order Labels` を押す。
 14. `order_labels` Labels レイヤー上で葉脈次数を塗り分ける。
-15. `Measurement` の `Leaf area (mm²)` に葉面積を入力し、`Measure Veins` を押す。1次・2次・3次・1+2次・major（1–3次）の総延長と VLA が表示される。葉面積を後から書き換えると、長さは測り直さずに VLA だけ再計算される。
-16. `Export Measurements...` で保存先フォルダを選ぶと、現在のラベルを測り直して CSV・ラベル（.npy）・QC 画像・branch table を書き出す。
+15. `Measurement` の `Leaf area` に葉面積を入力し、単位（mm² / cm²）を選ぶ。内部では mm² に換算する。
+16. `Export Measurements` を押すと、現在のラベルを計測して出力フォルダに CSV・ラベル（.npy）・QC 画像・branch table を書き出す。出力先の既定は napari を起動したフォルダ直下の `output/` で、`Change...` で変えられる。結果は dock には表示せず、書き出し完了と未分類ピクセルの警告を通知で出す。
+
+dock の各工程は同時に1つだけ開き、`Apply Scale`・`Add ROI`・`Create Order Labels` が成功すると次の工程が自動で開く。
 
 重要なのは、各工程がユーザーの操作で明示的に区切られている点です。長方形を描いただけでは crop は作られず、`Apply Gaussian` を押しても `vein_mask` は作られません。mask が初めて作られるのは `Apply Otsu` を押したときです。
 
@@ -256,7 +258,9 @@ mask は napari の Labels レイヤーとして作られます。レイヤー�
 
 作成後は `vein_mask` を非表示にし、`order_labels` を active な paint mode にします。order labels への描画は確認済み mask の対象領域内だけに制限され、mask が後から変わった場合も領域外のラベルを 0 に戻します。
 
-現在の実装では、`vein_mask == 0` の white-out 領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは `order_labels.py` 側も一緒に確認する必要があります。
+`vein_mask` は 1 = 葉脈（水色で着色）、0 = 背景（透明）です。mask を手で直すときは label 1 で塗ると葉脈を足し、消しゴム（label 0）で葉脈を消せます。order labels は `vein_mask > 0` の領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。order labels を作った後に mask を直すと、mask から消えた部分のラベルは 0 に戻り、mask に足した部分は label 4（uncertain）になります。Export では order labels を `vein_mask` と照合し、mask にあるのに次数が 0 の画素があれば警告します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは `order_labels.py` 側も一緒に確認する必要があります。
+
+葉脈が前景なので、`Clean Mask` の「Small object area」は小さな葉脈の断片を、「Maximum hole area」は葉脈の内側の小さな穴を対象にします。穴埋めを大きくすると小さな網目（areole）まで潰れるため、既定値は 50 px にしています。
 
 order labels の値は、次の用途を想定しています。
 
@@ -272,9 +276,17 @@ order labels の値は、次の用途を想定しています。
 
 ## 計測と VLA
 
+### パス計測（1次・2次）
+
+参考プロトコル（Sack & Scoffoni 2013）では、1次脈と 2次脈は葉全体の画像で segmented line としてなぞり、長さを合計して葉面積で割ります。`Vein paths (1°/2°)` はこの方法に対応します。`Draw Vein Paths` を押すと元画像に `<画像名> vein paths` の Shapes レイヤーができ、path 描画モードになります。クリックで頂点を置き、ダブルクリックで1本を確定します。
+
+各パスは `order` feature（1 または 2）を持ち、新しいパスには dock で選んだ次数が付きます。既存のパスを選択して次数を切り替えると付け替わり、色（1次 = 赤橙、2次 = 青）も更新されます。長さは頂点間の距離の合計で、校正値は元画像から引き継ぎます。`Export Measurements` で `*_path_measurements.csv`（次数ごとの本数・長さ・VLA）と、全頂点を記録した `*_path_vertices.csv` を書き出します。3次脈は葉全体ではなく矩形の標本領域で測る方法なので、パス計測の対象にしていません。
+
+### 次数ラベル計測
+
 `widgets/measurement.py` が `order.py` の `measure_order_labels` を呼び、label 1・2・3 をそれぞれ別に骨格化して skan の branch 長を合計します。合算行（`primary_secondary` = 1+2、`major` = 1+2+3）は、単一次数の長さの和です。合併領域を骨格化し直すと次数の境界で骨格が短くなり、major が primary より短くなることがあるためです。major を 1–3 次とする定義は Sack & Scoffoni (2013) に従っています。
 
-葉面積は画像からではなく、GUI に入力した mm² 値を使います（標本化前のスキャンで測った値を想定）。VLA は `length_mm / leaf_area_mm2` で、`apply_leaf_area` により長さを保ったまま葉面積だけ差し替えられます。CSV には `leaf_area_source` 列で葉面積の出どころ（`input` または `leaf_mask`）を残します。label 4 のまま残ったピクセルはどの次数にも入らず、結果欄に件数を警告として出します。
+葉面積は画像からではなく、GUI に入力した値を使います（標本化前のスキャンで測った値を想定）。cm² で入力した場合は 100 倍して mm² に換算します。VLA は `length_mm / leaf_area_mm2` で、`apply_leaf_area` により長さを保ったまま葉面積だけ差し替えられます。CSV には `leaf_area_source` 列で葉面積の出どころ（`input` または `leaf_mask`）を残します。label 4 のまま残ったピクセルはどの次数にも入らず、結果欄に件数を警告として出します。
 
 ## エラーや警告になる例
 
