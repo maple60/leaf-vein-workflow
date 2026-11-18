@@ -218,10 +218,29 @@ def _as_2d_skeleton(skeleton: np.ndarray) -> np.ndarray:
     return skeleton_array > 0
 
 
+def drop_isolated_pixels(skeleton: np.ndarray) -> np.ndarray:
+    """Remove skeleton pixels with no 8-connected neighbour.
+
+    Isolated pixels have zero length, and skan cannot build a graph when a
+    skeleton contains only such pixels.
+    """
+    skeleton_bool = np.asarray(skeleton, dtype=bool)
+    padded = np.pad(skeleton_bool, 1)
+    neighbours = sum(
+        padded[1 + dy : padded.shape[0] - 1 + dy, 1 + dx : padded.shape[1] - 1 + dx]
+        .astype(np.uint8)
+        for dy in (-1, 0, 1)
+        for dx in (-1, 0, 1)
+        if (dy, dx) != (0, 0)
+    )
+    return skeleton_bool & (neighbours > 0)
+
+
 def _make_skeleton_graph(skeleton: np.ndarray) -> Skeleton | None:
-    if not np.any(skeleton):
+    connected = drop_isolated_pixels(skeleton)
+    if not np.any(connected):
         return None
-    return Skeleton(skeleton.astype(bool), spacing=1)
+    return Skeleton(connected, spacing=1)
 
 
 def _make_branch_table_from_graph(

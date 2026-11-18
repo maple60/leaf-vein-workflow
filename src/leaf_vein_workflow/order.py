@@ -16,15 +16,21 @@ from skan.csr import summarize
 from skimage.io import imsave
 from skimage.morphology import skeletonize
 
-from .calibration import millimetres_per_pixel
+from .calibration import millimetres_per_pixel, validate_positive_finite
+from .skeleton import drop_isolated_pixels
 
 
+# Label 3 is tertiary.  Following Sack & Scoffoni (2013), "major" veins are
+# orders 1-3; "primary_secondary" keeps the 1+2 subset for studies whose
+# whole-leaf scans cannot resolve tertiary veins.  Minor veins (4th order and
+# above) are not labelled yet.
 ORDER_DEFINITIONS = (
     ("primary", "1", (1,)),
     ("secondary", "2", (2,)),
-    ("minor", "3", (3,)),
+    ("tertiary", "3", (3,)),
     ("uncertain", "4", (4,)),
-    ("major", "1+2", (1, 2)),
+    ("primary_secondary", "1+2", (1, 2)),
+    ("major", "1+2+3", (1, 2, 3)),
 )
 
 VALID_LABEL_VALUES = {0, 1, 2, 3, 4}
@@ -41,6 +47,7 @@ MEASUREMENT_COLUMNS = [
     "pixel_size_mm",
     "length_mm",
     "leaf_area_mm2",
+    "leaf_area_source",
     "vla_mm_per_mm2",
 ]
 
@@ -111,8 +118,14 @@ def measure_order_labels(
     pixel_size_mm: float | None = None,
     image_name: str = "",
     label_layer_name: str = "vein_order_labels",
+    leaf_area_mm2: float | None = None,
 ) -> list[dict[str, Any]]:
-    """Measure skeleton length and VLA for each order-label class."""
+    """Measure skeleton length and VLA for each order-label class.
+
+    Leaf area comes either from ``leaf_mask`` or from an externally measured
+    ``leaf_area_mm2`` (for example a scan taken before specimen preparation).
+    An explicit ``leaf_area_mm2`` takes precedence for the mm-based VLA.
+    """
     labels = _as_2d_array(order_labels, "order_labels")
     if pixel_size_mm is not None:
         pixel_size_mm = millimetres_per_pixel(pixel_size_mm)
@@ -124,53 +137,85 @@ def measure_order_labels(
             raise ValueError("leaf_mask and order_labels must have the same shape.")
         leaf_area_px = int(np.count_nonzero(leaf))
 
+    # 単一次数ごとに骨格長を測り、合算行はその和にする。合併領域を骨格化し直すと
+    # 次数の境界で骨格が短絡し、major が primary より短くなることがあるため。
+    single_lengths: dict[int, tuple[float, int]] = {}
+    for _, _, values in ORDER_DEFINITIONS:
+        if len(values) == 1:
+            skeleton, length_px = _skeleton_and_length(labels == values[0])
+            single_lengths[values[0]] = (
+                float(length_px),
+                int(np.count_nonzero(skeleton)),
+            )
+
     rows: list[dict[str, Any]] = []
     for label_name, label_value, values in ORDER_DEFINITIONS:
         order_mask = np.isin(labels, values)
-        skeleton, length_px = _skeleton_and_length(order_mask)
-        area_px = int(np.count_nonzero(order_mask))
-        skeleton_pixels = int(np.count_nonzero(skeleton))
-
+        length_px = sum(single_lengths[value][0] for value in values)
+        skeleton_pixels = sum(single_lengths[value][1] for value in values)
         length_mm = (
             float(length_px) * float(pixel_size_mm)
             if pixel_size_mm is not None
             else None
         )
-        leaf_area_mm2 = (
-            float(leaf_area_px) * float(pixel_size_mm) ** 2
-            if leaf_area_px is not None and pixel_size_mm is not None
-            else None
-        )
-        vla_px_per_px2 = (
-            float(length_px) / float(leaf_area_px)
-            if leaf_area_px
-            else None
-        )
-        vla_mm_per_mm2 = (
-            float(length_mm) / float(leaf_area_mm2)
-            if leaf_area_mm2
-            else None
-        )
-
         rows.append(
             {
                 "image_name": image_name,
                 "label_layer_name": label_layer_name,
                 "label_name": label_name,
                 "label_value": label_value,
-                "area_px": area_px,
+                "area_px": int(np.count_nonzero(order_mask)),
                 "skeleton_pixels": skeleton_pixels,
                 "length_px": float(length_px),
                 "leaf_area_px": leaf_area_px,
-                "vla_px_per_px2": vla_px_per_px2,
+                "vla_px_per_px2": (
+                    float(length_px) / float(leaf_area_px)
+                    if leaf_area_px
+                    else None
+                ),
                 "pixel_size_mm": pixel_size_mm,
                 "length_mm": length_mm,
-                "leaf_area_mm2": leaf_area_mm2,
-                "vla_mm_per_mm2": vla_mm_per_mm2,
             }
         )
 
-    return rows
+    if leaf_area_mm2 is not None:
+        return apply_leaf_area(rows, leaf_area_mm2, source="input")
+
+    mask_area_mm2 = (
+        float(leaf_area_px) * float(pixel_size_mm) ** 2
+        if leaf_area_px is not None and pixel_size_mm is not None
+        else None
+    )
+    return apply_leaf_area(rows, mask_area_mm2, source="leaf_mask")
+
+
+def apply_leaf_area(
+    rows: Sequence[Mapping[str, Any]],
+    leaf_area_mm2: float | None,
+    source: str = "input",
+) -> list[dict[str, Any]]:
+    """Return copies of measurement rows with VLA recomputed for a leaf area.
+
+    Vein lengths are left untouched, so the leaf area can be changed after
+    measuring without re-skeletonizing the labels.
+    """
+    area: float | None = None
+    if leaf_area_mm2 is not None:
+        area = validate_positive_finite(leaf_area_mm2, "Leaf area (mm²)")
+
+    updated: list[dict[str, Any]] = []
+    for row in rows:
+        new_row = dict(row)
+        length_mm = new_row.get("length_mm")
+        new_row["leaf_area_mm2"] = area
+        new_row["leaf_area_source"] = source if area is not None else None
+        new_row["vla_mm_per_mm2"] = (
+            float(length_mm) / area
+            if area is not None and length_mm is not None
+            else None
+        )
+        updated.append(new_row)
+    return updated
 
 
 def make_qc_overlay(
@@ -200,7 +245,8 @@ def make_qc_overlay(
         selected = labels == label_value
         rgb[selected] = (0.45 * rgb[selected]) + (0.55 * color)
 
-    rgb[skeleton_mask] = np.array([1.0, 0.0, 0.0])
+    # 骨格は白で描き、1次脈ラベルの赤と区別できるようにする。
+    rgb[skeleton_mask] = np.array([1.0, 1.0, 1.0])
     return np.clip(rgb * 255, 0, 255).astype(np.uint8)
 
 
@@ -248,7 +294,11 @@ def _skeleton_and_length(mask: np.ndarray) -> tuple[np.ndarray, float]:
     if not np.any(skeleton):
         return skeleton, 0.0
 
-    skeleton_graph = Skeleton(skeleton.astype(bool), spacing=1)
+    connected = drop_isolated_pixels(skeleton)
+    if not np.any(connected):
+        return skeleton, 0.0
+
+    skeleton_graph = Skeleton(connected, spacing=1)
     branch_table = summarize(skeleton_graph, separator="-")
     if len(branch_table) == 0:
         return skeleton, 0.0

@@ -6,6 +6,7 @@ from leaf_vein_workflow.order import (
     create_empty_order_labels,
     export_order_results,
     make_qc_overlay,
+    apply_leaf_area,
     measure_order_labels,
     validate_order_labels,
 )
@@ -36,12 +37,13 @@ def test_measure_order_labels_reports_order_lengths_and_vla():
 
     assert by_name["primary"]["area_px"] == 3
     assert by_name["secondary"]["area_px"] == 4
-    assert by_name["minor"]["area_px"] == 3
+    assert by_name["tertiary"]["area_px"] == 3
     assert by_name["uncertain"]["length_px"] == 0.0
-    assert by_name["major"]["area_px"] == 7
+    assert by_name["primary_secondary"]["area_px"] == 7
+    assert by_name["major"]["area_px"] == 10
     assert by_name["primary"]["length_px"] > 0
     assert by_name["secondary"]["length_px"] > 0
-    assert by_name["minor"]["length_px"] > 0
+    assert by_name["tertiary"]["length_px"] > 0
     assert by_name["primary"]["leaf_area_px"] == labels.size
     assert by_name["primary"]["vla_px_per_px2"] is not None
     assert by_name["primary"]["length_mm"] is not None
@@ -56,8 +58,9 @@ def test_measure_order_labels_handles_empty_labels():
     assert {row["label_name"] for row in rows} == {
         "primary",
         "secondary",
-        "minor",
+        "tertiary",
         "uncertain",
+        "primary_secondary",
         "major",
     }
     assert all(row["area_px"] == 0 for row in rows)
@@ -127,3 +130,46 @@ def test_export_order_results_writes_expected_files(tmp_path):
     assert paths.branch_table_csv.exists()
     assert "label_name" in paths.measurements_csv.read_text(encoding="utf-8")
     np.testing.assert_array_equal(np.load(paths.order_labels_npy), labels)
+
+
+def test_measure_order_labels_uses_external_leaf_area_and_recomputes_vla():
+    labels = np.zeros((7, 7), dtype=np.uint8)
+    labels[1, 1:6] = 1
+    labels[3, 1:6] = 2
+    labels[5, 1:6] = 3
+
+    rows = measure_order_labels(labels, pixel_size_mm=0.1, leaf_area_mm2=2.0)
+    by_name = {row["label_name"]: row for row in rows}
+
+    primary = by_name["primary"]
+    assert primary["leaf_area_px"] is None
+    assert primary["leaf_area_mm2"] == 2.0
+    assert primary["leaf_area_source"] == "input"
+    assert primary["length_mm"] == pytest.approx(0.4)
+    assert primary["vla_mm_per_mm2"] == pytest.approx(0.2)
+    major = by_name["major"]
+    assert major["length_mm"] == pytest.approx(
+        sum(by_name[name]["length_mm"] for name in ("primary", "secondary", "tertiary"))
+    )
+
+    updated = {row["label_name"]: row for row in apply_leaf_area(rows, 4.0)}
+    assert updated["primary"]["length_mm"] == primary["length_mm"]
+    assert updated["primary"]["vla_mm_per_mm2"] == pytest.approx(0.1)
+    assert primary["vla_mm_per_mm2"] == pytest.approx(0.2)
+
+    cleared = apply_leaf_area(rows, None)
+    assert all(row["vla_mm_per_mm2"] is None for row in cleared)
+
+    with pytest.raises(ValueError, match="Leaf area"):
+        apply_leaf_area(rows, 0.0)
+
+
+def test_measure_order_labels_treats_isolated_pixels_as_zero_length():
+    labels = np.zeros((5, 5), dtype=np.uint8)
+    labels[0, 0] = 3
+    labels[4, 4] = 3
+
+    rows = {row["label_name"]: row for row in measure_order_labels(labels)}
+
+    assert rows["tertiary"]["area_px"] == 2
+    assert rows["tertiary"]["length_px"] == 0.0

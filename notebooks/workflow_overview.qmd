@@ -16,8 +16,9 @@ format:
 - napari で画像を開き、長方形 ROI を 1 つ描き、`Add ROI` ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。
 - 切り抜き画像に Gaussian smoothing を適用し、Otsu 閾値で葉脈候補の mask Labels レイヤーを作り、形態学的処理と手作業で整える。
 - 確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。
+- 次数ごとの骨格長と、入力した葉面積（mm²）に対する VLA を計算し、export する。
 
-まだ扱わないことは、スケールバーの OCR・自動検出、複数 ROI、ポリゴン ROI、画像の保存、nD stack、widget からの骨格計測・VLA export、major/minor の自動分離です。
+まだ扱わないことは、スケールバーの OCR・自動検出、複数 ROI、ポリゴン ROI、画像の保存、nD stack、次数の自動分類、minor（4次以上）のラベルです。
 
 ## ユーザーから見た流れ
 
@@ -37,6 +38,8 @@ format:
 12. paint mode の `vein_mask` を手作業で修正する。
 13. mask を確認した後に `Create Order Labels` を押す。
 14. `order_labels` Labels レイヤー上で葉脈次数を塗り分ける。
+15. `Measurement` の `Leaf area (mm²)` に葉面積を入力し、`Measure Veins` を押す。1次・2次・3次・1+2次・major（1–3次）の総延長と VLA が表示される。葉面積を後から書き換えると、長さは測り直さずに VLA だけ再計算される。
+16. `Export Measurements...` で保存先フォルダを選ぶと、現在のラベルを測り直して CSV・ラベル（.npy）・QC 画像・branch table を書き出す。
 
 重要なのは、各工程がユーザーの操作で明示的に区切られている点です。長方形を描いただけでは crop は作られず、`Apply Gaussian` を押しても `vein_mask` は作られません。mask が初めて作られるのは `Apply Otsu` を押したときです。
 
@@ -243,7 +246,7 @@ mask 処理は `widgets/mask.py` が担当し、`Apply Gaussian`、`Apply Otsu`�
 
 mask は napari の Labels レイヤーとして作られます。レイヤー名は `vein_mask` です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの `data` と `translate` を更新します。
 
-`Clean Mask` は、small object removal、hole filling、closing、opening の設定を `postprocess_mask()` に渡し、現在の mask を明示的に整えます。cleanup 後は自動の閾値更新を止め、`vein_mask` を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。
+`Clean Mask` は、small object removal、hole filling、closing、opening の設定を `postprocess_mask()` に渡し、現在の mask を明示的に整えます。入力欄は従来どおり整数pxですが、校正済み画像では small object と hole の面積をmm²、closing と opening の半径をµmまたはmmでラベルに併記します。値の変更、再校正、別画像への切り替えに応じて換算表示も更新されます。未校正画像ではpxだけを表示します。cleanup 後は自動の閾値更新を止め、`vein_mask` を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。
 
 ## order labels レイヤーの作成
 
@@ -260,10 +263,16 @@ order labels の値は、次の用途を想定しています。
 | 0 | 背景または分類対象外 |
 | 1 | primary |
 | 2 | secondary |
-| 3 | minor |
+| 3 | tertiary（3次脈） |
 | 4 | uncertain / 未分類 |
 
 同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きせず、そのレイヤーを再利用します。
+
+## 計測と VLA
+
+`widgets/measurement.py` が `order.py` の `measure_order_labels` を呼び、label 1・2・3 をそれぞれ別に骨格化して skan の branch 長を合計します。合算行（`primary_secondary` = 1+2、`major` = 1+2+3）は、単一次数の長さの和です。合併領域を骨格化し直すと次数の境界で骨格が短くなり、major が primary より短くなることがあるためです。major を 1–3 次とする定義は Sack & Scoffoni (2013) に従っています。
+
+葉面積は画像からではなく、GUI に入力した mm² 値を使います（標本化前のスキャンで測った値を想定）。VLA は `length_mm / leaf_area_mm2` で、`apply_leaf_area` により長さを保ったまま葉面積だけ差し替えられます。CSV には `leaf_area_source` 列で葉面積の出どころ（`input` または `leaf_mask`）を残します。label 4 のまま残ったピクセルはどの次数にも入らず、結果欄に件数を警告として出します。
 
 ## エラーや警告になる例
 

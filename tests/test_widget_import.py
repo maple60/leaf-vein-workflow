@@ -118,6 +118,31 @@ def _wait_for_delayed_mask_update(flow):
     flow.app.processEvents()
 
 
+def test_workflow_controls_are_scrollable_and_collapsible(widget_flow):
+    from qtpy.QtCore import Qt
+    from qtpy.QtWidgets import QScrollArea, QToolButton
+
+    flow = widget_flow
+    scroll_area = flow.widget.findChild(QScrollArea, "workflow_scroll_area")
+    assert scroll_area is not None
+    assert scroll_area.widgetResizable()
+
+    section_button = flow.widget.findChild(
+        QToolButton,
+        "workflow_section_mask_cleanup",
+    )
+    assert section_button is not None
+    assert section_button.isChecked()
+    assert section_button.arrowType() == Qt.ArrowType.DownArrow
+
+    section_content = section_button.parent().content
+    section_button.click()
+    flow.app.processEvents()
+    assert not section_button.isChecked()
+    assert section_button.arrowType() == Qt.ArrowType.RightArrow
+    assert section_content.isHidden()
+
+
 def test_widget_module_reexports_public_api(monkeypatch, tmp_path):
     if not _has_qt_backend():
         pytest.skip("No Qt backend is installed.")
@@ -147,7 +172,7 @@ def test_dpi_calibration_is_inherited_by_derived_layers(widget_flow):
     flow = widget_flow
     dpi_index = flow.widget.calibration_method_combo.findData("dpi")
     flow.widget.calibration_method_combo.setCurrentIndex(dpi_index)
-    flow.widget.calibration_value_spinbox.setValue(254.0)
+    flow.widget.calibration_value_input.setText("254.0")
 
     flow.widget.apply_scale()
 
@@ -161,11 +186,63 @@ def test_dpi_calibration_is_inherited_by_derived_layers(widget_flow):
 
     mm_index = flow.widget.calibration_method_combo.findData("mm_per_pixel")
     flow.widget.calibration_method_combo.setCurrentIndex(mm_index)
-    flow.widget.calibration_value_spinbox.setValue(0.025)
+    flow.widget.calibration_value_input.setText("0.025")
     flow.widget.apply_scale()
 
     for layer in (flow.image_layer, flow.roi_layer, crop_layer, smoothed_layer, mask_layer):
         assert layer.metadata[key] == pytest.approx(0.025)
+
+
+def test_cleanup_controls_show_metric_equivalents_and_keep_pixel_inputs(widget_flow):
+    flow = widget_flow
+    assert flow.widget.min_object_size_label.text() == "Small object area (px)"
+    assert flow.widget.max_hole_size_label.text() == "Maximum hole area (px)"
+    assert flow.widget.closing_radius_label.text() == "Closing radius (px)"
+    assert flow.widget.opening_radius_label.text() == "Opening radius (px)"
+
+    mm_index = flow.widget.calibration_method_combo.findData("mm_per_pixel")
+    flow.widget.calibration_method_combo.setCurrentIndex(mm_index)
+    flow.widget.calibration_value_input.setText("0.1")
+    flow.widget.apply_scale()
+
+    assert flow.widget.min_object_size_spinbox.value() == 100
+    assert flow.widget.max_hole_size_spinbox.value() == 500
+    assert flow.widget.min_object_size_label.text() == (
+        "Small object area: ≈ 1 mm² (100 px)"
+    )
+    assert flow.widget.max_hole_size_label.text() == (
+        "Maximum hole area: ≈ 5 mm² (500 px)"
+    )
+    assert flow.widget.closing_radius_label.text() == (
+        "Closing radius: ≈ 100 µm (1 px)"
+    )
+    assert flow.widget.opening_radius_label.text() == (
+        "Opening radius: ≈ 0 µm (0 px)"
+    )
+
+    flow.widget.min_object_size_spinbox.setValue(25)
+    flow.widget.opening_radius_spinbox.setValue(2)
+    assert flow.widget.min_object_size_label.text() == (
+        "Small object area: ≈ 0.25 mm² (25 px)"
+    )
+    assert flow.widget.opening_radius_label.text() == (
+        "Opening radius: ≈ 200 µm (2 px)"
+    )
+
+    flow.widget.calibration_value_input.setText("0.025")
+    flow.widget.apply_scale()
+    assert flow.widget.min_object_size_label.text() == (
+        "Small object area: ≈ 0.015625 mm² (25 px)"
+    )
+    assert flow.widget.max_hole_size_label.text() == (
+        "Maximum hole area: ≈ 0.3125 mm² (500 px)"
+    )
+    assert flow.widget.closing_radius_label.text() == (
+        "Closing radius: ≈ 25 µm (1 px)"
+    )
+    assert flow.widget.opening_radius_label.text() == (
+        "Opening radius: ≈ 50 µm (2 px)"
+    )
 
 
 def test_manual_scale_bar_calibration_and_method_replacement(widget_flow):
@@ -183,7 +260,7 @@ def test_manual_scale_bar_calibration_and_method_replacement(widget_flow):
     assert flow.image_layer.visible
     assert flow.viewer.layers.selection.active is line_layer
     line_layer.add_lines(np.array([[[0.0, 0.0], [0.0, 10.0]]]))
-    flow.widget.calibration_value_spinbox.setValue(1.0)
+    flow.widget.calibration_value_input.setText("1.0")
     mm_index = flow.widget.calibration_unit_combo.findData("mm")
     flow.widget.calibration_unit_combo.setCurrentIndex(mm_index)
 
@@ -200,7 +277,7 @@ def test_manual_scale_bar_calibration_and_method_replacement(widget_flow):
 
     dpi_index = flow.widget.calibration_method_combo.findData("dpi")
     flow.widget.calibration_method_combo.setCurrentIndex(dpi_index)
-    flow.widget.calibration_value_spinbox.setValue(254.0)
+    flow.widget.calibration_value_input.setText("254.0")
     flow.widget.apply_scale()
 
     assert flow.image_layer.metadata[key] == pytest.approx(0.1)
@@ -232,7 +309,7 @@ def test_manual_scale_bar_requires_exactly_one_line(widget_flow):
             ]
         )
     )
-    flow.widget.calibration_value_spinbox.setValue(1.0)
+    flow.widget.calibration_value_input.setText("1.0")
 
     flow.widget.apply_scale()
 
@@ -244,13 +321,13 @@ def test_calibration_status_tracks_the_active_source_image(widget_flow):
     flow = widget_flow
     mm_index = flow.widget.calibration_method_combo.findData("mm_per_pixel")
     flow.widget.calibration_method_combo.setCurrentIndex(mm_index)
-    flow.widget.calibration_value_spinbox.setValue(0.1)
+    flow.widget.calibration_value_input.setText("0.1")
     flow.widget.apply_scale()
 
     second_image = flow.viewer.add_image(SOURCE_IMAGE.copy(), name="leaf2")
     flow.app.processEvents()
     second_roi = flow.viewer.layers["leaf2 ROI rectangle"]
-    flow.widget.calibration_value_spinbox.setValue(0.02)
+    flow.widget.calibration_value_input.setText("0.02")
     flow.widget.apply_scale()
 
     flow.viewer.layers.selection.active = flow.roi_layer
@@ -258,12 +335,14 @@ def test_calibration_status_tracks_the_active_source_image(widget_flow):
     assert "Scale for leaf:" in flow.widget.calibration_status_label.text()
     assert "100 µm" in flow.widget.calibration_status_label.text()
     assert "equivalent DPI ≈ 254" in flow.widget.calibration_status_label.text()
+    assert "≈ 1 mm² (100 px)" in flow.widget.min_object_size_label.text()
 
     flow.viewer.layers.selection.active = second_roi
     flow.app.processEvents()
     assert "Scale for leaf2:" in flow.widget.calibration_status_label.text()
     assert "20 µm" in flow.widget.calibration_status_label.text()
     assert "equivalent DPI ≈ 1270" in flow.widget.calibration_status_label.text()
+    assert "≈ 0.04 mm² (100 px)" in flow.widget.min_object_size_label.text()
     assert second_image.metadata[
         flow.module.CALIBRATION_MM_PER_PIXEL_KEY
     ] == pytest.approx(0.02)
@@ -428,3 +507,61 @@ def test_recrop_reuses_crop_and_removes_derived_layers(widget_flow):
     assert flow.module.ORDER_LABELS_LAYER_NAME not in _layer_names(flow)
     assert not flow.widget.clean_mask_button.isEnabled()
     assert not flow.widget.create_order_labels_button.isEnabled()
+
+
+
+def test_measure_veins_reports_orders_and_recomputes_vla_from_leaf_area(
+    widget_flow, tmp_path
+):
+    flow = widget_flow
+    mm_index = flow.widget.calibration_method_combo.findData("mm_per_pixel")
+    flow.widget.calibration_method_combo.setCurrentIndex(mm_index)
+    flow.widget.calibration_value_input.setText("0.1")
+    flow.widget.apply_scale()
+
+    _, _, mask_layer = _advance_to_mask(flow)
+    mask_layer.data = np.zeros((2, 3), dtype=np.uint8)
+    flow.widget.create_order_labels()
+    order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
+    order_layer.data = np.array([[1, 1, 1], [3, 0, 4]], dtype=np.uint8)
+    flow.app.processEvents()
+
+    assert flow.widget.export_button.isEnabled() is False
+    flow.widget.leaf_area_input.setText("2")
+    rows = flow.widget.measure_veins()
+    assert rows is not None, flow.widget.status_label.text()
+    by_name = {row["label_name"]: row for row in rows}
+
+    assert by_name["primary"]["length_mm"] == pytest.approx(0.2)
+    assert by_name["primary"]["vla_mm_per_mm2"] == pytest.approx(0.1)
+    assert by_name["secondary"]["length_mm"] == 0.0
+    assert by_name["major"]["length_mm"] == pytest.approx(
+        by_name["primary"]["length_mm"] + by_name["tertiary"]["length_mm"]
+    )
+    assert flow.widget.export_button.isEnabled()
+    text = flow.widget.measurement_result_label.text()
+    assert "1° primary" in text and "major (1°–3°)" in text
+    assert "1 px still labelled uncertain" in text
+
+    flow.widget.leaf_area_input.setText("4")
+    flow.app.processEvents()
+    by_name = {
+        row["label_name"]: row for row in flow.widget._measurement_workflow.rows
+    }
+    assert by_name["primary"]["length_mm"] == pytest.approx(0.2)
+    assert by_name["primary"]["vla_mm_per_mm2"] == pytest.approx(0.05)
+
+    paths = flow.widget.export_measurements(tmp_path)
+    csv_text = paths.measurements_csv.read_text(encoding="utf-8")
+    assert "tertiary" in csv_text
+    assert "leaf_area_source" in csv_text
+    assert paths.qc_overlay_png.exists()
+    assert paths.branch_table_csv.exists()
+
+
+def test_measure_veins_warns_without_order_labels(widget_flow):
+    flow = widget_flow
+    _advance_to_mask(flow)
+
+    assert flow.widget.measure_veins() is None
+    assert "order labels" in flow.widget.status_label.text()

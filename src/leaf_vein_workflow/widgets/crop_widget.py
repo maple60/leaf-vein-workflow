@@ -4,12 +4,13 @@ This module wires Qt signals to explicit workflow objects.  Stage-specific
 layer operations live in ``roi.py``, ``mask.py``, and ``order_labels.py``.
 """
 
-from qtpy.QtWidgets import QWidget
+from qtpy.QtWidgets import QFileDialog, QWidget
 
 from .calibration import CalibrationWorkflow
 from .controls import WorkflowControls
 from .layers import WorkflowLayers
 from .mask import MaskWorkflow
+from .measurement import MeasurementWorkflow
 from .order_labels import OrderLabelsWorkflow
 from .roi import RoiWorkflow
 
@@ -33,12 +34,16 @@ class CropWidget(QWidget):
             self._layers,
             self._controls,
         )
+        self._measurement_workflow = MeasurementWorkflow(
+            self._layers,
+            self._controls,
+        )
 
         # 既存利用コードが同じ属性名でQt controlへアクセスできるよう明示的に公開する。
         self.status_label = self._controls.status_label
         self.calibration_status_label = self._controls.calibration_status_label
         self.calibration_method_combo = self._controls.calibration_method_combo
-        self.calibration_value_spinbox = self._controls.calibration_value_spinbox
+        self.calibration_value_input = self._controls.calibration_value_input
         self.calibration_unit_combo = self._controls.calibration_unit_combo
         self.draw_scale_bar_button = self._controls.draw_scale_bar_button
         self.apply_scale_button = self._controls.apply_scale_button
@@ -48,6 +53,10 @@ class CropWidget(QWidget):
         self.invert_threshold_checkbox = self._controls.invert_threshold_checkbox
         self.clean_mask_button = self._controls.clean_mask_button
         self.create_order_labels_button = self._controls.create_order_labels_button
+        self.leaf_area_input = self._controls.leaf_area_input
+        self.measure_button = self._controls.measure_button
+        self.export_button = self._controls.export_button
+        self.measurement_result_label = self._controls.measurement_result_label
         self.gaussian_sigma_label = self._controls.gaussian_sigma_label
         self.gaussian_sigma_spinbox = self._controls.gaussian_sigma_spinbox
         self.threshold_label = self._controls.threshold_label
@@ -96,6 +105,11 @@ class CropWidget(QWidget):
         self.otsu_button.clicked.connect(self.use_otsu_threshold)
         self.clean_mask_button.clicked.connect(self.clean_mask)
         self.create_order_labels_button.clicked.connect(self.create_order_labels)
+        self.measure_button.clicked.connect(self.measure_veins)
+        self.export_button.clicked.connect(self.export_measurements)
+        self.leaf_area_input.textChanged.connect(
+            self._measurement_workflow.on_leaf_area_changed
+        )
         self.invert_threshold_checkbox.toggled.connect(self._schedule_mask_update)
         self.threshold_spinbox.valueChanged.connect(
             self._on_threshold_spinbox_changed
@@ -103,6 +117,15 @@ class CropWidget(QWidget):
         self.threshold_slider.valueChanged.connect(
             self._on_threshold_slider_changed
         )
+        for spinbox in (
+            self.min_object_size_spinbox,
+            self.max_hole_size_spinbox,
+            self.closing_radius_spinbox,
+            self.opening_radius_spinbox,
+        ):
+            spinbox.valueChanged.connect(
+                self._calibration_workflow.refresh_cleanup_unit_labels
+            )
         self._mask_update_timer.timeout.connect(self._update_mask_from_controls)
         self.viewer.layers.events.inserted.connect(self._on_layer_inserted)
         self.viewer.layers.selection.events.active.connect(
@@ -136,6 +159,22 @@ class CropWidget(QWidget):
     def create_order_labels(self) -> None:
         """Delegate manual order-label setup to the labeling workflow."""
         self._order_labels_workflow.create_order_labels()
+
+    def measure_veins(self):
+        """Measure per-order vein length and VLA from the order labels."""
+        return self._measurement_workflow.measure()
+
+    def export_measurements(self, output_dir=None):
+        """Export measurements; ask for a folder when none is given."""
+        if not output_dir:
+            output_dir = QFileDialog.getExistingDirectory(
+                self,
+                "Export measurements to folder",
+                self._measurement_workflow.default_export_dir(),
+            )
+            if not output_dir:
+                return None
+        return self._measurement_workflow.export(output_dir)
 
     def _on_layer_inserted(self, event) -> None:
         self._prepare_image_layer(event.value)

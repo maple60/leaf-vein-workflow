@@ -13,11 +13,14 @@ napari plugin for leaf vein image workflow development.
 - Create a smoothed Image layer only after clicking `Apply Gaussian`.
 - Create an editable vein mask Labels layer only after clicking `Apply Otsu`.
 - Clean the current mask with explicit morphology settings before manual edits.
-- Create an editable order labels layer from the confirmed vein mask.
+- Create an editable order labels layer from the confirmed vein mask
+  (1 primary, 2 secondary, 3 tertiary, 4 uncertain).
+- Measure skeleton length per vein order and VLA against a leaf area typed in
+  mm², then export the results.
 
 Saving cropped images, multiple ROIs, polygon ROIs, nD stacks, automatic vein
-order classification, widget-driven skeleton measurement, and VLA export are
-outside the first MVP.
+order classification, and minor-vein (4th order and above) labels are outside
+the current MVP.
 
 ## Development
 
@@ -59,7 +62,20 @@ threshold` and `Mask threshold` update the current mask.
 
 If needed, set the morphology controls and click `Clean Mask`. Correct the mask
 manually in paint mode, then click `Create Order Labels` to begin manual
-vein-order annotation inside the confirmed mask.
+vein-order annotation inside the confirmed mask. Cleanup inputs remain integer
+pixel values for reproducible morphology behavior; when the image is calibrated,
+their labels also show object/hole areas in mm² and closing/opening radii in µm
+or mm.
+
+In the `Measurement` section, type the leaf area in mm² (for example measured
+from a scan taken before specimen preparation) and click `Measure Veins`. The
+dock shows total length and VLA (mm mm⁻²) for 1°, 2°, 3°, 1°+2°, and major
+(1°–3°). Combined rows are the sum of the per-order skeleton lengths. Changing
+the leaf area afterwards recomputes VLA without re-measuring. Pixels still
+labelled 4 (uncertain) are excluded from every order and reported as a warning.
+`Export Measurements...` re-measures the current labels and writes a
+measurements CSV (lengths in px and mm, leaf area and its source, VLA), the
+order labels as `.npy`, a QC overlay PNG, and a skeleton branch table.
 
 Run tests:
 

@@ -14,7 +14,7 @@ from ..calibration import (
     mm_per_pixel_to_dpi,
     scale_bar_to_mm_per_pixel,
 )
-from .controls import WorkflowControls
+from .controls import WorkflowControls, parse_number_input
 from .layers import (
     ROLE_KEY,
     ROLE_SCALE_BAR,
@@ -40,6 +40,7 @@ class CalibrationWorkflow:
             self.controls.set_calibration_status(
                 f"Scale for {layer.name}: not calibrated (pixel units)"
             )
+            self.controls.set_cleanup_unit_labels(None)
         else:
             self._show_calibration(layer, float(mm_per_pixel))
 
@@ -58,8 +59,22 @@ class CalibrationWorkflow:
             self.controls.set_calibration_status(
                 f"Scale for {source_image.name}: not calibrated (pixel units)"
             )
+            self.controls.set_cleanup_unit_labels(None)
             return
         self._show_calibration(source_image, float(mm_per_pixel))
+
+    def refresh_cleanup_unit_labels(self, *args) -> None:
+        """Refresh physical cleanup equivalents after a pixel input changes."""
+        source_image = self.layers.active_source_image()
+        if source_image is None:
+            return
+        mm_per_pixel = source_image.metadata.get(CALIBRATION_MM_PER_PIXEL_KEY)
+        if mm_per_pixel is None:
+            self.controls.set_cleanup_unit_labels(None)
+            return
+        self.controls.set_cleanup_unit_labels(
+            millimetres_per_pixel(float(mm_per_pixel))
+        )
 
     def draw_scale_bar_line(self) -> None:
         """Create or activate one line layer linked to the selected source image."""
@@ -104,12 +119,15 @@ class CalibrationWorkflow:
             return
 
         method = str(self.controls.calibration_method_combo.currentData())
-        value = self.controls.calibration_value_spinbox.value()
         input_unit: str
         pixel_length: float | None = None
         line_layer = None
 
         try:
+            value = parse_number_input(
+                self.controls.calibration_value_input,
+                self.controls.calibration_value_label.text(),
+            )
             if method == "dpi":
                 mm_per_pixel = dpi_to_mm_per_pixel(value)
                 input_unit = "dpi"
@@ -159,6 +177,7 @@ class CalibrationWorkflow:
     def _show_calibration(self, source_image: Image, mm_per_pixel: float) -> None:
         micrometres = mm_per_pixel * 1000.0
         equivalent_dpi = mm_per_pixel_to_dpi(mm_per_pixel)
+        self.controls.set_cleanup_unit_labels(mm_per_pixel)
         self.controls.set_calibration_status(
             f"Scale for {source_image.name}: 1 px = {micrometres:.6g} µm "
             f"({mm_per_pixel:.6g} mm); equivalent DPI ≈ {equivalent_dpi:.6g}"

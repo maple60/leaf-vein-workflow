@@ -7,18 +7,91 @@ state.  Layer operations and image processing belong to the workflow modules.
 from dataclasses import dataclass
 
 from napari.utils.notifications import show_warning
-from qtpy.QtCore import Qt
+from qtpy.QtCore import QLocale, Qt
+from qtpy.QtGui import QDoubleValidator
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QSlider,
     QSpinBox,
+    QToolButton,
     QVBoxLayout,
+    QWidget,
 )
+
+
+def make_number_input(text: str = "", placeholder: str = "") -> QLineEdit:
+    """Return a plain text box that only accepts non-negative decimals.
+
+    A line edit avoids spin-box arrows, accidental wheel changes, and fixed
+    decimal padding such as ``300.000000000``.
+    """
+    line_edit = QLineEdit(text)
+    validator = QDoubleValidator(0.0, 1e12, 12)
+    validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+    # 小数点を常に "." として扱い、OSのロケールに左右されないようにする。
+    validator.setLocale(QLocale.c())
+    line_edit.setValidator(validator)
+    line_edit.setPlaceholderText(placeholder)
+    return line_edit
+
+
+def parse_number_input(line_edit: QLineEdit, name: str) -> float:
+    """Read a number from a text box or raise a user-facing ValueError."""
+    text = line_edit.text().strip()
+    if not text:
+        raise ValueError(f"Enter a value for {name}.")
+    try:
+        return float(text)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number.") from exc
+
+
+class CollapsibleSection(QWidget):
+    """A compact workflow section whose contents can be shown or hidden."""
+
+    def __init__(self, title: str, content_layout, *, expanded: bool = True):
+        super().__init__()
+
+        self.toggle_button = QToolButton()
+        self.toggle_button.setObjectName(
+            f"workflow_section_{title.lower().replace(' ', '_')}"
+        )
+        self.toggle_button.setText(title)
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(expanded)
+        self.toggle_button.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+        )
+        self.toggle_button.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
+
+        self.content = QWidget()
+        self.content.setLayout(content_layout)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.toggle_button)
+        layout.addWidget(self.content)
+
+        self.toggle_button.toggled.connect(self._set_expanded)
+        self._set_expanded(expanded)
+
+    def _set_expanded(self, expanded: bool) -> None:
+        self.content.setVisible(expanded)
+        arrow = (
+            Qt.ArrowType.DownArrow if expanded else Qt.ArrowType.RightArrow
+        )
+        self.toggle_button.setArrowType(arrow)
 
 
 @dataclass(slots=True)
@@ -30,7 +103,7 @@ class WorkflowControls:
     calibration_method_label: QLabel
     calibration_method_combo: QComboBox
     calibration_value_label: QLabel
-    calibration_value_spinbox: QDoubleSpinBox
+    calibration_value_input: QLineEdit
     calibration_unit_combo: QComboBox
     draw_scale_bar_button: QPushButton
     apply_scale_button: QPushButton
@@ -40,6 +113,11 @@ class WorkflowControls:
     invert_threshold_checkbox: QCheckBox
     clean_mask_button: QPushButton
     create_order_labels_button: QPushButton
+    leaf_area_label: QLabel
+    leaf_area_input: QLineEdit
+    measure_button: QPushButton
+    export_button: QPushButton
+    measurement_result_label: QLabel
     gaussian_sigma_label: QLabel
     gaussian_sigma_spinbox: QDoubleSpinBox
     threshold_label: QLabel
@@ -72,16 +150,18 @@ class WorkflowControls:
         calibration_method_combo.addItem("mm per pixel", "mm_per_pixel")
         calibration_method_combo.addItem("Scale bar", "scale_bar")
 
-        calibration_value_spinbox = QDoubleSpinBox()
-        calibration_value_spinbox.setDecimals(9)
-        calibration_value_spinbox.setRange(0.0, 1_000_000_000.0)
-        calibration_value_spinbox.setSingleStep(1.0)
-        calibration_value_spinbox.setValue(300.0)
+        calibration_value_input = make_number_input("300", "e.g. 600")
 
         calibration_unit_combo = QComboBox()
         calibration_unit_combo.addItem("µm", "um")
         calibration_unit_combo.addItem("mm", "mm")
         calibration_unit_combo.setEnabled(False)
+
+        measurement_result_label = QLabel("No measurement yet.")
+        measurement_result_label.setWordWrap(True)
+        measurement_result_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
 
         gaussian_sigma_spinbox = QDoubleSpinBox()
         gaussian_sigma_spinbox.setRange(0.0, 50.0)
@@ -123,7 +203,7 @@ class WorkflowControls:
             calibration_method_label=QLabel("Scale calibration method"),
             calibration_method_combo=calibration_method_combo,
             calibration_value_label=QLabel("DPI"),
-            calibration_value_spinbox=calibration_value_spinbox,
+            calibration_value_input=calibration_value_input,
             calibration_unit_combo=calibration_unit_combo,
             draw_scale_bar_button=QPushButton("Draw Scale Bar Line"),
             apply_scale_button=QPushButton("Apply Scale"),
@@ -133,18 +213,23 @@ class WorkflowControls:
             invert_threshold_checkbox=QCheckBox("Invert threshold"),
             clean_mask_button=QPushButton("Clean Mask"),
             create_order_labels_button=QPushButton("Create Order Labels"),
+            leaf_area_label=QLabel("Leaf area (mm²)"),
+            leaf_area_input=make_number_input("", "measured before preparation"),
+            measure_button=QPushButton("Measure Veins"),
+            export_button=QPushButton("Export Measurements..."),
+            measurement_result_label=measurement_result_label,
             gaussian_sigma_label=QLabel("Gaussian sigma"),
             gaussian_sigma_spinbox=gaussian_sigma_spinbox,
             threshold_label=QLabel("Mask threshold"),
             threshold_spinbox=threshold_spinbox,
             threshold_slider=threshold_slider,
-            min_object_size_label=QLabel("Small object size"),
+            min_object_size_label=QLabel("Small object area (px)"),
             min_object_size_spinbox=min_object_size_spinbox,
-            max_hole_size_label=QLabel("Hole size"),
+            max_hole_size_label=QLabel("Maximum hole area (px)"),
             max_hole_size_spinbox=max_hole_size_spinbox,
-            closing_radius_label=QLabel("Closing radius"),
+            closing_radius_label=QLabel("Closing radius (px)"),
             closing_radius_spinbox=closing_radius_spinbox,
-            opening_radius_label=QLabel("Opening radius"),
+            opening_radius_label=QLabel("Opening radius (px)"),
             opening_radius_spinbox=opening_radius_spinbox,
         )
         controls.set_calibration_enabled(False)
@@ -152,47 +237,98 @@ class WorkflowControls:
         controls.set_gaussian_enabled(False)
         controls.set_threshold_enabled(False)
         controls.set_cleanup_enabled(False)
+        controls.set_measurement_enabled(False)
         return controls
 
     def create_layout(self) -> QVBoxLayout:
-        """Return the single-column workflow layout."""
+        """Return collapsible workflow stages inside a vertical scroll area."""
         calibration_method_layout = QHBoxLayout()
         calibration_method_layout.addWidget(self.calibration_method_label)
         calibration_method_layout.addWidget(self.calibration_method_combo)
 
         calibration_value_layout = QHBoxLayout()
         calibration_value_layout.addWidget(self.calibration_value_label)
-        calibration_value_layout.addWidget(self.calibration_value_spinbox)
+        calibration_value_layout.addWidget(self.calibration_value_input)
         calibration_value_layout.addWidget(self.calibration_unit_combo)
 
         threshold_layout = QHBoxLayout()
         threshold_layout.addWidget(self.threshold_slider)
         threshold_layout.addWidget(self.threshold_spinbox)
 
+        calibration_layout = QVBoxLayout()
+        calibration_layout.addLayout(calibration_method_layout)
+        calibration_layout.addLayout(calibration_value_layout)
+        calibration_layout.addWidget(self.draw_scale_bar_button)
+        calibration_layout.addWidget(self.apply_scale_button)
+        calibration_layout.addWidget(self.calibration_status_label)
+
+        roi_layout = QVBoxLayout()
+        roi_layout.addWidget(self.add_roi_button)
+
+        mask_creation_layout = QVBoxLayout()
+        mask_creation_layout.addWidget(self.gaussian_sigma_label)
+        mask_creation_layout.addWidget(self.gaussian_sigma_spinbox)
+        mask_creation_layout.addWidget(self.apply_gaussian_button)
+        mask_creation_layout.addWidget(self.otsu_button)
+        mask_creation_layout.addWidget(self.invert_threshold_checkbox)
+        mask_creation_layout.addWidget(self.threshold_label)
+        mask_creation_layout.addLayout(threshold_layout)
+
+        mask_cleanup_layout = QVBoxLayout()
+        mask_cleanup_layout.addWidget(self.min_object_size_label)
+        mask_cleanup_layout.addWidget(self.min_object_size_spinbox)
+        mask_cleanup_layout.addWidget(self.max_hole_size_label)
+        mask_cleanup_layout.addWidget(self.max_hole_size_spinbox)
+        mask_cleanup_layout.addWidget(self.closing_radius_label)
+        mask_cleanup_layout.addWidget(self.closing_radius_spinbox)
+        mask_cleanup_layout.addWidget(self.opening_radius_label)
+        mask_cleanup_layout.addWidget(self.opening_radius_spinbox)
+        mask_cleanup_layout.addWidget(self.clean_mask_button)
+
+        order_labels_layout = QVBoxLayout()
+        order_labels_layout.addWidget(self.create_order_labels_button)
+
+        leaf_area_layout = QHBoxLayout()
+        leaf_area_layout.addWidget(self.leaf_area_label)
+        leaf_area_layout.addWidget(self.leaf_area_input)
+
+        measurement_layout = QVBoxLayout()
+        measurement_layout.addLayout(leaf_area_layout)
+        measurement_layout.addWidget(self.measure_button)
+        measurement_layout.addWidget(self.measurement_result_label)
+        measurement_layout.addWidget(self.export_button)
+
+        scroll_content = QWidget()
+        stages_layout = QVBoxLayout(scroll_content)
+        stages_layout.setContentsMargins(0, 0, 0, 0)
+        stages_layout.addWidget(
+            CollapsibleSection("Scale calibration", calibration_layout)
+        )
+        stages_layout.addWidget(CollapsibleSection("ROI", roi_layout))
+        stages_layout.addWidget(
+            CollapsibleSection("Mask creation", mask_creation_layout)
+        )
+        stages_layout.addWidget(
+            CollapsibleSection("Mask cleanup", mask_cleanup_layout)
+        )
+        stages_layout.addWidget(
+            CollapsibleSection("Vein order labels", order_labels_layout)
+        )
+        stages_layout.addWidget(
+            CollapsibleSection("Measurement", measurement_layout)
+        )
+        stages_layout.addStretch()
+
+        scroll_area = QScrollArea()
+        scroll_area.setObjectName("workflow_scroll_area")
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        scroll_area.setWidget(scroll_content)
+
         layout = QVBoxLayout()
-        layout.addLayout(calibration_method_layout)
-        layout.addLayout(calibration_value_layout)
-        layout.addWidget(self.draw_scale_bar_button)
-        layout.addWidget(self.apply_scale_button)
-        layout.addWidget(self.calibration_status_label)
-        layout.addWidget(self.add_roi_button)
-        layout.addWidget(self.gaussian_sigma_label)
-        layout.addWidget(self.gaussian_sigma_spinbox)
-        layout.addWidget(self.apply_gaussian_button)
-        layout.addWidget(self.otsu_button)
-        layout.addWidget(self.invert_threshold_checkbox)
-        layout.addWidget(self.threshold_label)
-        layout.addLayout(threshold_layout)
-        layout.addWidget(self.min_object_size_label)
-        layout.addWidget(self.min_object_size_spinbox)
-        layout.addWidget(self.max_hole_size_label)
-        layout.addWidget(self.max_hole_size_spinbox)
-        layout.addWidget(self.closing_radius_label)
-        layout.addWidget(self.closing_radius_spinbox)
-        layout.addWidget(self.opening_radius_label)
-        layout.addWidget(self.opening_radius_spinbox)
-        layout.addWidget(self.clean_mask_button)
-        layout.addWidget(self.create_order_labels_button)
+        layout.addWidget(scroll_area)
         layout.addWidget(self.status_label)
         return layout
 
@@ -201,7 +337,7 @@ class WorkflowControls:
         self.calibration_method_label.setEnabled(enabled)
         self.calibration_method_combo.setEnabled(enabled)
         self.calibration_value_label.setEnabled(enabled)
-        self.calibration_value_spinbox.setEnabled(enabled)
+        self.calibration_value_input.setEnabled(enabled)
         self.apply_scale_button.setEnabled(enabled)
         method = self.calibration_method_combo.currentData()
         is_scale_bar = enabled and method == "scale_bar"
@@ -218,15 +354,15 @@ class WorkflowControls:
             "scale_bar": "Scale bar length",
         }
         self.calibration_value_label.setText(labels.get(method, "Scale value"))
-        settings = {
-            "dpi": (3, 1.0),
-            "um_per_pixel": (6, 0.1),
-            "mm_per_pixel": (9, 0.001),
-            "scale_bar": (6, 1.0),
+        placeholders = {
+            "dpi": "e.g. 600",
+            "um_per_pixel": "e.g. 42.3",
+            "mm_per_pixel": "e.g. 0.0423",
+            "scale_bar": "e.g. 10",
         }
-        decimals, single_step = settings.get(method, (6, 1.0))
-        self.calibration_value_spinbox.setDecimals(decimals)
-        self.calibration_value_spinbox.setSingleStep(single_step)
+        self.calibration_value_input.setPlaceholderText(
+            placeholders.get(method, "")
+        )
         is_scale_bar = method == "scale_bar"
         enabled = self.calibration_method_combo.isEnabled()
         self.calibration_unit_combo.setEnabled(enabled and is_scale_bar)
@@ -263,6 +399,68 @@ class WorkflowControls:
         self.opening_radius_spinbox.setEnabled(enabled)
         self.clean_mask_button.setEnabled(enabled)
         self.create_order_labels_button.setEnabled(enabled)
+        self.set_measurement_enabled(enabled)
+
+    def set_measurement_enabled(self, enabled: bool) -> None:
+        """Enable measurement once a mask (and so order labels) can exist.
+
+        Export stays disabled until a measurement has been taken.
+        """
+        self.leaf_area_label.setEnabled(enabled)
+        self.leaf_area_input.setEnabled(enabled)
+        self.measure_button.setEnabled(enabled)
+        if not enabled:
+            self.export_button.setEnabled(False)
+
+    def set_measurement_result(self, message: str) -> None:
+        """Show the latest per-order lengths and VLA."""
+        self.measurement_result_label.setText(message)
+
+    def set_cleanup_unit_labels(self, mm_per_pixel: float | None) -> None:
+        """Show physical equivalents while keeping cleanup inputs in pixels."""
+        if mm_per_pixel is None:
+            self.min_object_size_label.setText("Small object area (px)")
+            self.max_hole_size_label.setText("Maximum hole area (px)")
+            self.closing_radius_label.setText("Closing radius (px)")
+            self.opening_radius_label.setText("Opening radius (px)")
+            return
+
+        pixel_size_mm = float(mm_per_pixel)
+        pixel_area_mm2 = pixel_size_mm**2
+        small_object_area = self.min_object_size_spinbox.value() * pixel_area_mm2
+        maximum_hole_area = self.max_hole_size_spinbox.value() * pixel_area_mm2
+        closing_length = self._format_metric_length(
+            self.closing_radius_spinbox.value() * pixel_size_mm
+        )
+        opening_length = self._format_metric_length(
+            self.opening_radius_spinbox.value() * pixel_size_mm
+        )
+
+        self.min_object_size_label.setText(
+            "Small object area: "
+            f"≈ {small_object_area:.6g} mm² "
+            f"({self.min_object_size_spinbox.value()} px)"
+        )
+        self.max_hole_size_label.setText(
+            "Maximum hole area: "
+            f"≈ {maximum_hole_area:.6g} mm² "
+            f"({self.max_hole_size_spinbox.value()} px)"
+        )
+        self.closing_radius_label.setText(
+            f"Closing radius: ≈ {closing_length} "
+            f"({self.closing_radius_spinbox.value()} px)"
+        )
+        self.opening_radius_label.setText(
+            f"Opening radius: ≈ {opening_length} "
+            f"({self.opening_radius_spinbox.value()} px)"
+        )
+
+    @staticmethod
+    def _format_metric_length(length_mm: float) -> str:
+        """Choose µm for sub-millimetre radii and mm otherwise."""
+        if length_mm < 1.0:
+            return f"{length_mm * 1000.0:.6g} µm"
+        return f"{length_mm:.6g} mm"
 
     def set_status(self, message: str) -> None:
         """Show workflow guidance without raising a notification."""
