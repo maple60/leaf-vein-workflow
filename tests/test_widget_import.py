@@ -565,3 +565,30 @@ def test_measure_veins_warns_without_order_labels(widget_flow):
 
     assert flow.widget.measure_veins() is None
     assert "order labels" in flow.widget.status_label.text()
+
+
+def test_apply_scale_draws_10_mm_display_bar_without_stealing_selection(widget_flow):
+    flow = widget_flow
+    image = flow.viewer.add_image(np.zeros((200, 300)), name="big")
+    flow.app.processEvents()
+    flow.viewer.layers.selection.active = image
+    index = flow.widget.calibration_method_combo.findData("mm_per_pixel")
+    flow.widget.calibration_method_combo.setCurrentIndex(index)
+    flow.widget.calibration_value_input.setText("0.1")
+
+    flow.widget.apply_scale()
+
+    bar = flow.viewer.layers["big 10 mm bar"]
+    assert bar.metadata[flow.module.ROLE_KEY] == "scale_indicator"
+    start, end = np.asarray(bar.data[0])
+    assert np.linalg.norm(end - start) == pytest.approx(100.0)
+    assert flow.viewer.layers.selection.active is image
+
+    flow.widget.calibration_value_input.setText("0.01")
+    flow.widget.apply_scale()
+
+    assert "big 10 mm bar" not in _layer_names(flow)
+    bar = flow.viewer.layers["big 1 mm bar"]
+    start, end = np.asarray(bar.data[0])
+    assert np.linalg.norm(end - start) == pytest.approx(100.0)
+    assert sum(1 for name in _layer_names(flow) if name.startswith("big ") and name.endswith(" bar")) == 1

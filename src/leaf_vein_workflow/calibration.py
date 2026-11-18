@@ -123,3 +123,50 @@ def calibration_metadata_from(
         for key in CALIBRATION_METADATA_KEYS
         if key in metadata
     }
+
+
+SCALE_BAR_CANDIDATES_MM = (10.0, 5.0, 2.0, 1.0, 0.5, 0.2, 0.1)
+
+
+def choose_scale_bar_length_mm(
+    image_width_px: float,
+    mm_per_pixel: float,
+    preferred_mm: float = 10.0,
+    max_fraction: float = 0.4,
+) -> float:
+    """Pick a round display-bar length that fits within part of the image.
+
+    The preferred length (10 mm) is used whenever it fits; smaller images such
+    as microscope fields fall back to the next round length.
+    """
+    pixel_size = millimetres_per_pixel(mm_per_pixel)
+    width = validate_positive_finite(image_width_px, "Image width")
+    limit_mm = width * pixel_size * max_fraction
+    candidates = [length for length in SCALE_BAR_CANDIDATES_MM if length <= preferred_mm]
+    for length in candidates:
+        if length <= limit_mm:
+            return length
+    return candidates[-1]
+
+
+def scale_bar_segment(
+    image_shape: tuple[int, int],
+    mm_per_pixel: float,
+    length_mm: float,
+    margin_fraction: float = 0.04,
+) -> np.ndarray:
+    """Return (row, col) endpoints of a horizontal bar near the bottom-left."""
+    height, width = (float(value) for value in image_shape)
+    length_px = validate_positive_finite(length_mm, "Scale bar length") / (
+        millimetres_per_pixel(mm_per_pixel)
+    )
+    margin = margin_fraction * min(height, width)
+    row = height - margin
+    return np.array([[row, margin], [row, margin + length_px]], dtype=float)
+
+
+def format_length_mm(length_mm: float) -> str:
+    """Format a display-bar length as mm, or µm below one millimetre."""
+    if length_mm < 1.0:
+        return f"{length_mm * 1000.0:g} µm"
+    return f"{length_mm:g} mm"

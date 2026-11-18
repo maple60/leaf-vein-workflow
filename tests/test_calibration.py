@@ -70,3 +70,29 @@ def test_calibration_metadata_can_be_copied_without_unrelated_fields():
     assert copied[CALIBRATION_INPUT_UNIT_KEY] == "mm"
     assert copied[CALIBRATION_SCALE_BAR_PIXEL_LENGTH_KEY] == pytest.approx(100.0)
     assert "unrelated" not in copied
+
+
+def test_choose_scale_bar_length_prefers_10_mm_and_falls_back_for_small_images():
+    from leaf_vein_workflow.calibration import choose_scale_bar_length_mm
+
+    # 2550 px at 300 dpi is about 216 mm wide.
+    assert choose_scale_bar_length_mm(2550, 25.4 / 300) == 10.0
+    # 5 mm wide field: 40% is 2 mm.
+    assert choose_scale_bar_length_mm(500, 0.01) == 2.0
+    # Too small for every candidate: use the smallest.
+    assert choose_scale_bar_length_mm(10, 0.001) == 0.1
+
+
+def test_scale_bar_segment_has_requested_physical_length():
+    import numpy as np
+
+    from leaf_vein_workflow.calibration import format_length_mm, scale_bar_segment
+
+    segment = scale_bar_segment((1000, 2000), 0.1, 10.0)
+
+    assert segment.shape == (2, 2)
+    assert segment[0, 0] == segment[1, 0]
+    assert np.linalg.norm(segment[1] - segment[0]) == 100.0
+    assert segment[0, 0] > 900
+    assert format_length_mm(10.0) == "10 mm"
+    assert format_length_mm(0.5) == "500 µm"

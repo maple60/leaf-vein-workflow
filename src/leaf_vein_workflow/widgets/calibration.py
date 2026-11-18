@@ -6,6 +6,9 @@ from napari.utils.notifications import show_info, show_warning
 
 from ..calibration import (
     CALIBRATION_MM_PER_PIXEL_KEY,
+    choose_scale_bar_length_mm,
+    format_length_mm,
+    scale_bar_segment,
     dpi_to_mm_per_pixel,
     line_length_pixels,
     make_calibration_metadata,
@@ -18,6 +21,7 @@ from .controls import WorkflowControls, parse_number_input
 from .layers import (
     ROLE_KEY,
     ROLE_SCALE_BAR,
+    ROLE_SCALE_INDICATOR,
     SOURCE_IMAGE_KEY,
     WorkflowLayers,
 )
@@ -171,8 +175,65 @@ class CalibrationWorkflow:
         self.layers.propagate_calibration(source_image, metadata)
         if line_layer is not None:
             line_layer.mode = "select"
+        self.show_scale_indicator(source_image, mm_per_pixel)
         self._show_calibration(source_image, mm_per_pixel)
         show_info(f"Applied scale calibration to {source_image.name}.")
+
+    def show_scale_indicator(self, source_image: Image, mm_per_pixel: float) -> None:
+        """Draw or update a round-length bar (10 mm when it fits) on the image."""
+        shape = self._image_shape(source_image)
+        if shape is None:
+            return
+        length_mm = choose_scale_bar_length_mm(shape[1], mm_per_pixel)
+        segment = scale_bar_segment(shape, mm_per_pixel, length_mm)
+        segment = segment + np.asarray(source_image.translate[-2:], dtype=float)
+        label = format_length_mm(length_mm)
+        edge_width = max(2.0, 0.006 * min(shape))
+
+        indicator = self.layers.image_to_scale_indicator.get(id(source_image))
+        if indicator is not None and self.layers.is_present(indicator):
+            indicator.data = [segment]
+            indicator.shape_type = ["line"]
+            indicator.features = {"label": [label]}
+            indicator.edge_width = [edge_width]
+            desired_name = f"{source_image.name} {label} bar"
+            if indicator.name != desired_name:
+                indicator.name = self.layers.unique_name(desired_name)
+            indicator.refresh()
+            return
+
+        previous_active = self.layers.viewer.layers.selection.active
+        indicator = self.layers.viewer.add_shapes(
+            [segment],
+            shape_type="line",
+            name=self.layers.unique_name(f"{source_image.name} {label} bar"),
+            edge_color="magenta",
+            edge_width=edge_width,
+            features={"label": [label]},
+            text={
+                "string": "{label}",
+                "color": "magenta",
+                "size": 14,
+                "anchor": "upper_left",
+                "translation": [-3.0 * edge_width, 0.0],
+            },
+        )
+        indicator.metadata[ROLE_KEY] = ROLE_SCALE_INDICATOR
+        indicator.metadata[SOURCE_IMAGE_KEY] = source_image.name
+        indicator.editable = False
+        self.layers.image_to_scale_indicator[id(source_image)] = indicator
+        # 表示用レイヤーを追加しても、ユーザーの作業中レイヤーは変えない。
+        if previous_active is not None and self.layers.is_present(previous_active):
+            self.layers.activate(previous_active)
+
+    @staticmethod
+    def _image_shape(layer: Image) -> tuple[int, int] | None:
+        data_shape = tuple(np.shape(layer.data))
+        if getattr(layer, "rgb", False):
+            data_shape = data_shape[:-1]
+        if len(data_shape) < 2:
+            return None
+        return int(data_shape[-2]), int(data_shape[-1])
 
     def _show_calibration(self, source_image: Image, mm_per_pixel: float) -> None:
         micrometres = mm_per_pixel * 1000.0

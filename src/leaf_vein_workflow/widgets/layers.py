@@ -18,6 +18,7 @@ ROLE_SMOOTHED_IMAGE = "smoothed_image"
 ROLE_VEIN_MASK = "vein_mask"
 ROLE_ORDER_LABELS = "order_labels"
 ROLE_SCALE_BAR = "scale_bar"
+ROLE_SCALE_INDICATOR = "scale_indicator"
 SOURCE_IMAGE_KEY = "source_image"
 SOURCE_CROP_KEY = "source_crop"
 SOURCE_MASK_KEY = "source_mask"
@@ -46,6 +47,8 @@ class WorkflowLayers:
         self.roi_to_crop: dict[int, Image] = {}
         self.scale_bar_to_image: dict[int, Image] = {}
         self.image_to_scale_bar: dict[int, Shapes] = {}
+        # 校正結果を目で確かめるための表示用バー（計測には使わない）。
+        self.image_to_scale_indicator: dict[int, Shapes] = {}
         self.crop_to_smoothed: dict[int, Image] = {}
         self.smoothed_to_crop: dict[int, Image] = {}
         self.crop_to_mask: dict[int, Labels] = {}

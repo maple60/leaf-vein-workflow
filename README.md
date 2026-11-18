@@ -53,7 +53,11 @@ Scale Bar Line`, draw exactly one line along the bar, enter its real length, and
 then apply the scale. The normalized mm/px value is stored in layer metadata and
 inherited by derived workflow layers; the plugin does not change napari layer
 `scale` or `translate` transforms. The status shows µm/px, mm/px, and the
-equivalent DPI regardless of the selected input method.
+equivalent DPI regardless of the selected input method. Applying a scale also
+draws a magenta display bar near the bottom-left of the image (10 mm when it
+fits within 40% of the image width, otherwise 5, 2, 1 mm, or 500, 200, 100 µm)
+so the calibration can be checked against the ruler by eye. The bar layer is
+for display only and is updated, not duplicated, when the scale changes.
 
 Draw one rectangle, then click `Add ROI` in the widget to create the ROI crop
 layer. Click `Apply Gaussian` to create `smoothed_image`, then click
