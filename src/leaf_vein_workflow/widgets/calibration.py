@@ -184,7 +184,11 @@ class CalibrationWorkflow:
         shape = self._image_shape(source_image)
         if shape is None:
             return
-        length_mm = choose_scale_bar_length_mm(shape[1], mm_per_pixel)
+        length_mm = choose_scale_bar_length_mm(
+            shape[1],
+            mm_per_pixel,
+            preferred_mm=self.controls.scale_bar_length_mm,
+        )
         segment = scale_bar_segment(shape, mm_per_pixel, length_mm)
         segment = segment + np.asarray(source_image.translate[-2:], dtype=float)
         label = format_length_mm(length_mm)

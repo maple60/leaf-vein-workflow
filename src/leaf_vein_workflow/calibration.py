@@ -142,7 +142,10 @@ def choose_scale_bar_length_mm(
     pixel_size = millimetres_per_pixel(mm_per_pixel)
     width = validate_positive_finite(image_width_px, "Image width")
     limit_mm = width * pixel_size * max_fraction
-    candidates = [length for length in SCALE_BAR_CANDIDATES_MM if length <= preferred_mm]
+    preferred = validate_positive_finite(preferred_mm, "Scale bar length")
+    candidates = [preferred] + [
+        length for length in SCALE_BAR_CANDIDATES_MM if length < preferred
+    ]
     for length in candidates:
         if length <= limit_mm:
             return length

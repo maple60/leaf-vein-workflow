@@ -131,6 +131,10 @@ class WorkflowControls:
     output_dir_input: QLineEdit
     change_output_dir_button: QPushButton
     export_button: QPushButton
+    settings_path_label: QLabel
+    open_settings_button: QPushButton
+    reload_settings_button: QPushButton
+    reset_settings_button: QPushButton
     gaussian_sigma_label: QLabel
     gaussian_sigma_spinbox: QDoubleSpinBox
     threshold_label: QLabel
@@ -145,6 +149,8 @@ class WorkflowControls:
     opening_radius_label: QLabel
     opening_radius_spinbox: QSpinBox
     sections: dict[str, CollapsibleSection] = field(default_factory=dict)
+    # 設定ファイル由来で、対応する入力欄を持たない値。
+    scale_bar_length_mm: float = 10.0
 
     @classmethod
     def create(cls) -> "WorkflowControls":
@@ -170,6 +176,12 @@ class WorkflowControls:
         calibration_unit_combo.addItem("µm", "um")
         calibration_unit_combo.addItem("mm", "mm")
         calibration_unit_combo.setEnabled(False)
+
+        settings_path_label = QLabel("Settings: built-in defaults")
+        settings_path_label.setWordWrap(True)
+        settings_path_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
 
         path_order_combo = QComboBox()
         path_order_combo.addItem("1° primary", 1)
@@ -249,6 +261,10 @@ class WorkflowControls:
             output_dir_input=output_dir_input,
             change_output_dir_button=QPushButton("Change..."),
             export_button=QPushButton("Export Measurements"),
+            settings_path_label=settings_path_label,
+            open_settings_button=QPushButton("Open Settings File"),
+            reload_settings_button=QPushButton("Reload"),
+            reset_settings_button=QPushButton("Reset to Defaults"),
             gaussian_sigma_label=QLabel("Gaussian sigma"),
             gaussian_sigma_spinbox=gaussian_sigma_spinbox,
             threshold_label=QLabel("Mask threshold"),
@@ -349,6 +365,15 @@ class WorkflowControls:
         measurement_layout.addLayout(output_dir_layout)
         measurement_layout.addWidget(self.export_button)
 
+        settings_buttons_layout = QHBoxLayout()
+        settings_buttons_layout.addWidget(self.reload_settings_button)
+        settings_buttons_layout.addWidget(self.reset_settings_button)
+
+        settings_layout = QVBoxLayout()
+        settings_layout.addWidget(self.settings_path_label)
+        settings_layout.addWidget(self.open_settings_button)
+        settings_layout.addLayout(settings_buttons_layout)
+
         scroll_content = QWidget()
         stages_layout = QVBoxLayout(scroll_content)
         stages_layout.setContentsMargins(0, 0, 0, 0)
@@ -360,6 +385,7 @@ class WorkflowControls:
             ("mask_cleanup", "Mask cleanup", mask_cleanup_layout),
             ("order_labels", "Vein order labels", order_labels_layout),
             ("measurement", "Measurement", measurement_layout),
+            ("settings", "Settings", settings_layout),
         )
         for key, title, stage_layout in stage_layouts:
             section = CollapsibleSection(

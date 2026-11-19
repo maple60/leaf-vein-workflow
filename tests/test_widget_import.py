@@ -717,3 +717,100 @@ def test_vein_paths_take_selected_order_and_export_lengths(widget_flow, tmp_path
     assert float(rows["secondary"]["length_mm"]) == pytest.approx(3.0)
     assert float(rows["primary_secondary"]["vla_mm_per_mm2"]) == pytest.approx(0.15)
     assert result.paths.vertices_csv.exists()
+
+
+def test_settings_file_sets_widget_defaults_and_reset_restores_them(widget_flow, tmp_path):
+    from pathlib import Path
+
+    flow = widget_flow
+    settings_path = tmp_path / "config.yaml"
+    settings_path.write_text(
+        "calibration:\n  method: mm_per_pixel\n  value: 0.05\n"
+        "scale_bar:\n  length_mm: 5\n"
+        "mask:\n  gaussian_sigma: 2.5\n  invert_threshold: true\n"
+        "cleanup:\n  max_hole_px: 7\n"
+        "measurement:\n  leaf_area_unit: cm2\n  output_dir: results\n",
+        encoding="utf-8",
+    )
+    widget = flow.module.CropWidget(flow.viewer, settings_path=settings_path)
+    try:
+        assert widget.calibration_method_combo.currentData() == "mm_per_pixel"
+        assert widget.calibration_value_input.text() == "0.05"
+        assert widget._controls.scale_bar_length_mm == 5.0
+        assert widget.gaussian_sigma_spinbox.value() == 2.5
+        assert widget.invert_threshold_checkbox.isChecked()
+        assert widget.max_hole_size_spinbox.value() == 7
+        assert widget.min_object_size_spinbox.value() == 100
+        assert widget.leaf_area_unit_combo.currentData() == "cm2"
+        assert Path(widget.output_dir_input.text()) == Path.cwd() / "results"
+        assert str(settings_path) in widget._controls.settings_path_label.text()
+
+        widget._settings_workflow.reset_to_defaults()
+
+        assert widget.calibration_method_combo.currentData() == "dpi"
+        assert widget.calibration_value_input.text() == "1200"
+        assert widget._controls.scale_bar_length_mm == 10.0
+        assert not widget.invert_threshold_checkbox.isChecked()
+        assert widget.max_hole_size_spinbox.value() == 50
+        assert widget.leaf_area_unit_combo.currentData() == "mm2"
+        assert (tmp_path / "config.yaml.bak").exists()
+    finally:
+        widget.close()
+
+
+def test_export_metadata_records_actual_processing(widget_flow, tmp_path):
+    import yaml
+
+    flow = widget_flow
+    dpi_index = flow.widget.calibration_method_combo.findData("dpi")
+    flow.widget.calibration_method_combo.setCurrentIndex(dpi_index)
+    flow.widget.calibration_value_input.setText("254")
+    flow.widget.apply_scale()
+
+    flow.widget.gaussian_sigma_spinbox.setValue(0.5)
+    _, _, mask_layer = _advance_to_mask(flow)
+    flow.widget.max_hole_size_spinbox.setValue(3)
+    flow.widget.clean_mask()
+    # Clean Mask の後に手で1画素足す。
+    edited = np.asarray(mask_layer.data).copy()
+    edited[0, 0] = 1
+    edited[0, 1] = 1
+    mask_layer.data = edited
+    flow.widget.create_order_labels()
+    order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
+    labels = np.asarray(order_layer.data).copy()
+    labels[labels == 4] = 1
+    order_layer.data = labels
+    flow.app.processEvents()
+    flow.widget.leaf_area_input.setText("2.5")
+    flow.widget.leaf_area_unit_combo.setCurrentIndex(
+        flow.widget.leaf_area_unit_combo.findData("cm2")
+    )
+
+    result = flow.widget.export_measurements(tmp_path)
+
+    meta = yaml.safe_load(result.metadata_yaml.read_text(encoding="utf-8"))
+    assert meta["image_name"] == "leaf"
+    assert meta["calibration"]["method"] == "dpi"
+    assert meta["calibration"]["input_value"] == 254.0
+    assert meta["leaf_area"] == {"input": "2.5", "unit": "cm2", "mm2": 250.0}
+    processing = meta["order_labels"]["processing"]
+    assert processing["roi"] == {
+        "row_start": 1, "row_stop": 3, "col_start": 1, "col_stop": 4,
+    }
+    assert processing["gaussian_sigma"] == 0.5
+    assert "otsu_threshold" in processing
+    assert set(processing["threshold"]) == {"value", "invert"}
+    assert len(processing["cleanup"]) == 1
+    assert processing["cleanup"][0]["max_hole_px"] == 3
+    assert processing["mask_edited_by_hand_after_last_step"] is True
+    assert meta["order_labels"]["uncertain_px"] == 0
+    assert "defaults_in_effect" in meta["settings"]
+    assert "napari" in meta["software"]
+
+    prefix = result.metadata_yaml.name.removesuffix("_metadata.yaml")
+    assert result.vein_mask_npy.name == f"{prefix}_vein_mask.npy"
+    np.testing.assert_array_equal(np.load(result.vein_mask_npy), edited)
+    for name in meta["files"]:
+        assert name.startswith(prefix)
+        assert (tmp_path / name).exists()

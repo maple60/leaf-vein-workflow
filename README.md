@@ -92,6 +92,30 @@ writes `*_path_measurements.csv` (paths per order, length in px and mm, VLA for
 1°, 2°, and 1°+2°) and `*_path_vertices.csv` (every traced vertex). Tertiary
 veins are not traced here; measure them in sample boxes with order labels.
 
+### Reproducibility metadata
+
+Each export writes `<timestamp>_<image>_metadata.yaml` next to the results, and
+every file from one export shares that prefix. It records the source file path
+and SHA-256, calibration, leaf area as typed (value and unit) and in mm², the
+parameters actually applied (ROI bounds, Gaussian sigma, Otsu and final
+threshold, invert, every Clean Mask run), whether the mask was edited by hand
+after the last automatic step, label pixel counts, number of traced paths, the
+settings defaults in effect, and software versions. The vein mask itself is
+saved as `*_vein_mask.npy` so hand edits are preserved.
+
+### Settings
+
+Default values (calibration method and DPI, display bar length, Gaussian sigma,
+invert threshold, cleanup sizes, leaf-area unit, output folder) come from a YAML
+file read when the widget opens. `leaf_vein_workflow.yaml` in the folder napari
+is started from takes precedence; otherwise the per-user `config.yaml` is used
+(its path is shown in the `Settings` section). `Open Settings File` creates a
+commented file with the recommended values if none exists. Keys you leave out,
+and invalid values, fall back to the recommended values with a warning.
+`Reload` applies edits; `Reset to Defaults` rewrites the recommended file and
+keeps the previous one as `*.bak`. The recommended scanner resolution is
+1200 dpi, enough to resolve 2nd-order vein width.
+
 Workflow sections open one at a time, and finishing a stage (Apply Scale, Add
 ROI, Create Order Labels) opens the next one, so the dock rarely needs
 scrolling.

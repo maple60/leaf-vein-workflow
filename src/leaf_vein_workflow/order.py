@@ -257,12 +257,13 @@ def export_order_results(
     branch_table: pd.DataFrame,
     qc_overlay: np.ndarray,
     prefix: str | None = None,
+    add_timestamp: bool = True,
 ) -> ExportedOrderPaths:
     """Write measurements, labels, QC overlay, and branch table to disk."""
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    safe_prefix = _safe_prefix(prefix)
+    safe_prefix = _safe_prefix(prefix) if add_timestamp or not prefix else prefix
     measurements_csv = output_path / f"{safe_prefix}_measurements.csv"
     order_labels_npy = output_path / f"{safe_prefix}_vein_order_labels.npy"
     qc_overlay_png = output_path / f"{safe_prefix}_qc_overlay.png"

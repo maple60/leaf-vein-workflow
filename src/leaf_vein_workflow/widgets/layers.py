@@ -4,6 +4,7 @@ The workflow modules use this class instead of keeping separate, implicit
 layer mappings.  Image processing and Qt control updates do not belong here.
 """
 
+import copy
 from typing import Any
 
 from napari.layers import Image, Labels, Shapes
@@ -24,6 +25,8 @@ VEIN_PATH_ORDER_KEY = "order"
 SOURCE_IMAGE_KEY = "source_image"
 SOURCE_CROP_KEY = "source_crop"
 SOURCE_MASK_KEY = "source_mask"
+# 各工程で実際に使ったパラメータ。派生レイヤーへ引き継ぎ、Export 時に書き出す。
+PROCESSING_KEY = "leaf_vein_workflow_processing"
 
 SMOOTHED_LAYER_NAME = "smoothed_image"
 VEIN_MASK_LAYER_NAME = "vein_mask"
@@ -149,6 +152,16 @@ class WorkflowLayers:
             order_layer = self.mask_to_order_labels.get(id(mask_layer))
             if order_layer is not None and self.is_present(order_layer):
                 self._replace_calibration(order_layer, metadata)
+
+    @staticmethod
+    def processing(layer: Any) -> dict[str, Any]:
+        """Return a copy of the processing record stored on a layer."""
+        return copy.deepcopy(dict(layer.metadata.get(PROCESSING_KEY, {})))
+
+    @classmethod
+    def record_processing(cls, layer: Any, record: dict[str, Any]) -> None:
+        """Replace a layer's processing record."""
+        layer.metadata[PROCESSING_KEY] = copy.deepcopy(record)
 
     @staticmethod
     def inherited_calibration(layer: Any) -> dict[str, object]:

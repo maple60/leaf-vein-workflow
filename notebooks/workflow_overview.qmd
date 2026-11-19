@@ -274,6 +274,38 @@ order labels の値は、次の用途を想定しています。
 
 同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きせず、そのレイヤーを再利用します。
 
+## 再現性のためのメタデータ
+
+Export のたびに `<時刻>_<画像名>_metadata.yaml` を書き出し、同じ Export のファイルには同じ接頭辞を付けます。設定ファイルは「既定値」にすぎず、実際にはスライダーで閾値を動かしたり、mask を手で直したりするため、各工程で**実際に使った値**をレイヤーの metadata に記録しておき、それをまとめて書き出します。
+
+| 項目 | 内容 |
+|---|---|
+| `source_image` | 元画像のパス、SHA-256、shape |
+| `calibration` | mm/px、校正方法、入力値と単位 |
+| `leaf_area` | 入力値、単位、mm² 換算値 |
+| `order_labels.processing` | ROI 範囲、Gaussian sigma、Otsu 値、最終閾値と invert、Clean Mask の全実行（各回の値と、その前に手修正があったか） |
+| `mask_edited_by_hand_after_last_step` | 最後の自動処理の後に mask を手で直したか（内容のハッシュで判定） |
+| `label_pixel_counts` ほか | 次数ごとの画素数、未分類・次数なしの画素数 |
+| `vein_paths` | 次数ごとのパス本数 |
+| `settings` | 使っていた設定ファイルと、その時点の既定値 |
+| `software` | Python と主要パッケージのバージョン |
+
+手で直した mask はパラメータからは再現できないため、`*_vein_mask.npy` として mask 自体も保存します。
+
+## 設定ファイル
+
+各入力欄の既定値は、widget を開いたときに YAML の設定ファイルから読み込みます（`settings.py`）。napari を起動したフォルダに `leaf_vein_workflow.yaml` があればそれを優先し、なければユーザーごとの `config.yaml` を使います。使っているファイルの場所は `Settings` セクションに表示されます。
+
+| キー | 推奨値 | 内容 |
+|---|---|---|
+| `calibration.method` / `value` | `dpi` / 1200 | 校正方法と値。2次脈の太さを測れる解像度を推奨値にしている |
+| `scale_bar.length_mm` | 10 | Apply Scale 後に描く表示用バーの長さ |
+| `mask.gaussian_sigma` / `invert_threshold` | 1.0 / false | 平滑化と閾値の向き |
+| `cleanup.*` | 100 / 50 / 1 / 0 px | 葉脈片の除去、穴埋め、closing、opening |
+| `measurement.leaf_area_unit` / `output_dir` | `mm2` / `output` | 葉面積の単位と出力先（相対パスは起動フォルダ基準） |
+
+ファイルに書いたキーだけが推奨値を上書きします。書いていないキーや不正な値は推奨値に戻り、不正な値には警告を出します。`Open Settings File` はファイルがなければ推奨値入りのコメント付きファイルを作って開き、`Reload` で編集を反映し、`Reset to Defaults` で推奨値のファイルに戻します（元のファイルは `*.bak` に残す）。
+
 ## 計測と VLA
 
 ### パス計測（1次・2次）

@@ -13,13 +13,14 @@ from .mask import MaskWorkflow
 from .measurement import MeasurementWorkflow
 from .order_labels import OrderLabelsWorkflow
 from .roi import RoiWorkflow
+from .settings import SettingsWorkflow
 from .vein_paths import VeinPathsWorkflow
 
 
 class CropWidget(QWidget):
     """Single dock widget for ROI, mask refinement, and order labeling."""
 
-    def __init__(self, napari_viewer):
+    def __init__(self, napari_viewer, settings_path=None):
         super().__init__()
         self.viewer = napari_viewer
 
@@ -36,11 +37,14 @@ class CropWidget(QWidget):
             self._controls,
         )
         self._vein_paths_workflow = VeinPathsWorkflow(self._layers, self._controls)
+        self._settings_workflow = SettingsWorkflow(self._controls, settings_path)
         self._measurement_workflow = MeasurementWorkflow(
             self._layers,
             self._controls,
             self._vein_paths_workflow,
         )
+
+        self._measurement_workflow.settings = self._settings_workflow
 
         # 既存利用コードが同じ属性名でQt controlへアクセスできるよう明示的に公開する。
         self.status_label = self._controls.status_label
@@ -95,6 +99,8 @@ class CropWidget(QWidget):
 
         self.setLayout(self._controls.create_layout())
         self._connect_signals()
+        # 起動時に設定ファイルを読み、各入力欄の既定値に反映する。
+        self._settings_workflow.load_and_apply()
 
         for layer in list(self.viewer.layers):
             self._prepare_image_layer(layer)
@@ -107,6 +113,15 @@ class CropWidget(QWidget):
         self.draw_scale_bar_button.clicked.connect(self.draw_scale_bar_line)
         self.apply_scale_button.clicked.connect(self.apply_scale)
         self.draw_vein_paths_button.clicked.connect(self.draw_vein_paths)
+        self._controls.open_settings_button.clicked.connect(
+            self._settings_workflow.open_settings_file
+        )
+        self._controls.reload_settings_button.clicked.connect(
+            self._settings_workflow.reload
+        )
+        self._controls.reset_settings_button.clicked.connect(
+            self._settings_workflow.reset_to_defaults
+        )
         self.path_order_combo.currentIndexChanged.connect(
             self._vein_paths_workflow.on_order_changed
         )

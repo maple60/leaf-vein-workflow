@@ -12,6 +12,7 @@ from napari.utils.colormaps import direct_colormap
 from napari.utils.notifications import show_info
 from qtpy.QtCore import QTimer
 
+from ..provenance import array_digest
 from ..threshold import (
     otsu_threshold,
     postprocess_mask,
@@ -73,6 +74,9 @@ class MaskWorkflow:
         self.layers.clear_mask_layer(crop_layer)
         self.controls.set_cleanup_enabled(False)
         smoothed_layer = self.create_or_update_smoothed_layer(crop_layer, smoothed)
+        record = self.layers.processing(crop_layer)
+        record["gaussian_sigma"] = float(self.controls.gaussian_sigma_spinbox.value())
+        self.layers.record_processing(smoothed_layer, record)
         self.set_threshold_range_from_image(smoothed)
         self.controls.set_threshold_enabled(True)
         self.layers.move_to_top(smoothed_layer)
@@ -98,6 +102,9 @@ class MaskWorkflow:
             return
 
         self.set_threshold_range_from_image(np.asarray(intensity_layer.data))
+        record = self.layers.processing(intensity_layer)
+        record["otsu_threshold"] = float(threshold)
+        self.layers.record_processing(intensity_layer, record)
         self.set_threshold_value(threshold, update_mask=False)
         crop_layer = self.layers.active_crop_layer()
         if crop_layer is not None:
@@ -129,7 +136,24 @@ class MaskWorkflow:
             self.controls.warn(str(exc))
             return
 
+        record = self.layers.processing(mask_layer)
+        edited_before = (
+            record.get("auto_mask_sha256") is not None
+            and array_digest(np.asarray(mask_layer.data))
+            != record.get("auto_mask_sha256")
+        )
+        record.setdefault("cleanup", []).append(
+            {
+                "small_object_px": int(self.controls.min_object_size_spinbox.value()),
+                "max_hole_px": int(self.controls.max_hole_size_spinbox.value()),
+                "closing_radius_px": int(self.controls.closing_radius_spinbox.value()),
+                "opening_radius_px": int(self.controls.opening_radius_spinbox.value()),
+                "mask_edited_by_hand_before": bool(edited_before),
+            }
+        )
+        record["auto_mask_sha256"] = array_digest(cleaned)
         mask_layer.data = cleaned
+        self.layers.record_processing(mask_layer, record)
         crop_layer = self.layers.mask_to_crop.get(id(mask_layer))
         if crop_layer is not None:
             # 手修正後のmaskを閾値UIの遅延更新で上書きしない。
@@ -203,6 +227,15 @@ class MaskWorkflow:
         mask_layer = self.create_or_update_mask_layer(crop_layer, mask)
         if mask_layer is None:
             return
+        # 閾値から作り直した mask なので、cleanup 履歴はここでリセットする。
+        record = self.layers.processing(intensity_layer)
+        record["threshold"] = {
+            "value": float(self.controls.threshold_spinbox.value()),
+            "invert": bool(self.controls.invert_threshold_checkbox.isChecked()),
+        }
+        record["cleanup"] = []
+        record["auto_mask_sha256"] = array_digest(mask)
+        self.layers.record_processing(mask_layer, record)
 
         self.controls.set_cleanup_enabled(True)
         self.layers.move_to_top(mask_layer)
