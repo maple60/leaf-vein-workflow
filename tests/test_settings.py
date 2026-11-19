@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from leaf_vein_workflow.settings import (
     DEFAULT_SETTINGS,
+    DEFAULT_SETTINGS_YAML,
+    EXAMPLE_SETTINGS_NAME,
     PROJECT_SETTINGS_NAME,
     find_settings_path,
     load_settings,
@@ -95,3 +99,37 @@ def test_resolve_output_dir(tmp_path):
     assert resolve_output_dir("output", tmp_path) == tmp_path / "output"
     absolute = tmp_path / "elsewhere"
     assert resolve_output_dir(str(absolute), tmp_path / "x") == absolute
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_committed_example_matches_built_in_defaults():
+    example = REPO_ROOT / EXAMPLE_SETTINGS_NAME
+
+    # read_text converts CRLF to LF, so a Windows checkout compares equal.
+    assert example.read_text(encoding="utf-8") == DEFAULT_SETTINGS_YAML
+    loaded = load_settings(example)
+    assert loaded.values == DEFAULT_SETTINGS
+    assert loaded.warnings == []
+
+
+def test_example_is_copied_when_project_file_is_missing(tmp_path, monkeypatch):
+    import platformdirs
+
+    monkeypatch.setattr(
+        platformdirs, "user_config_dir", lambda *args, **kwargs: str(tmp_path / "user")
+    )
+    (tmp_path / EXAMPLE_SETTINGS_NAME).write_text(
+        "calibration:\n  value: 600\n", encoding="utf-8"
+    )
+
+    path = find_settings_path(tmp_path)
+
+    assert path == tmp_path / PROJECT_SETTINGS_NAME
+    assert load_settings(path).values["calibration"]["value"] == 600.0
+
+    # An existing (customized) file is never overwritten by the example.
+    path.write_text("calibration:\n  value: 2400\n", encoding="utf-8")
+    assert find_settings_path(tmp_path) == path
+    assert load_settings(path).values["calibration"]["value"] == 2400.0

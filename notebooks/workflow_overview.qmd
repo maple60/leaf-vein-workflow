@@ -294,7 +294,14 @@ Export のたびに `<時刻>_<画像名>_metadata.yaml` を書き出し、同�
 
 ## 設定ファイル
 
-各入力欄の既定値は、widget を開いたときに YAML の設定ファイルから読み込みます（`settings.py`）。napari を起動したフォルダに `leaf_vein_workflow.yaml` があればそれを優先し、なければユーザーごとの `config.yaml` を使います。使っているファイルの場所は `Settings` セクションに表示されます。
+各入力欄の既定値は、widget を開いたときに YAML の設定ファイルから読み込みます（`settings.py`）。リポジトリには推奨値を書いた `leaf_vein_workflow.example.yaml` が入っています。
+
+- リポジトリのフォルダで napari を起動し、`leaf_vein_workflow.yaml` がなければ、example をコピーして作ります。値を変えたいときはこの `leaf_vein_workflow.yaml` を編集します。
+- `leaf_vein_workflow.yaml` は git の管理外なので、自分の値がコミットされたり、更新とぶつかったりしません。
+- 推奨値に戻したいときは、example を `leaf_vein_workflow.yaml` に上書きコピーします（`Reset to Defaults` でも同じ）。
+- 別のフォルダから起動したときは、ユーザーごとの `config.yaml` を使います。
+
+使っているファイルの場所は `Settings` セクションに表示されます。
 
 | キー | 推奨値 | 内容 |
 |---|---|---|

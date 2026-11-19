@@ -9,6 +9,8 @@ __pycache__/
 *.pyc
 *.egg-info/
 /output/
+/leaf_vein_workflow.yaml
+/leaf_vein_workflow.yaml.bak
 
 notebooks/skeletonization.qmd
 notebooks/skeletonization.qmd

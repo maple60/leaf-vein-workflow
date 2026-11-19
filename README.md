@@ -107,10 +107,15 @@ saved as `*_vein_mask.npy` so hand edits are preserved.
 
 Default values (calibration method and DPI, display bar length, Gaussian sigma,
 invert threshold, cleanup sizes, leaf-area unit, output folder) come from a YAML
-file read when the widget opens. `leaf_vein_workflow.yaml` in the folder napari
-is started from takes precedence; otherwise the per-user `config.yaml` is used
-(its path is shown in the `Settings` section). `Open Settings File` creates a
-commented file with the recommended values if none exists. Keys you leave out,
+file read when the widget opens. The repository ships
+`leaf_vein_workflow.example.yaml` with the recommended values. When napari is
+started from the repository folder and `leaf_vein_workflow.yaml` does not exist,
+it is created from the example; edit that copy to customize (it is ignored by
+git, so your values never conflict with updates). Copying the example over it
+restores the recommended values. When napari is started from another folder,
+the per-user `config.yaml` is used instead (its path is shown in the `Settings`
+section). `Open Settings File` creates a commented file with the recommended
+values if none exists. Keys you leave out,
 and invalid values, fall back to the recommended values with a warning.
 `Reload` applies edits; `Reset to Defaults` rewrites the recommended file and
 keeps the previous one as `*.bak`. The recommended scanner resolution is

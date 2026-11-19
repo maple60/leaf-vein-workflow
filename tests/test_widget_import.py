@@ -52,6 +52,8 @@ def widget_flow(monkeypatch, tmp_path):
         pytest.skip("No Qt backend is installed.")
 
     _patch_napari_dirs(monkeypatch, tmp_path)
+    # Keep the widget from creating leaf_vein_workflow.yaml in the repository.
+    monkeypatch.chdir(tmp_path)
     pytest.importorskip("napari")
     from napari.components import ViewerModel
     from qtpy.QtWidgets import QApplication

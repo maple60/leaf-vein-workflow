@@ -7,8 +7,10 @@ and keeps the previous one as a ``.bak`` copy.
 
 Lookup order:
 
-1. ``leaf_vein_workflow.yaml`` in the folder napari was started from (useful
-   to keep settings next to a project's data and under version control).
+1. ``leaf_vein_workflow.yaml`` in the folder napari was started from.  When it
+   is missing but ``leaf_vein_workflow.example.yaml`` (committed in the
+   repository) is there, the example is copied to create it, so each user edits
+   their own untracked copy.
 2. ``config.yaml`` in the per-user config folder.
 """
 
@@ -25,6 +27,7 @@ import yaml
 
 APP_NAME = "leaf-vein-workflow"
 PROJECT_SETTINGS_NAME = "leaf_vein_workflow.yaml"
+EXAMPLE_SETTINGS_NAME = "leaf_vein_workflow.example.yaml"
 USER_SETTINGS_NAME = "config.yaml"
 
 CALIBRATION_METHODS = ("dpi", "um_per_pixel", "mm_per_pixel", "scale_bar")
@@ -58,7 +61,8 @@ DEFAULT_SETTINGS_YAML = """\
 # leaf-vein-workflow settings
 # Only the keys written here override the built-in recommended values.
 # Delete a key (or use "Reset to Defaults" in the widget) to go back to the
-# recommended value.
+# recommended value. In the repository, copying leaf_vein_workflow.example.yaml
+# over leaf_vein_workflow.yaml also restores every recommended value.
 
 calibration:
   # dpi, um_per_pixel, mm_per_pixel, or scale_bar
@@ -113,11 +117,22 @@ def user_settings_path() -> Path:
 
 
 def find_settings_path(start_dir: str | Path | None = None) -> Path:
-    """Return the project settings file if present, else the user file path."""
+    """Return the project settings file, else the user file path.
+
+    If only the committed example exists in ``start_dir``, it is copied to
+    ``leaf_vein_workflow.yaml`` first and that copy is returned.
+    """
     base = Path(start_dir) if start_dir is not None else Path.cwd()
     project_path = base / PROJECT_SETTINGS_NAME
     if project_path.is_file():
         return project_path
+    example_path = base / EXAMPLE_SETTINGS_NAME
+    if example_path.is_file():
+        try:
+            shutil.copyfile(example_path, project_path)
+            return project_path
+        except OSError:
+            pass
     return user_settings_path()
 
 
