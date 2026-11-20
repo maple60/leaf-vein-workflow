@@ -78,3 +78,23 @@ def test_auto_order_rejects_disconnected_apex():
 
     with pytest.raises(ValueError, match="not connected"):
         auto_assign_orders(vein, (22, 6), (22, 94), mm_per_pixel=0.1)
+
+
+def test_holes_in_the_leaf_outline_are_not_treated_as_margin():
+    """Pale specks inside the blade leave holes in the Otsu leaf area."""
+    vein, leaf, secondaries, _ = _synthetic_leaf()
+    holed = leaf.copy()
+    # 2° のすぐ脇（葉縁の帯の幅より近い所）に小さな穴を開ける
+    for c in (230, 340, 450):
+        for direction in (-1, 1):
+            r, col = 200 + direction * 80, c + 48 + 9
+            holed[r - 4:r + 4, col - 4:col + 4] = False
+    holed |= vein  # 葉脈の上には開けない
+
+    result = auto_assign_orders(
+        vein, (200, 40), (200, 660), leaf_mask=holed, mm_per_pixel=0.02
+    )
+
+    assert result.n_secondary == 10
+    for r, c in secondaries:
+        assert result.labels[r, c] == SECONDARY, (r, c)

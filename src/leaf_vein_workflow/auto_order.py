@@ -110,7 +110,8 @@ def auto_assign_orders(
     origins = _secondary_origins(graph, geometry, params, px)
 
     if leaf_mask is not None and np.shape(leaf_mask) == vein.shape:
-        leaf = np.asarray(leaf_mask) > 0
+        # 葉身の中の明るい点（穴）も葉縁とみなされないよう、穴を埋める。
+        leaf = ndimage.binary_fill_holes(np.asarray(leaf_mask) > 0)
     else:
         # 葉脈の網目を閉じて穴を埋め、葉の輪郭の代わりにする。
         leaf = ndimage.binary_fill_holes(ndimage.binary_closing(vein, iterations=8))
