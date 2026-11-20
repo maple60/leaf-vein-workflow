@@ -8,6 +8,8 @@ from napari.qt.threading import create_worker
 from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QFileDialog, QWidget
 
+from ..auto_order import auto_assign_orders
+from .auto_order import AutoOrderWorkflow
 from .calibration import CalibrationWorkflow
 from .controls import WorkflowControls
 from .layers import WorkflowLayers
@@ -39,6 +41,8 @@ class CropWidget(QWidget):
             self._controls,
         )
         self._vein_paths_workflow = VeinPathsWorkflow(self._layers, self._controls)
+        self._auto_order_workflow = AutoOrderWorkflow(self._layers, self._controls)
+        self._auto_order_worker = None
         self._settings_workflow = SettingsWorkflow(self._controls, settings_path)
         self._measurement_workflow = MeasurementWorkflow(
             self._layers,
@@ -65,6 +69,8 @@ class CropWidget(QWidget):
         self.clean_mask_button = self._controls.clean_mask_button
         self.create_order_labels_button = self._controls.create_order_labels_button
         self.paint_order_combo = self._controls.paint_order_combo
+        self.mark_seeds_button = self._controls.mark_seeds_button
+        self.auto_orders_button = self._controls.auto_orders_button
         self.leaf_area_input = self._controls.leaf_area_input
         self.leaf_area_unit_combo = self._controls.leaf_area_unit_combo
         self.output_dir_input = self._controls.output_dir_input
@@ -135,6 +141,10 @@ class CropWidget(QWidget):
         self.create_order_labels_button.clicked.connect(self.create_order_labels)
         self.paint_order_combo.currentIndexChanged.connect(
             self._order_labels_workflow.on_paint_order_changed
+        )
+        self.mark_seeds_button.clicked.connect(self.mark_base_and_apex)
+        self.auto_orders_button.clicked.connect(
+            lambda *_: self.auto_assign_orders(background=True)
         )
         self.change_output_dir_button.clicked.connect(self.choose_output_dir)
         self.export_button.clicked.connect(
@@ -252,6 +262,46 @@ class CropWidget(QWidget):
 
     def _on_export_failed(self, error) -> None:
         self._controls.warn(f"Export failed: {error}")
+
+    def mark_base_and_apex(self):
+        """Create or select the Points layer for the base and apex clicks."""
+        return self._auto_order_workflow.mark_base_and_apex()
+
+    def auto_assign_orders(self, background=False):
+        """Auto-assign 1°/2° into uncertain pixels of the order labels.
+
+        With ``background=True`` (the button) the algorithm runs in a worker
+        thread and the worker is returned; otherwise the number of changed
+        pixels is returned.
+        """
+        job = self._auto_order_workflow.prepare()
+        if job is None:
+            return None
+        if not background:
+            try:
+                result = auto_assign_orders(**job.kwargs())
+            except ValueError as exc:
+                self._controls.warn(str(exc))
+                return None
+            return self._auto_order_workflow.apply(job, result)
+
+        self.auto_orders_button.setEnabled(False)
+        self.auto_orders_button.setText("Assigning...")
+        self._controls.set_status(
+            "Auto-assigning 1°/2° in the background (about a minute for a full leaf)."
+        )
+        worker = create_worker(auto_assign_orders, **job.kwargs())
+        worker.returned.connect(lambda result: self._auto_order_workflow.apply(job, result))
+        worker.errored.connect(lambda error: self._controls.warn(f"Auto-assign failed: {error}"))
+        worker.finished.connect(self._reset_auto_order_button)
+        self._auto_order_worker = worker
+        worker.start()
+        return worker
+
+    def _reset_auto_order_button(self) -> None:
+        self.auto_orders_button.setText("Auto-assign 1°/2°")
+        self.auto_orders_button.setEnabled(True)
+        self._auto_order_worker = None
 
     def _reset_export_button(self) -> None:
         self.export_button.setText("Export Measurements")

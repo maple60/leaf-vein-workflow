@@ -135,6 +135,8 @@ class WorkflowControls:
     clean_mask_button: QPushButton
     create_order_labels_button: QPushButton
     paint_order_combo: QComboBox
+    mark_seeds_button: QPushButton
+    auto_orders_button: QPushButton
     leaf_area_label: QLabel
     leaf_area_input: QLineEdit
     leaf_area_unit_combo: QComboBox
@@ -277,6 +279,8 @@ class WorkflowControls:
             clean_mask_button=QPushButton("Clean Mask"),
             create_order_labels_button=QPushButton("Create Order Labels"),
             paint_order_combo=paint_order_combo,
+            mark_seeds_button=QPushButton("Mark Base && Apex"),
+            auto_orders_button=QPushButton("Auto-assign 1°/2°"),
             leaf_area_label=QLabel("Leaf area"),
             leaf_area_input=make_number_input("", "measured before preparation"),
             leaf_area_unit_combo=leaf_area_unit_combo,
@@ -411,6 +415,17 @@ class WorkflowControls:
         )
         orders_layout.addWidget(self.create_order_labels_button)
         orders_layout.addLayout(paint_order_layout)
+        orders_layout.addWidget(_subheading("Auto 1°/2° (optional)"))
+        orders_layout.addWidget(
+            _hint(
+                "Mark the leaf base and the apex of the 1°, then auto-assign. "
+                "Only Uncertain pixels change, so your painting is kept. "
+                "A full leaf at 3200 dpi takes about a minute."
+            )
+        )
+        # 狭い dock でもはみ出さないよう、縦に並べる。
+        orders_layout.addWidget(self.mark_seeds_button)
+        orders_layout.addWidget(self.auto_orders_button)
 
         leaf_area_layout = QHBoxLayout()
         leaf_area_layout.addWidget(self.leaf_area_label)
@@ -576,6 +591,8 @@ class WorkflowControls:
         self.clean_mask_button.setEnabled(enabled)
         self.create_order_labels_button.setEnabled(enabled)
         self.paint_order_combo.setEnabled(enabled)
+        self.mark_seeds_button.setEnabled(enabled)
+        self.auto_orders_button.setEnabled(enabled)
 
     def set_measurement_enabled(self, enabled: bool) -> None:
         """Enable measurement once a mask (and so order labels) can exist."""

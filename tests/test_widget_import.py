@@ -919,3 +919,72 @@ def test_export_button_runs_in_background(widget_flow, tmp_path):
     assert flow.widget.export_button.isEnabled()
     assert list(tmp_path.glob("*_measurements.csv"))
     assert list(tmp_path.glob("*_metadata.yaml"))
+
+
+def test_auto_assign_orders_end_to_end_keeps_hand_painting(monkeypatch, tmp_path):
+    """Synthetic leaf scan: Otsu mask, two clicks, then 1°/2° fill uncertain pixels."""
+    if not _has_qt_backend():
+        pytest.skip("No Qt backend is installed.")
+    _patch_napari_dirs(monkeypatch, tmp_path)
+    monkeypatch.chdir(tmp_path)
+    pytest.importorskip("napari")
+    from napari.components import ViewerModel
+    from qtpy.QtWidgets import QApplication
+
+    import leaf_vein_workflow._widget as widget_module
+    from test_auto_order import _synthetic_leaf
+
+    vein, leaf, secondaries, tertiaries = _synthetic_leaf()
+    # 紙 0.95、葉身 0.55、葉脈 0.15 の透過スキャンを模した画像
+    image = np.where(leaf, 0.55, 0.95)
+    image[vein] = 0.15
+
+    app = QApplication.instance() or QApplication([])
+    viewer = ViewerModel()
+    widget = widget_module.CropWidget(viewer, settings_path=tmp_path / "none.yaml")
+    try:
+        viewer.add_image(image, name="leaf")
+        app.processEvents()
+        # 0.02 mm/px（≈ 1270 dpi）で校正する
+        widget.calibration_method_combo.setCurrentIndex(
+            widget.calibration_method_combo.findData("mm_per_pixel")
+        )
+        widget.calibration_value_input.setText("0.02")
+        widget.apply_scale()
+        roi = viewer.layers["leaf ROI rectangle"]
+        roi.add_rectangles(np.array([[[0, 0], [0, 699], [399, 699], [399, 0]]], float))
+        app.processEvents()
+        widget.add_roi()
+        widget.gaussian_sigma_spinbox.setValue(0.0)
+        widget.apply_gaussian_filter()
+        widget.use_otsu_threshold()
+        _wait_for_delayed_mask_update(SimpleNamespace(app=app))
+        widget.create_order_labels()
+        order_layer = viewer.layers[widget_module.ORDER_LABELS_LAYER_NAME]
+        offset = np.asarray(order_layer.translate, dtype=int)
+
+        # 手で塗った 3° は自動振り分けで上書きされない
+        hand_r, hand_c = np.array(tertiaries[0]) - offset
+        painted = np.asarray(order_layer.data).copy()
+        painted[hand_r, hand_c] = 3
+        order_layer.data = painted
+
+        seeds = widget.mark_base_and_apex()
+        assert viewer.layers.selection.active is seeds and seeds.mode == "add"
+        seeds.add(np.array([[200, 40], [200, 660]], float) - offset)
+        app.processEvents()
+
+        changed = widget.auto_assign_orders(background=False)
+        labels = np.asarray(order_layer.data)
+
+        assert changed > 0
+        assert labels[200 - offset[0], 350 - offset[1]] == 1
+        for r, c in secondaries:
+            assert labels[r - offset[0], c - offset[1]] == 2, (r, c)
+        assert labels[hand_r, hand_c] == 3
+        record = widget._layers.processing(order_layer)["auto_order"]
+        assert record["n_secondary"] == 10
+        assert record["leaf_outline_from_otsu"] is True
+    finally:
+        widget.close()
+        app.processEvents()

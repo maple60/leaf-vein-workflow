@@ -391,6 +391,8 @@ class MeasurementWorkflow:
             "uncertain_px": int(validation.label_pixel_counts.get(ORDER_UNCERTAIN_LABEL, 0)),
             "unlabeled_vein_px": int(validation.unlabeled_vein_pixels),
             "combined_rows": "sum of per-order skeleton lengths",
+            # 自動振り分けを使ったときは、その設定と結果を残す。
+            "auto_order": self.layers.processing(order_layer).get("auto_order"),
         }
         if validation.invalid_label_values:
             raise ValueError(

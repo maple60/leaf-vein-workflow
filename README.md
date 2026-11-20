@@ -21,9 +21,9 @@ napari plugin for leaf vein image workflow development.
 - Measure skeleton length per vein order and VLA against a leaf area typed in
   mm² or cm², and export the results.
 
-Saving cropped images, multiple ROIs, polygon ROIs, nD stacks, automatic vein
-order classification, and minor-vein (4th order and above) labels are outside
-the current MVP.
+Saving cropped images, multiple ROIs, polygon ROIs, nD stacks, automatic 3°
+classification, and minor-vein (4th order and above) labels are outside the
+current MVP. 1° and 2° veins can be auto-assigned (see below).
 
 ## Development
 
@@ -54,8 +54,9 @@ The dock shows six numbered steps, one open at a time:
 2. **ROI**: drag the rectangle over the area to analyze and press `Add ROI`.
 3. **Vein mask**: `Apply Gaussian`, `Apply Otsu`, adjust the threshold, fix
    spots by hand, and optionally `Clean Mask`.
-4. **Paint vein orders**: `Create Order Labels`, choose an order in
-   `Paint as`, and drag over veins.
+4. **Paint vein orders**: `Create Order Labels`, optionally mark the base and
+   apex and auto-assign 1°/2°, then choose an order in `Paint as` and drag over
+   veins to finish.
 5. **Leaf area & VLA**: type the fresh-leaf area.
 6. **Export**: choose the output folder and press `Export Measurements`.
 
@@ -93,7 +94,29 @@ vein-order annotation inside the confirmed mask. Every vein pixel starts as
 4 (uncertain, purple). Choose 1°, 2°, 3°, or Uncertain in `Paint as` (each
 item shows its label color) and drag over veins; pixels outside the mask are
 never painted. Picking a label in napari's own layer controls updates
-`Paint as` too. Cleanup inputs remain integer
+`Paint as` too.
+
+**Auto-assign 1°/2° (optional).** Click `Mark Base & Apex`, click the leaf base
+(where the 1° enters the blade) and then the apex, and press `Auto-assign
+1°/2°`. It runs in the background (about a minute for a full leaf at 3200 dpi)
+and only changes pixels that are still Uncertain, so anything painted by hand
+is kept. The rules follow the Manual of Leaf Architecture (Ellis et al., 2009),
+implemented in `auto_order.py`:
+
+- 1°: the cheapest skeleton path from base to apex, with step cost
+  length / diameter², so it keeps to the widest vein.
+- 2° origins: each vein leaving the 1° is measured in a ring just outside the
+  1° edge (junctions swell the width). It is a 2° candidate when it is at least
+  70% of the thickest branch nearby on the same side, because secondaries thin
+  toward the apex.
+- 2° course: the cheapest path to the margin on the same side, cut where the
+  gauge drops abruptly (a detour into a thinner vein).
+- A candidate whose course mostly runs along a thicker 2° is a 3° joining the
+  1° and a 2°, so it stays Uncertain.
+
+On a 3200 dpi konara scan the 1° and about 30 secondaries are found; veins near
+the leaf base still need hand correction. The clicks, parameters, and counts
+are written to the export metadata under `order_labels.auto_order`. Cleanup inputs remain integer
 pixel values for reproducible morphology behavior; when the image is calibrated,
 their labels also show object/hole areas in mm² and closing/opening radii in µm
 or mm.
