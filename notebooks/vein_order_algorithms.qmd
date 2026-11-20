@@ -1,20 +1,19 @@
 ---
 title: "葉脈 mask と次数の自動振り分けのアルゴリズム"
-date: 2026-11-20
 ---
 
-## このノートの目的
+## 目的
 
-このノートは、napari プラグインの中で動いている計算を、数式と実データでの振る舞いから説明します。対象は次の4つです。
+このノートは、napari プラグインの中で動いている計算を、数式と実データでの振る舞いから説明します。
+対象は次の4つです。
 
 1. 2段階 Otsu による葉脈 mask の作成（`threshold.py`）
 2. 骨格と直径（太さ）の求め方（`skeleton.py`、`auto_order.py`）
 3. 1次脈・2次脈の自動振り分け（`auto_order.py`）
 4. 長さと VLA の計算（`order.py`）
 
-実データは、3200 dpi でスキャンしたコナラ（*Quercus serrata*）の葉脈標本1枚です。2次脈がまっすぐ鋸歯に入る型（craspedodromous）の葉です。
-
-数値は、2026-11-20 にこのノートのコードを実行して得た値です。サイトの描画では `eval: false` のためコードは実行されません。図は実行時に `notebooks/figures/auto_order/` へ保存したものを貼っています。
+実データは、3200 dpi でスキャンしたコナラ（*Quercus serrata*）の葉脈標本1枚です。
+2次脈がまっすぐ鋸歯に入る型（craspedodromous）の葉です。
 
 ## 記号
 
@@ -75,21 +74,31 @@ print("ROI の大きさ:", crop.shape)
 
 ## 1. 2段階 Otsu による葉脈 mask
 
+スキャン画像に対してROIを切り出すと、背景と葉でまず分かれます。
+このため一度の二値化では、葉内部の葉脈だけはうまく分離できません。
+そこで、葉と背景の二値化をした後、葉の中で葉脈と葉身を分ける二段階の Otsu threshold を使います。
+
 ### 目的
 
-葉脈の画素と、それ以外（葉身・背景の紙）を分ける閾値を決めます。あわせて、閾値のどちら側が葉脈かも決めます。
+葉脈の画素と、それ以外（葉身・背景の紙）を分ける閾値を決めます。
+あわせて、閾値のどちら側が葉脈かも決めます。
 
 ### 方法
 
-**Otsu の方法**（Otsu's method）は、明るさのヒストグラムを2つの組に分ける閾値 $t$ を選ぶ方法です。閾値で分けた2組の平均がなるべく離れ、しかも両方の組に十分な画素があるような $t$ を選びます。式では、次の**クラス間分散**（between-class variance）を最大にする $t$ です。
+**Otsu の方法**（Otsu's method）は、明るさのヒストグラムを2つの組に分ける閾値 $t$ を選ぶ方法です。
+閾値で分けた2組の平均がなるべく離れ、しかも両方の組に十分な画素があるような $t$ を選びます。
+式では、次の**クラス間分散**（between-class variance）を最大にする $t$ です。
 
 $$
 t^{*} = \arg\max_t \; \omega_0(t)\,\omega_1(t)\,\bigl(\mu_0(t) - \mu_1(t)\bigr)^2
 $$
 
-ここで $\omega_0, \omega_1$ は暗い組・明るい組の画素の割合、$\mu_0, \mu_1$ はそれぞれの平均の明るさです。人が閾値を選ばずに済むので、再現性が上がります。
+ここで $\omega_0, \omega_1$ は暗い組・明るい組の画素の割合、$\mu_0, \mu_1$ はそれぞれの平均の明るさです。
+人が閾値を選ばずに済むので、再現性が上がります。
 
-問題は、葉全体を囲む ROI では画像に**3つ**の組があることです。暗い葉脈、中間の葉身、明るい紙です。Otsu は2組にしか分けないので、いちばん大きな差である「葉 と 紙」を分けてしまいます。そこで、2回に分けて Otsu を使います。
+問題は、葉全体を囲む ROI では画像に**3つ**の組があることです。
+暗い葉脈、中間の葉身、明るい紙です。Otsu は2組にしか分けないので、いちばん大きな差である「葉 と 紙」を分けてしまいます。
+そこで、2回に分けて Otsu を使います。
 
 1. **1回目**：画像全体で Otsu をかけ、$t_1$ で「葉」と「背景」に分ける。背景は、ROI の縁の画素に多い側とする。
 2. **背景かどうかの確認**：背景とした組のうち、ROI の縁につながっている連結成分の画素が 80% 以上なら、本当の背景（紙）とみなす。葉身の内側だけの ROI では、明るい側（葉身）は葉脈に囲まれた小さな網目（areole）に分かれていて縁に届かないので、この条件で区別できる。
@@ -170,9 +179,12 @@ fig.tight_layout(); fig.savefig(FIG / "otsu_two_step.png", dpi=100)
 
 ### 方法
 
-**骨格化**（skeletonization）は、領域のつながり方を保ったまま外側から1画素ずつ削り、幅1画素の中心線にする処理です（scikit-image の `skeletonize`）。
+**骨格化**（skeletonization）は、領域のつながり方を保ったまま外側から1画素ずつ削り、幅1画素の中心線にする処理です。
+実装には、Pythonで scikit-image の `skeletonize` 関数を使用します。
 
-**直径**は、**ユークリッド距離変換**（Euclidean distance transform, EDT）で求めます。EDT は、mask の中の各画素に「いちばん近い背景画素までの距離」を入れた画像です。中心線の上では、この距離が葉脈の半径にあたるので、直径は次の式で求めます。
+**直径**は、**ユークリッド距離変換**（Euclidean distance transform, EDT）で求めます。
+EDT は、mask の中の各画素に「いちばん近い背景画素までの距離」を入れた画像です。
+中心線の上では、この距離が葉脈の半径にあたるので、直径は次の式で求めます。
 
 $$
 d(p) = 2\,\mathrm{EDT}_M(p)
@@ -180,7 +192,11 @@ $$
 
 以前は `medial_axis` の距離を使っていましたが、定義は同じで EDT の方が速いので置き換えました。
 
-骨格は**グラフ**として扱います。骨格の画素を頂点とし、8近傍で隣り合う画素どうしを辺で結びます（skan の `Skeleton`）。辺の長さ $\ell$ は、縦横の隣なら 1、斜めの隣なら $\sqrt2$ です。
+骨格は**グラフ**として扱います。
+骨格の画素を頂点とし、8近傍で隣り合う画素どうしを辺で結びます。
+実装には、Python で skan の `Skeleton` 関数を使用します。
+
+辺の長さ $\ell$ は、縦横の隣なら 1、斜めの隣なら $\sqrt2$ です。
 
 ### コード
 
@@ -458,7 +474,11 @@ napari では、この結果を**現在 4（不確定）の画素だけ**に書�
 
 ```{python}
 start = time.perf_counter()
-result = auto_assign_orders(vein, BASE, APEX, leaf_mask=leaf, mm_per_pixel=MM_PER_PX)
+# 3次脈の推定は 4.9 節で扱うので、ここでは 1次・2次までにする
+result = auto_assign_orders(
+    vein, BASE, APEX, leaf_mask=leaf, mm_per_pixel=MM_PER_PX,
+    params=AutoOrderParams(assign_tertiary=False),
+)
 elapsed = time.perf_counter() - start
 summary = result.summary()
 print(f"{elapsed:.0f} 秒, 2次脈 {summary['n_secondary']} 本, "
@@ -556,7 +576,143 @@ print(f"ひげを除いた長さ    {(total - spur['branch-distance'].sum()) * M
 
 どちらにするかは、手で塗った正解との比較で決めるのがよいと考えています。
 
+### 4.9 残りの脈を太さで3次脈と細い脈に分ける
+
+#### 目的
+
+1次脈・2次脈を決めた後、残りの脈の大部分は手で塗ることになります。
+その手間を減らすため、残りの脈のうち3次脈らしいものを先に 3 にしておきます。
+
+ただし、残りの脈を**すべて** 3 にはしません。
+3200 dpi の mask には、3次脈より細い脈（4次以上の細かい網目）も入っています。
+4.7 節の結果では、残りの脈 3,857 mm に対して1次+2次は 463 mm で、残りの大半は細い脈です。
+すべて 3 にすると、細い脈が VLA3 と VLA_major に入ってしまいます。
+
+#### 方法
+
+Ellis の定義では、3次脈は「網目を作る脈のうち最も太いもの」で、2次脈より細い脈です。
+そこで、太さに上と下の境目を置きます。
+
+骨格を分岐点・端点で区切った区間 $b$ ごとに、太さ $g_b$ と長さ $\ell_b$ を求めます。
+$g_b$ は区間の直径の中央値で、両端から「端の半径 + 2 px」以内の点は除きます（分岐点の太りを避けるため）。
+1次脈・2次脈に半分以上重なる区間は対象にしません。
+
+区間 $b$ を3次脈とする条件は、次のとおりです。
+
+$$
+c \;\le\; g_b \;<\; \operatorname{median}\{\, d(v) \mid v \in \text{2次脈} \,\}
+$$
+
+- **上の境目**：2次脈の骨格上の直径の中央値です。これより太い区間は3次脈ではありません。葉柄や、黒い斑点の塊がここで外れます。
+- **下の境目** $c$：残りの区間の $\log g_b$ に、長さ $\ell_b$ で重みを付けた Otsu をかけて決めます（120 階級のヒストグラム）。長さで重みを付けるのは、短い区間がたくさんあっても、長さとしての割合で分けたいためです。設定ファイルの `auto_order.tertiary_min_gauge_mm` で固定もできます。
+- **1次脈の両端**：最も近い1次脈の点が基部または先端そのものである区間（葉柄や先端の付近）は判定せず、不確定のままにします。
+
+3 と判定した区間は、4.6 節の手順1で骨格から mask の画素へ広げます。
+その後に2次脈・1次脈の本体を上から塗るので、1次・2次の判定は変わりません。
+
+#### コード
+
+既定の設定（3次脈の推定あり）で振り分け、下の境目を変えると3次脈の長さがどう変わるかも確かめます。
+
+```{python}
+result3 = auto_assign_orders(vein, BASE, APEX, leaf_mask=leaf, mm_per_pixel=MM_PER_PX)
+low, high = result3.tertiary_gauge_range_px
+print(f"3次脈とした太さ: {low:.1f}〜{high:.1f} px "
+      f"（{low * MM_PER_PX * 1000:.0f}〜{high * MM_PER_PX * 1000:.0f} µm）")
+for row in measure_order_labels(result3.labels, pixel_size_mm=MM_PER_PX):
+    if row["label_name"] in ("primary", "secondary", "tertiary", "uncertain", "major"):
+        print(f"{row['label_name']:10s} {row['length_mm']:8.1f} mm")
+
+# 下の境目を変えたときの3次脈の長さ（区間の太さと長さから直接数える）
+taken = np.isin(result.labels[graph.rows, graph.cols], (1, 2))
+seg_g, seg_l = [], []
+for seg in graph.segments:
+    if taken[seg].mean() > 0.5:
+        continue
+    rr, cc, d = graph.rows[seg], graph.cols[seg], graph.diameter[seg]
+    middle = (np.hypot(rr - rr[0], cc - cc[0]) > d[0] / 2 + 2) & (
+        np.hypot(rr - rr[-1], cc - cc[-1]) > d[-1] / 2 + 2)
+    seg_g.append(np.median(d[middle] if middle.sum() >= 3 else d))
+    seg_l.append(graph.length(seg))
+seg_g, seg_l = np.array(seg_g), np.array(seg_l)
+for cut in (5.0, 5.5, low, 7.0, 8.0):
+    in_range = (seg_g >= cut) & (seg_g < high)
+    print(f"下の境目 {cut:4.1f} px → 3次脈 {seg_l[in_range].sum() * MM_PER_PX:6.0f} mm")
+
+fig, ax = plt.subplots(figsize=(6.5, 3.6))
+edges = np.logspace(np.log10(1.8), np.log10(seg_g.max() * 1.1), 80)
+ax.hist(seg_g, bins=edges, weights=seg_l * MM_PER_PX, color="0.5")
+ax.axvline(low, c="#03af7a", ls="--", label=f"下の境目 {low:.1f} px")
+ax.axvline(high, c="#005aff", ls="--", label=f"上の境目（2次脈の中央値）{high:.1f} px")
+ax.set_xscale("log"); ax.set_xlabel("区間の太さ g [px]"); ax.set_ylabel("長さ [mm]")
+ax.legend(frameon=False, fontsize=8)
+fig.tight_layout(); fig.savefig(FIG / "tertiary_gauge.png", dpi=100)
+
+colors = ((4, (0.6, 0, 0.6), 0.45), (3, (0.01, 0.69, 0.48), 0.9),
+          (2, (0, 0.35, 1), 0.9), (1, (1, 0.29, 0), 0.9))
+for region, step, name in (((slice(None), slice(None)), 4, "tertiary_result.png"),
+                           ((slice(1300, 2600), slice(2600, 5600)), 2, "tertiary_zoom.png")):
+    b = crop[region][::step, ::step] / 255.0
+    rgb = np.stack([b] * 3, -1) * 0.85 + 0.15
+    sub = result3.labels[region][::step, ::step]
+    for value, color, alpha in colors:
+        m = sub == value
+        rgb[m] = (1 - alpha) * rgb[m] + alpha * np.array(color)
+    plt.imsave(FIG / name, np.clip(rgb, 0, 1))
+```
+
+#### 結果
+
+- 3次脈とした太さの範囲は 6.4〜22.4 px（51〜177 µm）でした。上の境目 22.4 px は2次脈の骨格上の直径の中央値です。
+- ラベル領域から測った長さは次のとおりです（3節の方法）。
+
+| ラベル | 長さ |
+|---|---|
+| 1次脈 | 77.2 mm |
+| 2次脈 | 386.2 mm |
+| 3次脈 | 1,328.9 mm |
+| major（1〜3次） | 1,792.3 mm |
+| 不確定 | 2,628.8 mm |
+
+- 下の境目を変えたときの3次脈の長さ（区間の太さと長さから直接数えた値）は次のとおりです。
+
+| 下の境目 | 3次脈の長さ |
+|---|---|
+| 5.0 px（40 µm） | 2,073 mm |
+| 5.5 px（44 µm） | 2,021 mm |
+| 6.4 px（51 µm、自動） | 1,275 mm |
+| 7.0 px（56 µm） | 1,252 mm |
+| 8.0 px（64 µm） | 992 mm |
+
+![残りの区間の太さの分布（長さで重み付け）と、3次脈とした範囲](figures/auto_order/tertiary_gauge.png)
+
+![3次脈の推定まで入れた結果。赤 = 1次脈、青 = 2次脈、緑 = 3次脈、紫 = 不確定。](figures/auto_order/tertiary_result.png)
+
+![中央付近の拡大](figures/auto_order/tertiary_zoom.png)
+
+#### 結果の読み方
+
+拡大図では、緑（3次脈）の多くが、隣り合う2次脈の間をはしご状につなぐ脈になっています。
+コナラの3次脈は、このように2次脈どうしを横切る型（percurrent）なので、見た目には妥当な分け方です。
+それより細かい網目は紫（不確定）に残りました。
+葉柄と黒い斑点も、上の境目で外れて紫のままです。
+葉の縁に沿った脈も緑になりました。
+Ellis は、3次脈の太さを持つ縁の脈を fimbrial vein と呼んでいます。
+
+太さの分布（上の図）には谷がなく、飛び飛びの値に長さが集まっています（2節で見た EDT の刻みのため）。
+自動の境目 6.4 px のすぐ下には、5.7・6.0・6.3 px の区間がまとまってあり、合わせて約 750 mm あります。
+境目がこのかたまりの上に来るか下に来るかで、3次脈の長さが約 2,000 mm から約 1,300 mm に変わります。
+表で 5.5 px と 6.4 px の間に大きな差があるのはこのためです。
+
+自動の境目での直接の数え方（1,275 mm）とラベル領域から測った値（1,328.9 mm）が少し違うのは、ラベル領域の長さに 4.8 節のひげが含まれるためと考えられます。
+
 #### 注意点
+
+- **下の境目は不安定です。** 太さの分布に谷がないので、ヒストグラムの区切り方を少し変えるだけで境目が動きます。試作の段階では同じ葉で 5.4 px になり、3次脈の長さは 2,083 mm でした。
+- 何枚か確かめたうえで、種ごとに `auto_order.tertiary_min_gauge_mm` を固定する方が、葉どうしの比較には安全です。使った範囲は Export のメタデータ（`order_labels.auto_order.tertiary_gauge_range_px`）に残ります。
+- 3次脈の判定は区間ごとの太さだけで、走り方（2次脈どうしをつなぐか）は使っていません。太めの細い脈が 3 に、細めの3次脈が不確定に入ることがあります。手で直す前提の「たたき台」です。
+
+### 自動振り分け全体の注意点
 
 - **確かめたのは、2次脈が鋸歯に入る型のコナラ1枚だけです。** 2次脈が縁の手前でループする型（brochidodromous）や、基部から複数の1次脈が出る掌状の葉では、まだ確かめていません。掌状の葉では、Ellis の「最も太い1次脈の 75% 以上の太さの脈も1次脈」という規則を足す必要があります。
 - **定数の多くは、この1枚を見ながら決めた経験的な値です。**
@@ -581,6 +737,8 @@ print(f"ひげを除いた長さ    {(total - spur['branch-distance'].sum()) * M
 | `margin_band_mm` | 0.2 mm | 25 px | 葉縁の帯の幅 |
 | `continue_gauge_ratio` | 0.55 | — | 太さの急な落ち込みとみなす比 |
 | `max_shared_with_thicker` | 0.5 | — | 太い2次脈と重なる割合の上限 |
+| `assign_tertiary` | true | — | 残りの脈を太さで3次脈と不確定に分けるか |
+| `tertiary_min_gauge_mm` | null（自動） | — | 3次脈の下の境目。null なら長さで重み付けした Otsu で決める |
 
 距離はすべて mm で持ち、校正値で画素に直します。解像度が変わっても、同じ物理的な大きさで判定します。
 
