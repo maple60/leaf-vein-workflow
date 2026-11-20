@@ -15,7 +15,7 @@ Export runs in two parts so the heavy work can leave the Qt thread:
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -91,10 +91,19 @@ class ExportJob:
     messages: list[tuple[str, str]] = field(default_factory=list)
 
 
-def run_export_job(job: ExportJob) -> MeasurementExport:
+def run_export_job(
+    job: ExportJob,
+    progress: Callable[[float, str], None] | None = None,
+) -> MeasurementExport:
     """Measure and write every file of one export (safe in a worker thread)."""
+
+    def report(fraction: float, message: str) -> None:
+        if progress is not None:
+            progress(fraction, message)
+
     result = MeasurementExport()
     job.target.mkdir(parents=True, exist_ok=True)
+    report(0.02, "Preparing the export")
 
     if job.paths is not None:
         result.paths = export_vein_paths(
@@ -103,12 +112,14 @@ def run_export_job(job: ExportJob) -> MeasurementExport:
         result.messages.append(("info", f"Exported {result.paths.measurements_csv.name}"))
 
     if job.labels is not None:
-        result.labels = _write_label_results(job)
+        result.labels = _write_label_results(job, report)
         result.messages.append(("info", f"Exported {result.labels.measurements_csv.name}"))
         if job.labels.vein_mask is not None:
+            report(0.93, "Saving the vein mask")
             result.vein_mask_npy = job.target / f"{job.prefix}_vein_mask.npy"
             np.save(result.vein_mask_npy, job.labels.vein_mask.astype(np.uint8))
 
+    report(0.96, "Writing metadata")
     record = dict(job.metadata)
     source = source_file_info(job.source_path) or {"path": None, "sha256": None}
     source.update(record.pop("source_layer", {}))
@@ -117,12 +128,14 @@ def run_export_job(job: ExportJob) -> MeasurementExport:
     result.metadata_yaml = write_metadata(job.target / f"{job.prefix}_metadata.yaml", record)
 
     result.messages = job.messages + result.messages
+    report(1.0, "Done")
     return result
 
 
-def _write_label_results(job: ExportJob) -> ExportedOrderPaths:
+def _write_label_results(job: ExportJob, report) -> ExportedOrderPaths:
     snapshot = job.labels
     labels = snapshot.labels
+    report(0.05, "Measuring vein length per order")
     rows = measure_order_labels(
         labels,
         pixel_size_mm=snapshot.mm_per_pixel,
@@ -132,6 +145,7 @@ def _write_label_results(job: ExportJob) -> ExportedOrderPaths:
     )
 
     vein = labels > 0
+    report(0.45, "Building the branch table")
     if np.any(vein):
         helpers = create_skeleton_helpers(
             vein,
@@ -144,7 +158,9 @@ def _write_label_results(job: ExportJob) -> ExportedOrderPaths:
         branch_table = pd.DataFrame()
         skeleton = np.zeros(labels.shape, dtype=np.uint8)
 
+    report(0.8, "Drawing the QC image")
     overlay = make_qc_overlay(snapshot.base_image, vein, skeleton, labels)
+    report(0.86, "Writing files")
     return export_order_results(
         job.target,
         rows,

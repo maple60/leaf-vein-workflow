@@ -5,6 +5,7 @@ from skimage.draw import ellipse, line
 from leaf_vein_workflow.auto_order import (
     PRIMARY,
     SECONDARY,
+    TERTIARY,
     UNCERTAIN,
     auto_assign_orders,
 )
@@ -65,7 +66,7 @@ def test_auto_order_finds_primary_and_secondaries():
     for r, c in secondaries:
         assert labels[r, c] == SECONDARY, (r, c)
     for r, c in tertiaries:
-        assert labels[r, c] == UNCERTAIN, (r, c)
+        assert labels[r, c] == TERTIARY, (r, c)
     assert result.n_secondary == 10
     assert np.all(labels[~vein] == 0)
     assert np.all(labels[vein] > 0)
@@ -98,3 +99,41 @@ def test_holes_in_the_leaf_outline_are_not_treated_as_margin():
     assert result.n_secondary == 10
     for r, c in secondaries:
         assert result.labels[r, c] == SECONDARY, (r, c)
+
+
+def test_thin_minor_veins_stay_uncertain():
+    """Remaining veins are split by gauge: 3° crossbars vs thin minor veins."""
+    vein, leaf, _, tertiaries = _synthetic_leaf()
+    minors = []
+    for c in range(150, 480, 110):
+        for direction in (-1, 1):
+            r0, r1 = 200 + direction * 115, 200 + direction * 150
+            _thick_line(vein, min(r0, r1), c + 60, max(r0, r1), c + 60, 1)
+            minors.append((200 + direction * 135, c + 60))
+    vein &= leaf
+
+    result = auto_assign_orders(
+        vein, (200, 40), (200, 660), leaf_mask=leaf, mm_per_pixel=0.02
+    )
+
+    for r, c in tertiaries:
+        assert result.labels[r, c] == TERTIARY, (r, c)
+    for r, c in minors:
+        assert result.labels[r, c] == UNCERTAIN, (r, c)
+    low, high = result.tertiary_gauge_range_px
+    assert low < high
+
+
+def test_progress_is_reported_in_order_up_to_done():
+    vein, leaf, _, _ = _synthetic_leaf()
+    seen = []
+
+    auto_assign_orders(
+        vein, (200, 40), (200, 660), leaf_mask=leaf, mm_per_pixel=0.02,
+        progress=lambda fraction, message: seen.append((fraction, message)),
+    )
+
+    fractions = [fraction for fraction, _ in seen]
+    assert fractions == sorted(fractions)
+    assert fractions[-1] == 1.0
+    assert any("2°" in message for _, message in seen)

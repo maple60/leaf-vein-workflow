@@ -97,6 +97,15 @@ class SettingsWorkflow:
         controls.closing_radius_spinbox.setValue(int(cleanup["closing_radius_px"]))
         controls.opening_radius_spinbox.setValue(int(cleanup["opening_radius_px"]))
 
+        auto_order = values["auto_order"]
+        controls.activate_labels_after_marking = bool(
+            auto_order["activate_labels_after_marking"]
+        )
+        controls.auto_order_options = {
+            "assign_tertiary": bool(auto_order["assign_tertiary"]),
+            "tertiary_min_gauge_mm": auto_order["tertiary_min_gauge_mm"],
+        }
+
         measurement = values["measurement"]
         unit_index = controls.leaf_area_unit_combo.findData(
             measurement["leaf_area_unit"]

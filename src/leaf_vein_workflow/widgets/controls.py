@@ -17,6 +17,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -116,6 +117,7 @@ class WorkflowControls:
     """Named references to every control shown by :class:`CropWidget`."""
 
     status_label: QLabel
+    progress_bar: QProgressBar
     calibration_status_label: QLabel
     calibration_method_label: QLabel
     calibration_method_combo: QComboBox
@@ -163,6 +165,8 @@ class WorkflowControls:
     sections: dict[str, CollapsibleSection] = field(default_factory=dict)
     # 設定ファイル由来で、対応する入力欄を持たない値。
     scale_bar_length_mm: float = 10.0
+    activate_labels_after_marking: bool = True
+    auto_order_options: dict = field(default_factory=dict)
 
     @classmethod
     def create(cls) -> "WorkflowControls":
@@ -172,6 +176,11 @@ class WorkflowControls:
             "automatically."
         )
         status_label.setWordWrap(True)
+
+        progress_bar = QProgressBar()
+        progress_bar.setRange(0, 1000)
+        progress_bar.setTextVisible(True)
+        progress_bar.setVisible(False)
 
         calibration_status_label = QLabel("Scale: not calibrated (pixel units)")
         calibration_status_label.setWordWrap(True)
@@ -260,6 +269,7 @@ class WorkflowControls:
 
         controls = cls(
             status_label=status_label,
+            progress_bar=progress_bar,
             calibration_status_label=calibration_status_label,
             calibration_method_label=QLabel("Scale calibration method"),
             calibration_method_combo=calibration_method_combo,
@@ -502,6 +512,8 @@ class WorkflowControls:
 
         layout = QVBoxLayout()
         layout.addWidget(scroll_area)
+        # 時間のかかる処理（自動振り分け・Export）の進み具合。実行中だけ表示する。
+        layout.addWidget(self.progress_bar)
         layout.addWidget(self.status_label)
         return layout
 
@@ -646,6 +658,16 @@ class WorkflowControls:
         if length_mm < 1.0:
             return f"{length_mm * 1000.0:.6g} µm"
         return f"{length_mm:.6g} mm"
+
+    def show_progress(self, fraction: float, message: str) -> None:
+        """Show how far a long step has got, with what it is doing now."""
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(int(round(max(0.0, min(1.0, fraction)) * 1000)))
+        self.progress_bar.setFormat(f"{message}  {fraction:.0%}")
+
+    def hide_progress(self) -> None:
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setValue(0)
 
     def set_status(self, message: str) -> None:
         """Show workflow guidance without raising a notification."""

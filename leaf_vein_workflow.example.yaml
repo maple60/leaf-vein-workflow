@@ -38,3 +38,11 @@ measurement:
   leaf_area_unit: mm2
   # Relative paths are resolved against the folder napari was started from.
   output_dir: output
+
+auto_order:
+  # After clicking base and apex, switch back to painting on order_labels.
+  activate_labels_after_marking: true
+  # Label remaining veins of 3° gauge as 3 (thinner minor veins stay Uncertain).
+  assign_tertiary: true
+  # Smallest 3° gauge in mm. null: chosen from the leaf (Otsu on vein gauges).
+  tertiary_min_gauge_mm: null

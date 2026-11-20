@@ -1,4 +1,4 @@
-"""Assign 1° and 2° vein orders from a vein mask and two clicks.
+"""Assign 1°, 2° (and a first guess of 3°) vein orders from two clicks.
 
 The user marks the base and the apex of the primary vein.  From there the
 rules follow the Manual of Leaf Architecture (Ellis et al., 2009):
@@ -18,8 +18,13 @@ rules follow the Manual of Leaf Architecture (Ellis et al., 2009):
    (for example a looping secondary in a brochidodromous leaf) drops at once.
 4. **Tertiaries off the primary**: a candidate whose traced course mostly runs
    along a thicker secondary is a 3° that connects the 1° to a 2°, so it is
-   dropped.  Everything that is not 1° or 2° stays uncertain (4) for manual
-   painting.
+   dropped.
+5. **Tertiary guess** (optional): the remaining veins are split by gauge.
+   Segments at least as thick as a cutoff, but thinner than the median 2°
+   gauge (Ellis: 3° are the thickest veins of the mesh, thinner than 2°), get
+   3; thinner ones (minor veins) stay uncertain (4).  The cutoff is chosen by
+   Otsu on the length-weighted log gauge unless ``tertiary_min_gauge_mm`` is
+   set.  Veins near both ends of the 1° (petiole, apex) stay uncertain.
 
 The module does not depend on napari, so it can run in a worker thread.
 """
@@ -27,7 +32,7 @@ The module does not depend on napari, so it can run in a worker thread.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 from scipy import ndimage
@@ -38,7 +43,7 @@ from skimage.morphology import skeletonize
 
 from .skeleton import drop_isolated_pixels
 
-PRIMARY, SECONDARY, UNCERTAIN = 1, 2, 4
+PRIMARY, SECONDARY, TERTIARY, UNCERTAIN = 1, 2, 3, 4
 # 試作は 3200 dpi の標本画像で調整した。校正値が無いときはこの解像度とみなす。
 DEFAULT_MM_PER_PIXEL = 25.4 / 3200
 
@@ -56,6 +61,9 @@ class AutoOrderParams:
     margin_band_mm: float = 0.2
     continue_gauge_ratio: float = 0.55
     max_shared_with_thicker: float = 0.5
+    assign_tertiary: bool = True
+    # None: 残りの区間の太さ（長さで重み付け）に Otsu をかけて決める。
+    tertiary_min_gauge_mm: float | None = None
 
 
 @dataclass(slots=True)
@@ -67,14 +75,19 @@ class AutoOrderResult:
     n_secondary: int
     n_rejected: int
     params: dict[str, Any] = field(default_factory=dict)
+    tertiary_gauge_range_px: tuple[float, float] | None = None
 
     def summary(self) -> dict[str, Any]:
-        return {
+        summary = {
             "primary_length_px": round(self.primary_length_px, 1),
             "n_secondary": self.n_secondary,
             "n_rejected_merging_into_thicker": self.n_rejected,
             "params": self.params,
         }
+        if self.tertiary_gauge_range_px is not None:
+            low, high = self.tertiary_gauge_range_px
+            summary["tertiary_gauge_range_px"] = [round(low, 2), round(high, 2)]
+        return summary
 
 
 def auto_assign_orders(
@@ -85,9 +98,18 @@ def auto_assign_orders(
     leaf_mask: np.ndarray | None = None,
     mm_per_pixel: float | None = None,
     params: AutoOrderParams | None = None,
+    progress: Callable[[float, str], None] | None = None,
 ) -> AutoOrderResult:
-    """Return labels with 1° = 1, 2° = 2, and other vein pixels = 4."""
+    """Return labels with 1° = 1, 2° = 2, 3° guess = 3, and other veins = 4.
+
+    ``progress(fraction, message)`` is called as the steps advance (0 to 1).
+    """
     params = params or AutoOrderParams()
+
+    def report(fraction: float, message: str) -> None:
+        if progress is not None:
+            progress(fraction, message)
+
     vein = np.asarray(vein_mask) > 0
     if vein.ndim != 2 or not vein.any():
         raise ValueError("Auto order needs a 2D vein mask with vein pixels.")
@@ -96,16 +118,20 @@ def auto_assign_orders(
     def px(mm: float) -> float:
         return mm / mmpp
 
+    report(0.02, "Skeletonizing the vein mask")
     skeleton = drop_isolated_pixels(skeletonize(vein).astype(np.uint8)).astype(bool)
     diameter = 2.0 * ndimage.distance_transform_edt(vein)
+    report(0.15, "Building the vein graph")
     graph = _VeinGraph(skeleton, diameter)
 
     base = graph.snap(base_rc, px(params.snap_radius_mm))
     apex = graph.snap(apex_rc, px(params.snap_radius_mm))
+    report(0.25, "Tracing the 1°")
     primary = graph.cheapest_path(base, apex)
     if primary is None:
         raise ValueError("The apex is not connected to the base through the vein mask.")
 
+    report(0.3, "Finding 2° origins")
     geometry = _PrimaryGeometry(graph, primary, skeleton.shape)
     origins = _secondary_origins(graph, geometry, params, px)
 
@@ -117,11 +143,24 @@ def auto_assign_orders(
         leaf = ndimage.binary_fill_holes(ndimage.binary_closing(vein, iterations=8))
     margin_dist = ndimage.distance_transform_edt(leaf)[graph.rows, graph.cols]
 
-    traced = _trace_secondaries(graph, geometry, origins, margin_dist, params, px)
+    def trace_progress(done: int, total: int) -> None:
+        report(0.35 + 0.45 * done / max(total, 1), f"Tracing 2° candidates ({done}/{total})")
+
+    traced = _trace_secondaries(
+        graph, geometry, origins, margin_dist, params, px, trace_progress
+    )
+    report(0.82, "Dropping candidates that merge into a thicker 2°")
     accepted, rejected = _drop_tertiaries(graph, traced, params)
 
     skeleton_labels = np.zeros(skeleton.shape, np.uint8)
     skeleton_labels[skeleton] = UNCERTAIN
+    tertiary_range = None
+    report(0.87, "Splitting the remaining veins by gauge")
+    if params.assign_tertiary and accepted:
+        tertiary_range = _assign_tertiary(
+            graph, geometry, primary, accepted, skeleton_labels, params, px
+        )
+    report(0.93, "Painting the labels")
     labels = _spread_to_mask(skeleton_labels, vein)
     # 太い脈の中にある小さな骨格の枝に引っ張られないよう、たどった経路から
     # その場所の半径までを、その次数の本体として塗る（1° を最後に塗って優先）。
@@ -129,12 +168,14 @@ def auto_assign_orders(
     for value, nodes in ((SECONDARY, secondary_nodes), (PRIMARY, primary)):
         if nodes.size:
             labels[_vein_body(graph, nodes, vein)] = value
+    report(1.0, "Done")
     return AutoOrderResult(
         labels=labels,
         primary_length_px=graph.length(primary),
         n_secondary=len(accepted),
         n_rejected=len(rejected),
         params={**asdict(params), "mm_per_pixel_used": mmpp},
+        tertiary_gauge_range_px=tertiary_range,
     )
 
 
@@ -149,6 +190,8 @@ class _VeinGraph:
         self.diameter = diameter[self.rows, self.cols].astype(float)
         self.index = np.full(skeleton.shape, -1, np.int64)
         self.index[self.rows, self.cols] = np.arange(self.n)
+        # 分岐点・端点で区切った区間（3次脈の太さを区間ごとに測るのに使う）
+        self.segments = [np.asarray(seg, dtype=np.int64) for seg in sk.paths_list()]
         g = sk.graph.tocoo()
         self.edge_row, self.edge_col, self.edge_len = g.row, g.col, g.data
         self.cost = self.cost_matrix(np.ones(self.n, bool))
@@ -278,7 +321,7 @@ def _secondary_origins(graph, geometry, params, px) -> list[_Origin]:
     return chosen
 
 
-def _trace_secondaries(graph, geometry, origins, margin_dist, params, px):
+def _trace_secondaries(graph, geometry, origins, margin_dist, params, px, on_step=None):
     """Follow each 2° origin to the margin, cut where the gauge drops abruptly."""
     cost = graph.cost_matrix(geometry.node_offset > 2)  # 主脈の中は通らない
     in_band = margin_dist < px(params.margin_band_mm)
@@ -291,7 +334,9 @@ def _trace_secondaries(graph, geometry, origins, margin_dist, params, px):
     )
     max_extension = 2 * px(params.margin_band_mm)
     traced = []
-    for origin in origins:
+    for i, origin in enumerate(origins):
+        if on_step is not None:
+            on_step(i, len(origins))
         start = int(origin.nodes[np.argmax(geometry.node_offset[origin.nodes])])
         targets = near_margin[geometry.node_side[near_margin] == origin.side]
         if targets.size == 0:
@@ -348,6 +393,62 @@ def _gauge_drop(graph, course: np.ndarray, gauge: float, params) -> int:
         if ahead < params.continue_gauge_ratio * behind:
             return i
     return d.size
+
+
+def _assign_tertiary(graph, geometry, primary, accepted, skeleton_labels, params, px):
+    """Label remaining segments of 3° gauge as 3 on the skeleton; return the range."""
+    taken = np.zeros(graph.n, bool)
+    taken[primary] = True
+    taken[np.concatenate(accepted)] = True
+    secondary_gauge = float(np.median(graph.diameter[np.concatenate(accepted)]))
+    # 1° の両端（葉柄や先端）にいちばん近い所の脈は判定しない
+    end_zone = (geometry.node_position <= 0) | (geometry.node_position >= len(primary) - 1)
+
+    gauges, lengths, segments = [], [], []
+    for seg in graph.segments:
+        if taken[seg].mean() > 0.5 or end_zone[seg].mean() > 0.5:
+            continue
+        rr, cc = graph.rows[seg], graph.cols[seg]
+        d = graph.diameter[seg]
+        # 分岐点の太りを避け、両端から「端の半径 + 2 px」より内側で測る
+        middle = (np.hypot(rr - rr[0], cc - cc[0]) > d[0] / 2 + 2) & (
+            np.hypot(rr - rr[-1], cc - cc[-1]) > d[-1] / 2 + 2
+        )
+        gauges.append(float(np.median(d[middle] if middle.sum() >= 3 else d)))
+        lengths.append(graph.length(seg))
+        segments.append(seg)
+    if not segments:
+        return None
+    gauges, lengths = np.asarray(gauges), np.asarray(lengths)
+
+    if params.tertiary_min_gauge_mm is not None:
+        low = px(params.tertiary_min_gauge_mm)
+    else:
+        low = _weighted_log_otsu(gauges, lengths)
+    high = secondary_gauge
+    for seg, gauge in zip(segments, gauges):
+        if low <= gauge < high:
+            keep = ~taken[seg]
+            skeleton_labels[graph.rows[seg[keep]], graph.cols[seg[keep]]] = TERTIARY
+    return float(low), float(high)
+
+
+def _weighted_log_otsu(values: np.ndarray, weights: np.ndarray, bins: int = 120) -> float:
+    """Otsu threshold on log values, each weighted by its length."""
+    logs = np.log(np.maximum(values, 1e-6))
+    if np.ptp(logs) == 0:
+        return float(values[0])
+    counts, edges = np.histogram(logs, bins=bins, weights=weights)
+    centers = 0.5 * (edges[1:] + edges[:-1])
+    total = counts.sum()
+    w0 = np.cumsum(counts)
+    w1 = total - w0
+    m0 = np.cumsum(counts * centers)
+    mu0 = np.divide(m0, w0, out=np.zeros_like(m0), where=w0 > 0)
+    mu1 = np.divide(m0[-1] - m0, w1, out=np.zeros_like(m0), where=w1 > 0)
+    between = w0 * w1 * (mu0 - mu1) ** 2
+    # 閾値は「この値以上が太い側」なので、選んだ区切りの上端を返す
+    return float(np.exp(edges[int(np.argmax(between)) + 1]))
 
 
 def _drop_tertiaries(graph, traced, params):

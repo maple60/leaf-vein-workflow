@@ -98,9 +98,11 @@ never painted. Picking a label in napari's own layer controls updates
 
 **Auto-assign 1°/2° (optional).** Click `Mark Base & Apex`, click the leaf base
 (where the 1° enters the blade) and then the apex, and press `Auto-assign
-1°/2°`. It runs in the background (about a minute for a full leaf at 3200 dpi)
-and only changes pixels that are still Uncertain, so anything painted by hand
-is kept. The rules follow the Manual of Leaf Architecture (Ellis et al., 2009),
+1°/2°`. After the second click the dock switches back to painting on
+`order_labels` (set `auto_order.activate_labels_after_marking: false` to stay on
+the points). It runs in the background with a progress bar (about a minute for
+a full leaf at 3200 dpi) and only changes pixels that are still Uncertain, so
+anything painted by hand is kept. Export also shows a progress bar. The rules follow the Manual of Leaf Architecture (Ellis et al., 2009),
 implemented in `auto_order.py`:
 
 - 1°: the cheapest skeleton path from base to apex, with step cost
@@ -112,10 +114,20 @@ implemented in `auto_order.py`:
 - 2° course: the cheapest path to the margin on the same side, cut where the
   gauge drops abruptly (a detour into a thinner vein).
 - A candidate whose course mostly runs along a thicker 2° is a 3° joining the
-  1° and a 2°, so it stays Uncertain.
+  1° and a 2°, so it is not a 2°.
+- 3° guess: the remaining vein segments are split by gauge. Segments at least
+  as thick as a cutoff but thinner than the median 2° gauge become 3°; thinner
+  ones (minor veins) stay Uncertain, and so do veins at both ends of the 1°
+  (petiole, apex). The cutoff comes from Otsu on the length-weighted log gauge
+  unless `auto_order.tertiary_min_gauge_mm` is set; `auto_order.assign_tertiary:
+  false` leaves all remaining veins Uncertain. Labelling every remaining vein 3°
+  is avoided on purpose: at 3200 dpi the mask also holds the minor-vein mesh,
+  which would otherwise inflate VLA3.
 
-On a 3200 dpi konara scan the 1° and about 30 secondaries are found; veins near
-the leaf base still need hand correction. The clicks, parameters, and counts
+On a 3200 dpi konara scan the 1° and about 30 secondaries are found, and the
+3° guess is mostly the percurrent veins between secondaries (cutoff ≈ 6.4 px ≈
+51 µm; the automatic cutoff is sensitive because the gauge distribution has no
+clear valley, so check it). Veins near the leaf base still need hand correction. The clicks, parameters, and counts
 are written to the export metadata under `order_labels.auto_order`. Cleanup inputs remain integer
 pixel values for reproducible morphology behavior; when the image is calibrated,
 their labels also show object/hole areas in mm² and closing/opening radii in µm

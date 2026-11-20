@@ -13,8 +13,9 @@ from typing import Any
 
 import numpy as np
 from napari.layers import Labels, Points
+from qtpy.QtCore import QTimer
 
-from ..auto_order import AutoOrderResult
+from ..auto_order import AutoOrderParams, AutoOrderResult
 from ..calibration import CALIBRATION_MM_PER_PIXEL_KEY
 from .controls import WorkflowControls
 from .layers import (
@@ -40,6 +41,7 @@ class AutoOrderJob:
     base_rc: tuple[float, float]
     apex_rc: tuple[float, float]
     mm_per_pixel: float | None
+    params: AutoOrderParams
 
     def kwargs(self) -> dict[str, Any]:
         return {
@@ -48,6 +50,7 @@ class AutoOrderJob:
             "apex_rc": self.apex_rc,
             "leaf_mask": self.leaf_mask,
             "mm_per_pixel": self.mm_per_pixel,
+            "params": self.params,
         }
 
 
@@ -109,6 +112,27 @@ class AutoOrderWorkflow:
             self.controls.set_status("Base marked. Now click the apex.")
         elif count == 2:
             self.controls.set_status("Base and apex marked. Press Auto-assign 1°/2°.")
+            if self.controls.activate_labels_after_marking:
+                # 点の追加イベントの途中でレイヤーを切り替えないよう、次の周回で行う。
+                QTimer.singleShot(0, lambda: self.back_to_labels(seeds))
+
+    def back_to_labels(self, seeds: Points) -> None:
+        """Return to painting on the order labels once both points are set."""
+        if not self.layers.is_present(seeds) or len(seeds.data) != 2:
+            return
+        for layer in self.layers.viewer.layers:
+            if (
+                isinstance(layer, Labels)
+                and layer.metadata.get(ROLE_KEY) == "order_labels"
+                and layer.metadata.get(SOURCE_IMAGE_KEY)
+                == seeds.metadata.get(SOURCE_IMAGE_KEY)
+            ):
+                self.layers.activate(layer)
+                try:
+                    layer.mode = "paint"
+                except ValueError:
+                    pass
+                return
 
     def prepare(self) -> AutoOrderJob | None:
         """Validate inputs and copy the arrays needed by the algorithm."""
@@ -137,6 +161,7 @@ class AutoOrderWorkflow:
             base_rc=(float(points[0, 0]), float(points[0, 1])),
             apex_rc=(float(points[1, 0]), float(points[1, 1])),
             mm_per_pixel=float(mm_per_pixel) if mm_per_pixel else None,
+            params=AutoOrderParams(**self.controls.auto_order_options),
         )
 
     def apply(self, job: AutoOrderJob, result: AutoOrderResult) -> int:
@@ -148,7 +173,7 @@ class AutoOrderWorkflow:
         if current.shape != result.labels.shape:
             self.controls.warn("Order labels changed shape; auto result was not applied.")
             return 0
-        update = (current == ORDER_UNCERTAIN_LABEL) & np.isin(result.labels, (1, 2))
+        update = (current == ORDER_UNCERTAIN_LABEL) & np.isin(result.labels, (1, 2, 3))
         labels = current.copy()
         labels[update] = result.labels[update]
         order_layer.data = labels
@@ -162,8 +187,13 @@ class AutoOrderWorkflow:
             **result.summary(),
         }
         self.layers.record_processing(order_layer, record)
+        tertiary = (
+            "remaining veins of 3° gauge as 3°, thinner ones Uncertain. "
+            if result.tertiary_gauge_range_px is not None
+            else ""
+        )
         self.controls.set_status(
-            f"Auto-assigned the 1° and {result.n_secondary} secondaries. "
-            "Check them and fix with Paint as; pixels you had painted were kept."
+            f"Auto-assigned the 1°, {result.n_secondary} secondaries, and "
+            f"{tertiary}Check and fix with Paint as; your painting was kept."
         )
         return int(update.sum())

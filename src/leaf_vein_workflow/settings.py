@@ -56,6 +56,11 @@ DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
         "leaf_area_unit": "mm2",
         "output_dir": "output",
     },
+    "auto_order": {
+        "activate_labels_after_marking": True,
+        "assign_tertiary": True,
+        "tertiary_min_gauge_mm": None,
+    },
 }
 
 DEFAULT_SETTINGS_YAML = """\
@@ -99,6 +104,14 @@ measurement:
   leaf_area_unit: mm2
   # Relative paths are resolved against the folder napari was started from.
   output_dir: output
+
+auto_order:
+  # After clicking base and apex, switch back to painting on order_labels.
+  activate_labels_after_marking: true
+  # Label remaining veins of 3° gauge as 3 (thinner minor veins stay Uncertain).
+  assign_tertiary: true
+  # Smallest 3° gauge in mm. null: chosen from the leaf (Otsu on vein gauges).
+  tertiary_min_gauge_mm: null
 """
 
 
@@ -228,6 +241,12 @@ def _validate(section: str, key: str, value: Any) -> Any:
         if value not in LEAF_AREA_UNITS:
             raise ValueError(f"must be one of {', '.join(LEAF_AREA_UNITS)}.")
         return value
+    if section == "auto_order" and key == "tertiary_min_gauge_mm":
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+            raise ValueError("must be null or a number greater than zero.")
+        return float(value)
     if section == "measurement" and key == "output_dir":
         if not isinstance(value, str) or not value.strip():
             raise ValueError("must be a non-empty folder path.")

@@ -16,6 +16,7 @@ from .layers import WorkflowLayers
 from .mask import MaskWorkflow
 from .measurement import MeasurementWorkflow, run_export_job, show_export_messages
 from .order_labels import OrderLabelsWorkflow
+from .progress import ProgressReporter
 from .roi import RoiWorkflow
 from .settings import SettingsWorkflow
 from .vein_paths import VeinPathsWorkflow
@@ -248,7 +249,7 @@ class CropWidget(QWidget):
             "Exporting in the background. Large scans can take about a minute; "
             "napari stays usable."
         )
-        worker = create_worker(run_export_job, job)
+        worker = create_worker(run_export_job, job, progress=self._new_progress_reporter())
         worker.returned.connect(self._on_export_finished)
         worker.errored.connect(self._on_export_failed)
         worker.finished.connect(self._reset_export_button)
@@ -290,7 +291,8 @@ class CropWidget(QWidget):
         self._controls.set_status(
             "Auto-assigning 1°/2° in the background (about a minute for a full leaf)."
         )
-        worker = create_worker(auto_assign_orders, **job.kwargs())
+        reporter = self._new_progress_reporter()
+        worker = create_worker(auto_assign_orders, **job.kwargs(), progress=reporter)
         worker.returned.connect(lambda result: self._auto_order_workflow.apply(job, result))
         worker.errored.connect(lambda error: self._controls.warn(f"Auto-assign failed: {error}"))
         worker.finished.connect(self._reset_auto_order_button)
@@ -298,12 +300,25 @@ class CropWidget(QWidget):
         worker.start()
         return worker
 
+    def _new_progress_reporter(self) -> ProgressReporter:
+        """Progress callback for a worker; Qt delivers it on the main thread."""
+        reporter = ProgressReporter(self)
+        # controls は slots の dataclass で弱参照できないので、widget のメソッドを挟む
+        reporter.progressed.connect(self._show_progress)
+        self._controls.show_progress(0.0, "Starting")
+        return reporter
+
+    def _show_progress(self, fraction: float, message: str) -> None:
+        self._controls.show_progress(fraction, message)
+
     def _reset_auto_order_button(self) -> None:
+        self._controls.hide_progress()
         self.auto_orders_button.setText("Auto-assign 1°/2°")
         self.auto_orders_button.setEnabled(True)
         self._auto_order_worker = None
 
     def _reset_export_button(self) -> None:
+        self._controls.hide_progress()
         self.export_button.setText("Export Measurements")
         self.export_button.setEnabled(True)
         self._export_worker = None

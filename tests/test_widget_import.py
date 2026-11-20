@@ -917,6 +917,7 @@ def test_export_button_runs_in_background(widget_flow, tmp_path):
     flow.app.processEvents()
 
     assert flow.widget.export_button.isEnabled()
+    assert not flow.widget._controls.progress_bar.isVisibleTo(flow.widget)
     assert list(tmp_path.glob("*_measurements.csv"))
     assert list(tmp_path.glob("*_metadata.yaml"))
 
@@ -973,6 +974,9 @@ def test_auto_assign_orders_end_to_end_keeps_hand_painting(monkeypatch, tmp_path
         assert viewer.layers.selection.active is seeds and seeds.mode == "add"
         seeds.add(np.array([[200, 40], [200, 660]], float) - offset)
         app.processEvents()
+        # 2点打つと order_labels に戻って塗れる状態になる（設定の既定）
+        assert viewer.layers.selection.active is order_layer
+        assert order_layer.mode == "paint"
 
         changed = widget.auto_assign_orders(background=False)
         labels = np.asarray(order_layer.data)
@@ -988,3 +992,34 @@ def test_auto_assign_orders_end_to_end_keeps_hand_painting(monkeypatch, tmp_path
     finally:
         widget.close()
         app.processEvents()
+
+
+def test_progress_reporter_delivers_on_the_main_thread(widget_flow):
+    from leaf_vein_workflow.widgets.progress import ProgressReporter
+
+    received = []
+    reporter = ProgressReporter()
+    reporter.progressed.connect(lambda fraction, message: received.append((fraction, message)))
+    reporter(0.5, "Halfway")
+    widget_flow.app.processEvents()
+    assert received == [(0.5, "Halfway")]
+
+    controls = widget_flow.widget._controls
+    controls.show_progress(0.33, "Tracing")
+    assert controls.progress_bar.isVisibleTo(widget_flow.widget)
+    assert "33%" in controls.progress_bar.format()
+    controls.hide_progress()
+    assert not controls.progress_bar.isVisibleTo(widget_flow.widget)
+
+
+def test_marking_can_keep_the_points_layer_active(widget_flow):
+    flow = widget_flow
+    _advance_to_mask(flow)
+    flow.widget.create_order_labels()
+    flow.widget._controls.activate_labels_after_marking = False
+
+    seeds = flow.widget.mark_base_and_apex()
+    seeds.add(np.array([[0.0, 0.0], [1.0, 2.0]]))
+    flow.app.processEvents()
+
+    assert flow.viewer.layers.selection.active is seeds

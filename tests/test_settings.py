@@ -133,3 +133,14 @@ def test_example_is_copied_when_project_file_is_missing(tmp_path, monkeypatch):
     path.write_text("calibration:\n  value: 2400\n", encoding="utf-8")
     assert find_settings_path(tmp_path) == path
     assert load_settings(path).values["calibration"]["value"] == 2400.0
+
+
+def test_tertiary_gauge_setting_accepts_null_or_positive(tmp_path):
+    path = tmp_path / "config.yaml"
+    path.write_text("auto_order:\n  tertiary_min_gauge_mm: 0.05\n", encoding="utf-8")
+    assert load_settings(path).values["auto_order"]["tertiary_min_gauge_mm"] == 0.05
+
+    path.write_text("auto_order:\n  tertiary_min_gauge_mm: -1\n", encoding="utf-8")
+    loaded = load_settings(path)
+    assert loaded.values["auto_order"]["tertiary_min_gauge_mm"] is None
+    assert any("tertiary_min_gauge_mm" in warning for warning in loaded.warnings)
