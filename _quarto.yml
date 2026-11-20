@@ -4,6 +4,7 @@ project:
   render:
     - index.qmd
     - notebooks/workflow_overview.qmd
+    - notebooks/scanning_protocol.qmd
     - notebooks/napari_plugin_development.qmd
     - notebooks/skeletonization.qmd
     - notebooks/vein_order_algorithms.qmd
@@ -26,6 +27,8 @@ website:
         menu:
           - href: notebooks/workflow_overview.qmd
             text: Workflow overview
+          - href: notebooks/scanning_protocol.qmd
+            text: 葉脈標本のスキャン
           - href: notebooks/napari_plugin_development.qmd
             text: napari プラグイン作成
           - href: notebooks/skeletonization.qmd
@@ -50,6 +53,7 @@ website:
       - section: Manual
         contents:
           - notebooks/workflow_overview.qmd
+          - notebooks/scanning_protocol.qmd
           - notebooks/napari_plugin_development.qmd
           - notebooks/skeletonization.qmd
           - notebooks/vein_order_algorithms.qmd
