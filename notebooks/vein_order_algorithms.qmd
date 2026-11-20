@@ -55,10 +55,8 @@ from leaf_vein_workflow.threshold import (
     to_grayscale,
 )
 
-SCAN = Path(
-    r"C:\Users\Konrai\Dropbox\GitHub\phd-thesis\assets"
-    r"\20260719_konara_tomakomai_244_01_3200dpi_kleaf_011.jpg"
-)
+# 手元のスキャン画像の場所に置き換える（この画像はリポジトリに含めていない）
+SCAN = Path("path/to/20260719_konara_tomakomai_244_01_3200dpi_kleaf_011.jpg")
 plt.rcParams["font.family"] = ["Yu Gothic", "Meiryo", "sans-serif"]  # 図の日本語
 FIG = Path("figures/auto_order")
 FIG.mkdir(parents=True, exist_ok=True)

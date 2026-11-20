@@ -2,7 +2,7 @@
 title: "サンプルデータセット"
 ---
 
-- [Leaf venation networks of Bornean trees: images and hand‐traced segmentations - Blonder - 2019 - Ecology - Wiley Online Library](https://esajournals-onlinelibrary-wiley-com.kyoto-u.idm.oclc.org/doi/full/10.1002/ecy.2844)
+- [Leaf venation networks of Bornean trees: images and hand‐traced segmentations - Blonder - 2019 - Ecology - Wiley Online Library](https://doi.org/10.1002/ecy.2844)
     - [Leaf venation networks of Bornean trees: images and hand-traced segmentations - ORA - Oxford University Research Archive](https://ora.ox.ac.uk/objects/uuid:de65fc07-4b8f-4277-a6c4-82836afbdeb3)
 
 ## まとめ
@@ -18,5 +18,5 @@ title: "サンプルデータセット"
 [1]: https://benjaminblonder.org/2019/08/27/new-data-paper-leaf-venation-networks-of-bornean-trees/ "New data paper: Leaf venation networks of Bornean trees – Macrosystems Ecology Laboratory"
 [2]: https://datadryad.org/dataset/doi%3A10.5061/dryad.1g1jwsv36 "Dryad | Data: Leaf architecture and functional traits for 122 species at the University of California at Berkeley botanical garden"
 [3]: https://www.eurekalert.org/news-releases/946532 "From museum to laptop: Visual leaf library a new tool for identifying plants  | EurekAlert!"
-[4]: https://www.ijcai.org/proceedings/2024/815?utm_source=chatgpt.com "Revealing Hierarchical Structure of Leaf Venations in Plant ..."
+[4]: https://www.ijcai.org/proceedings/2024/815 "Revealing Hierarchical Structure of Leaf Venations in Plant ..."
 [5]: https://zenodo.org/records/8272938 "Leaf Vein Network CNN Analysis Software v2.14 | Zenodo"
