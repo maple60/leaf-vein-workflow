@@ -12,6 +12,7 @@ from napari.utils.notifications import show_info
 from .controls import WorkflowControls
 from .layers import (
     ORDER_LABEL_COLORS,
+    ORDER_LABELS_OPACITY,
     ORDER_LABELS_LAYER_NAME,
     ORDER_UNCERTAIN_LABEL,
     ROLE_KEY,
@@ -62,16 +63,51 @@ class OrderLabelsWorkflow:
         mask_layer.visible = False
         self.layers.move_to_top(order_layer)
         self.layers.activate(order_layer)
+        self.start_painting(order_layer)
+
+        self.controls.set_status(
+            f"Created {ORDER_LABELS_LAYER_NAME}. Choose an order in 'Paint as' "
+            "and drag over veins."
+        )
+        show_info(f"Created {ORDER_LABELS_LAYER_NAME}.")
+
+    def current_paint_order(self) -> int:
+        """Return the order label chosen in the dock."""
+        return int(self.controls.paint_order_combo.currentData())
+
+    def start_painting(self, order_layer: Labels) -> None:
+        """Paint the chosen order and keep the dock in sync with napari."""
+        order_layer.selected_label = self.current_paint_order()
         try:
             order_layer.mode = "paint"
         except ValueError:
             pass
+        order_id = id(order_layer)
+        if order_id not in self.layers.order_label_selection_connected:
+            order_layer.events.selected_label.connect(
+                lambda event, layer=order_layer: self.on_layer_label_changed(layer)
+            )
+            self.layers.order_label_selection_connected.add(order_id)
 
-        self.controls.set_status(
-            f"Created {ORDER_LABELS_LAYER_NAME}. Paint labels inside the confirmed "
-            f"{VEIN_MASK_LAYER_NAME}."
-        )
-        show_info(f"Created {ORDER_LABELS_LAYER_NAME}.")
+    def on_paint_order_changed(self, *args) -> None:
+        """Switch the order-label layer to paint the order chosen in the dock."""
+        order_layer = self.layers.active_order_labels_layer()
+        if order_layer is None:
+            return
+        self.layers.activate(order_layer)
+        self.start_painting(order_layer)
+
+    def on_layer_label_changed(self, order_layer: Labels) -> None:
+        """Reflect a label picked in napari's own controls in the dock."""
+        combo = self.controls.paint_order_combo
+        index = combo.findData(int(order_layer.selected_label))
+        if index < 0 or index == combo.currentIndex():
+            return
+        combo.blockSignals(True)
+        try:
+            combo.setCurrentIndex(index)
+        finally:
+            combo.blockSignals(False)
 
     def create_or_select_order_labels_layer(
         self,
@@ -105,7 +141,7 @@ class OrderLabelsWorkflow:
 
         if existing is not None and self.layers.is_present(existing):
             existing.translate = tuple(mask_layer.translate)
-            existing.opacity = 0.8
+            existing.opacity = ORDER_LABELS_OPACITY
             existing.colormap = direct_colormap(ORDER_LABEL_COLORS)
             existing.metadata.update(metadata)
             order_layer = existing
@@ -114,7 +150,7 @@ class OrderLabelsWorkflow:
                 labels,
                 name=ORDER_LABELS_LAYER_NAME,
                 translate=tuple(mask_layer.translate),
-                opacity=0.8,
+                opacity=ORDER_LABELS_OPACITY,
                 colormap=direct_colormap(ORDER_LABEL_COLORS),
                 metadata=metadata,
             )

@@ -4,13 +4,15 @@ This module wires Qt signals to explicit workflow objects.  Stage-specific
 layer operations live in ``roi.py``, ``mask.py``, and ``order_labels.py``.
 """
 
+from napari.qt.threading import create_worker
+from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QFileDialog, QWidget
 
 from .calibration import CalibrationWorkflow
 from .controls import WorkflowControls
 from .layers import WorkflowLayers
 from .mask import MaskWorkflow
-from .measurement import MeasurementWorkflow
+from .measurement import MeasurementWorkflow, run_export_job, show_export_messages
 from .order_labels import OrderLabelsWorkflow
 from .roi import RoiWorkflow
 from .settings import SettingsWorkflow
@@ -62,6 +64,7 @@ class CropWidget(QWidget):
         self.invert_threshold_checkbox = self._controls.invert_threshold_checkbox
         self.clean_mask_button = self._controls.clean_mask_button
         self.create_order_labels_button = self._controls.create_order_labels_button
+        self.paint_order_combo = self._controls.paint_order_combo
         self.leaf_area_input = self._controls.leaf_area_input
         self.leaf_area_unit_combo = self._controls.leaf_area_unit_combo
         self.output_dir_input = self._controls.output_dir_input
@@ -130,8 +133,13 @@ class CropWidget(QWidget):
         self.otsu_button.clicked.connect(self.use_otsu_threshold)
         self.clean_mask_button.clicked.connect(self.clean_mask)
         self.create_order_labels_button.clicked.connect(self.create_order_labels)
+        self.paint_order_combo.currentIndexChanged.connect(
+            self._order_labels_workflow.on_paint_order_changed
+        )
         self.change_output_dir_button.clicked.connect(self.choose_output_dir)
-        self.export_button.clicked.connect(self.export_measurements)
+        self.export_button.clicked.connect(
+            lambda *_: self.export_measurements(background=True)
+        )
         self.invert_threshold_checkbox.toggled.connect(self._schedule_mask_update)
         self.threshold_spinbox.valueChanged.connect(
             self._on_threshold_spinbox_changed
@@ -174,7 +182,7 @@ class CropWidget(QWidget):
         """Delegate explicit ROI confirmation to the ROI workflow."""
         self._roi_workflow.add_roi()
         if self._layers.active_crop_layer() is not None:
-            self._controls.open_section("mask_creation")
+            self._controls.open_section("mask")
 
     def apply_gaussian_filter(self) -> None:
         """Delegate explicit smoothing to the mask workflow."""
@@ -190,9 +198,8 @@ class CropWidget(QWidget):
 
     def create_order_labels(self) -> None:
         """Delegate manual order-label setup to the labeling workflow."""
+        # 塗り分けはこの後に行うので、セクションは開いたままにする。
         self._order_labels_workflow.create_order_labels()
-        if self._measurement_workflow.active_order_labels_layer() is not None:
-            self._controls.open_section("measurement")
 
     def measure_veins(self):
         """Return per-order vein length and VLA rows without exporting."""
@@ -210,14 +217,51 @@ class CropWidget(QWidget):
         if selected:
             self._measurement_workflow.set_output_dir(selected)
 
-    def export_measurements(self, output_dir=None):
-        """Export to the output folder shown in the dock (or ``output_dir``)."""
+    def export_measurements(self, output_dir=None, background=False):
+        """Export to the output folder shown in the dock (or ``output_dir``).
+
+        With ``background=True`` (the Export button) the measuring and file
+        writing run in a worker thread so napari stays responsive; the worker
+        is returned.  Otherwise the export runs here and its result is returned.
+        """
         if output_dir:
             self._measurement_workflow.set_output_dir(output_dir)
-        return self._measurement_workflow.export()
+        if not background:
+            return self._measurement_workflow.export()
+
+        job = self._measurement_workflow.prepare_export()
+        if job is None:
+            return None
+        self.export_button.setEnabled(False)
+        self.export_button.setText("Exporting...")
+        self._controls.set_status(
+            "Exporting in the background. Large scans can take about a minute; "
+            "napari stays usable."
+        )
+        worker = create_worker(run_export_job, job)
+        worker.returned.connect(self._on_export_finished)
+        worker.errored.connect(self._on_export_failed)
+        worker.finished.connect(self._reset_export_button)
+        self._export_worker = worker
+        worker.start()
+        return worker
+
+    def _on_export_finished(self, result) -> None:
+        show_export_messages(result)
+        self._controls.set_status(f"Exported to {self._measurement_workflow.output_dir()}")
+
+    def _on_export_failed(self, error) -> None:
+        self._controls.warn(f"Export failed: {error}")
+
+    def _reset_export_button(self) -> None:
+        self.export_button.setText("Export Measurements")
+        self.export_button.setEnabled(True)
+        self._export_worker = None
 
     def _on_layer_inserted(self, event) -> None:
         self._prepare_image_layer(event.value)
+        # 後から追加されたレイヤーの下にスケールバーが隠れないようにする。
+        QTimer.singleShot(0, self._layers.raise_scale_indicators)
 
     def _prepare_image_layer(self, layer) -> None:
         self._calibration_workflow.prepare_image_layer(layer)

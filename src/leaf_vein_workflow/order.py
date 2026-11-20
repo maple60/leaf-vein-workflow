@@ -35,6 +35,16 @@ ORDER_DEFINITIONS = (
 
 VALID_LABEL_VALUES = {0, 1, 2, 3, 4}
 
+# 次数ラベルの色。napari の表示と QC 画像の両方がこの表を使う。
+ORDER_LABEL_HEX = {
+    1: "#ff4b00",  # 1° primary
+    2: "#005aff",  # 2° secondary
+    3: "#03af7a",  # 3° tertiary
+    4: "#990099",  # uncertain
+}
+# QC 画像で骨格（長さを測った中心線）を描く色。
+QC_SKELETON_RGB = (1.0, 1.0, 1.0)
+
 MEASUREMENT_COLUMNS = [
     "image_name",
     "label_name",
@@ -235,18 +245,12 @@ def make_qc_overlay(
     rgb = _base_rgb(base_image, labels.shape)
     rgb[mask] = (0.75 * rgb[mask]) + np.array([0.18, 0.18, 0.18])
 
-    label_colors = {
-        1: np.array([1.0, 0.1, 0.1]),
-        2: np.array([0.1, 0.45, 1.0]),
-        3: np.array([0.1, 0.75, 0.25]),
-        4: np.array([1.0, 0.85, 0.1]),
-    }
-    for label_value, color in label_colors.items():
+    for label_value, hex_color in ORDER_LABEL_HEX.items():
         selected = labels == label_value
-        rgb[selected] = (0.45 * rgb[selected]) + (0.55 * color)
+        rgb[selected] = (0.45 * rgb[selected]) + (0.55 * _hex_to_rgb(hex_color))
 
-    # 骨格は白で描き、1次脈ラベルの赤と区別できるようにする。
-    rgb[skeleton_mask] = np.array([1.0, 1.0, 1.0])
+    # 骨格は白で描き、どの次数の色とも区別できるようにする。
+    rgb[skeleton_mask] = np.array(QC_SKELETON_RGB)
     return np.clip(rgb * 255, 0, 255).astype(np.uint8)
 
 
@@ -305,6 +309,11 @@ def _skeleton_and_length(mask: np.ndarray) -> tuple[np.ndarray, float]:
         return skeleton, 0.0
 
     return skeleton, float(branch_table["branch-distance"].sum())
+
+
+def _hex_to_rgb(hex_color: str) -> np.ndarray:
+    value = hex_color.lstrip("#")
+    return np.array([int(value[i:i + 2], 16) / 255.0 for i in (0, 2, 4)])
 
 
 def _as_2d_array(array: np.ndarray, name: str) -> np.ndarray:

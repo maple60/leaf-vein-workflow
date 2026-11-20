@@ -14,7 +14,7 @@ from qtpy.QtCore import QTimer
 
 from ..provenance import array_digest
 from ..threshold import (
-    otsu_threshold,
+    estimate_vein_threshold,
     postprocess_mask,
     smooth_image,
     threshold_image,
@@ -29,6 +29,7 @@ from .layers import (
     SOURCE_CROP_KEY,
     SOURCE_IMAGE_KEY,
     VEIN_MASK_COLORS,
+    VEIN_MASK_OPACITY,
     VEIN_MASK_LABEL,
     VEIN_MASK_LAYER_NAME,
     WorkflowLayers,
@@ -71,6 +72,7 @@ class MaskWorkflow:
             return
 
         self.layers.mask_updates_enabled.discard(id(crop_layer))
+        self.layers.leaf_masks.pop(id(crop_layer), None)
         self.layers.clear_mask_layer(crop_layer)
         self.controls.set_cleanup_enabled(False)
         smoothed_layer = self.create_or_update_smoothed_layer(crop_layer, smoothed)
@@ -95,25 +97,49 @@ class MaskWorkflow:
             self.controls.warn("Apply Gaussian smoothing before Otsu thresholding.")
             return
 
+        exclude_background = self.controls.exclude_background_checkbox.isChecked()
         try:
-            threshold = otsu_threshold(np.asarray(intensity_layer.data))
+            estimate = estimate_vein_threshold(
+                np.asarray(intensity_layer.data),
+                exclude_background=exclude_background,
+            )
         except ValueError as exc:
             self.controls.warn(str(exc))
             return
+        threshold = estimate.threshold
 
         self.set_threshold_range_from_image(np.asarray(intensity_layer.data))
         record = self.layers.processing(intensity_layer)
         record["otsu_threshold"] = float(threshold)
+        record["otsu_vein_side"] = estimate.vein_side
+        record["background_excluded"] = estimate.leaf_mask is not None
+        if estimate.leaf_threshold is not None:
+            record["leaf_background_threshold"] = float(estimate.leaf_threshold)
         self.layers.record_processing(intensity_layer, record)
-        self.set_threshold_value(threshold, update_mask=False)
+
         crop_layer = self.layers.active_crop_layer()
+        if crop_layer is not None:
+            if estimate.leaf_mask is not None:
+                self.layers.leaf_masks[id(crop_layer)] = estimate.leaf_mask
+            else:
+                self.layers.leaf_masks.pop(id(crop_layer), None)
+
+        # 自動で決めた向きを反映する。ここでは mask 更新を1回にまとめる。
+        checkbox = self.controls.invert_threshold_checkbox
+        checkbox.blockSignals(True)
+        try:
+            checkbox.setChecked(estimate.invert)
+        finally:
+            checkbox.blockSignals(False)
+        self.set_threshold_value(threshold, update_mask=False)
         if crop_layer is not None:
             self.layers.mask_updates_enabled.add(id(crop_layer))
         self.update_mask_from_controls(force=True)
-        self.controls.set_status(
-            f"Applied Otsu threshold {threshold:.6g}. "
-            f"{VEIN_MASK_LAYER_NAME} is editable in paint mode."
-        )
+
+        if exclude_background and estimate.leaf_mask is None:
+            show_info(
+                "No background found around the leaf, so Otsu used the whole ROI."
+            )
 
     def clean_mask(self) -> None:
         """Clean the current mask after explicit morphology settings."""
@@ -215,14 +241,18 @@ class MaskWorkflow:
             return
 
         try:
-            mask = threshold_image(
+            vein = threshold_image(
                 np.asarray(intensity_layer.data),
                 self.controls.threshold_spinbox.value(),
                 invert=self.controls.invert_threshold_checkbox.isChecked(),
-            ).astype(np.uint8)
+            )
         except ValueError as exc:
             self.controls.warn(str(exc))
             return
+        leaf = self.layers.leaf_masks.get(id(crop_layer))
+        if leaf is not None and leaf.shape == vein.shape:
+            vein = vein & leaf
+        mask = vein.astype(np.uint8)
 
         mask_layer = self.create_or_update_mask_layer(crop_layer, mask)
         if mask_layer is None:
@@ -232,6 +262,7 @@ class MaskWorkflow:
         record["threshold"] = {
             "value": float(self.controls.threshold_spinbox.value()),
             "invert": bool(self.controls.invert_threshold_checkbox.isChecked()),
+            "inside_leaf_only": leaf is not None,
         }
         record["cleanup"] = []
         record["auto_mask_sha256"] = array_digest(mask)
@@ -245,10 +276,7 @@ class MaskWorkflow:
         except ValueError:
             pass
 
-        self.controls.set_status(
-            f"Updated {VEIN_MASK_LAYER_NAME}. Paint on this Labels layer to fix "
-            "remaining threshold errors."
-        )
+        self.controls.set_status(vein_coverage_message(mask, leaf))
 
     def create_or_update_mask_layer(
         self,
@@ -282,7 +310,7 @@ class MaskWorkflow:
         if existing is not None and self.layers.is_present(existing):
             existing.data = mask
             existing.translate = tuple(crop_layer.translate)
-            existing.opacity = 0.65
+            existing.opacity = VEIN_MASK_OPACITY
             existing.colormap = direct_colormap(VEIN_MASK_COLORS)
             existing.metadata.update(metadata)
             mask_layer = existing
@@ -291,7 +319,7 @@ class MaskWorkflow:
                 mask,
                 name=VEIN_MASK_LAYER_NAME,
                 translate=tuple(crop_layer.translate),
-                opacity=0.65,
+                opacity=VEIN_MASK_OPACITY,
                 colormap=direct_colormap(VEIN_MASK_COLORS),
                 metadata=metadata,
             )
@@ -391,3 +419,24 @@ class MaskWorkflow:
             self.threshold_max - self.threshold_min
         )
 
+
+
+# 葉脈が葉（または ROI）に占める割合がこれを超えたら、葉身や背景を選んでいる疑い。
+VEIN_COVERAGE_WARNING = 0.45
+
+
+def vein_coverage_message(mask: np.ndarray, leaf: np.ndarray | None) -> str:
+    """Tell the user how much is colored as vein and whether it looks right."""
+    vein_px = int(np.count_nonzero(mask))
+    area_px = int(np.count_nonzero(leaf)) if leaf is not None else int(mask.size)
+    fraction = vein_px / area_px if area_px else 0.0
+    where = "of the leaf" if leaf is not None else "of the ROI"
+    message = f"Colored = vein: {fraction:.0%} {where}."
+    if fraction > VEIN_COVERAGE_WARNING:
+        message += (
+            " That is more than veins usually cover: if the leaf blade or the "
+            "background is colored, toggle Invert or check the background option."
+        )
+    else:
+        message += " Paint or erase on vein_mask to fix spots."
+    return message

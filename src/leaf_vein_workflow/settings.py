@@ -44,6 +44,7 @@ DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
     "mask": {
         "gaussian_sigma": 1.0,
         "invert_threshold": False,
+        "exclude_background": True,
     },
     "cleanup": {
         "small_object_px": 100,
@@ -77,9 +78,13 @@ scale_bar:
 
 mask:
   gaussian_sigma: 1.0
+  # Starting value only: Apply Otsu picks the side with fewer pixels (veins).
   # false: pixels brighter than the threshold become vein.
   # true: pixels darker than the threshold become vein.
   invert_threshold: false
+  # true: the ROI contains background (paper) around the leaf. Apply Otsu then
+  # separates leaf from background first and finds veins inside the leaf.
+  exclude_background: true
 
 cleanup:
   # Remove vein fragments up to this many pixels.

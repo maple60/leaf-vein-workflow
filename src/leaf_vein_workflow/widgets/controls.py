@@ -9,7 +9,7 @@ from pathlib import Path
 
 from napari.utils.notifications import show_warning
 from qtpy.QtCore import QLocale, Qt
-from qtpy.QtGui import QDoubleValidator
+from qtpy.QtGui import QColor, QDoubleValidator, QIcon, QPixmap
 from qtpy.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -26,6 +26,8 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from .layers import ORDER_LABEL_COLORS
 
 
 def make_number_input(text: str = "", placeholder: str = "") -> QLineEdit:
@@ -58,13 +60,19 @@ def parse_number_input(line_edit: QLineEdit, name: str) -> float:
 class CollapsibleSection(QWidget):
     """A compact workflow section whose contents can be shown or hidden."""
 
-    def __init__(self, title: str, content_layout, *, expanded: bool = True):
+    def __init__(
+        self,
+        title: str,
+        content_layout,
+        *,
+        expanded: bool = True,
+        key: str | None = None,
+    ):
         super().__init__()
 
         self.toggle_button = QToolButton()
-        self.toggle_button.setObjectName(
-            f"workflow_section_{title.lower().replace(' ', '_')}"
-        )
+        name = key or title.lower().replace(' ', '_')
+        self.toggle_button.setObjectName(f"workflow_section_{name}")
         self.toggle_button.setText(title)
         self.toggle_button.setCheckable(True)
         self.toggle_button.setChecked(expanded)
@@ -123,8 +131,10 @@ class WorkflowControls:
     apply_gaussian_button: QPushButton
     otsu_button: QPushButton
     invert_threshold_checkbox: QCheckBox
+    exclude_background_checkbox: QCheckBox
     clean_mask_button: QPushButton
     create_order_labels_button: QPushButton
+    paint_order_combo: QComboBox
     leaf_area_label: QLabel
     leaf_area_input: QLineEdit
     leaf_area_unit_combo: QComboBox
@@ -193,6 +203,16 @@ class WorkflowControls:
         )
         vein_paths_hint_label.setWordWrap(True)
 
+        # 塗る次数。色見本はラベル層の色と同じにする。
+        paint_order_combo = QComboBox()
+        for text, value in (
+            ("1° primary", 1),
+            ("2° secondary", 2),
+            ("3° tertiary", 3),
+            ("Uncertain", 4),
+        ):
+            paint_order_combo.addItem(_color_icon(ORDER_LABEL_COLORS[value]), text, value)
+
         leaf_area_unit_combo = QComboBox()
         leaf_area_unit_combo.addItem("mm²", "mm2")
         leaf_area_unit_combo.addItem("cm²", "cm2")
@@ -252,9 +272,11 @@ class WorkflowControls:
             add_roi_button=QPushButton("Add ROI"),
             apply_gaussian_button=QPushButton("Apply Gaussian"),
             otsu_button=QPushButton("Apply Otsu"),
-            invert_threshold_checkbox=QCheckBox("Invert threshold"),
+            invert_threshold_checkbox=QCheckBox("Invert (dark pixels are vein)"),
+            exclude_background_checkbox=QCheckBox("ROI includes background (paper)"),
             clean_mask_button=QPushButton("Clean Mask"),
             create_order_labels_button=QPushButton("Create Order Labels"),
+            paint_order_combo=paint_order_combo,
             leaf_area_label=QLabel("Leaf area"),
             leaf_area_input=make_number_input("", "measured before preparation"),
             leaf_area_unit_combo=leaf_area_unit_combo,
@@ -281,7 +303,13 @@ class WorkflowControls:
         )
         controls.invert_threshold_checkbox.setToolTip(
             "Off: pixels brighter than the threshold become vein (1). "
-            "On: pixels darker than the threshold become vein."
+            "On: pixels darker than the threshold become vein. "
+            "Apply Otsu sets this automatically."
+        )
+        controls.exclude_background_checkbox.setToolTip(
+            "On: Apply Otsu first separates the leaf from the background around "
+            "it, then finds veins inside the leaf. Turn off when the ROI lies "
+            "entirely inside the leaf blade."
         )
         controls.set_calibration_enabled(False)
         controls.add_roi_button.setEnabled(False)
@@ -292,7 +320,12 @@ class WorkflowControls:
         return controls
 
     def create_layout(self) -> QVBoxLayout:
-        """Return collapsible workflow stages inside a vertical scroll area."""
+        """Return the six workflow steps as collapsible sections in a scroll area.
+
+        Sections follow the order of the work: image and scale, ROI, vein mask,
+        painting vein orders, leaf area, and export.  Path tracing for 1°/2°
+        veins is implemented but not shown for now.
+        """
         calibration_method_layout = QHBoxLayout()
         calibration_method_layout.addWidget(self.calibration_method_label)
         calibration_method_layout.addWidget(self.calibration_method_combo)
@@ -302,68 +335,112 @@ class WorkflowControls:
         calibration_value_layout.addWidget(self.calibration_value_input)
         calibration_value_layout.addWidget(self.calibration_unit_combo)
 
+        image_layout = QVBoxLayout()
+        image_layout.addWidget(
+            _hint(
+                "Open the leaf scan (File > Open, or drag it into napari). "
+                "Enter the scan resolution, then press Apply Scale."
+            )
+        )
+        image_layout.addLayout(calibration_method_layout)
+        image_layout.addLayout(calibration_value_layout)
+        image_layout.addWidget(self.draw_scale_bar_button)
+        image_layout.addWidget(self.apply_scale_button)
+        image_layout.addWidget(self.calibration_status_label)
+
+        roi_layout = QVBoxLayout()
+        roi_layout.addWidget(
+            _hint(
+                "Drag the rectangle over the area to analyze, then press Add ROI."
+            )
+        )
+        roi_layout.addWidget(self.add_roi_button)
+
         threshold_layout = QHBoxLayout()
         threshold_layout.addWidget(self.threshold_slider)
         threshold_layout.addWidget(self.threshold_spinbox)
 
-        calibration_layout = QVBoxLayout()
-        calibration_layout.addLayout(calibration_method_layout)
-        calibration_layout.addLayout(calibration_value_layout)
-        calibration_layout.addWidget(self.draw_scale_bar_button)
-        calibration_layout.addWidget(self.apply_scale_button)
-        calibration_layout.addWidget(self.calibration_status_label)
-
-        path_order_layout = QHBoxLayout()
-        path_order_layout.addWidget(QLabel("Order"))
-        path_order_layout.addWidget(self.path_order_combo, 1)
-
-        vein_paths_layout = QVBoxLayout()
-        vein_paths_layout.addLayout(path_order_layout)
-        vein_paths_layout.addWidget(self.draw_vein_paths_button)
-        vein_paths_layout.addWidget(self.vein_paths_hint_label)
-
-        roi_layout = QVBoxLayout()
-        roi_layout.addWidget(self.add_roi_button)
-
-        mask_creation_layout = QVBoxLayout()
         gaussian_layout = QHBoxLayout()
         gaussian_layout.addWidget(self.gaussian_sigma_label)
         gaussian_layout.addWidget(self.gaussian_sigma_spinbox, 1)
-        mask_creation_layout.addLayout(gaussian_layout)
-        mask_creation_layout.addWidget(self.apply_gaussian_button)
-        mask_creation_layout.addWidget(self.otsu_button)
-        mask_creation_layout.addWidget(self.invert_threshold_checkbox)
-        mask_creation_layout.addWidget(self.threshold_label)
-        mask_creation_layout.addLayout(threshold_layout)
 
-        mask_cleanup_layout = QVBoxLayout()
-        mask_cleanup_layout.addWidget(self.min_object_size_label)
-        mask_cleanup_layout.addWidget(self.min_object_size_spinbox)
-        mask_cleanup_layout.addWidget(self.max_hole_size_label)
-        mask_cleanup_layout.addWidget(self.max_hole_size_spinbox)
-        mask_cleanup_layout.addWidget(self.closing_radius_label)
-        mask_cleanup_layout.addWidget(self.closing_radius_spinbox)
-        mask_cleanup_layout.addWidget(self.opening_radius_label)
-        mask_cleanup_layout.addWidget(self.opening_radius_spinbox)
-        mask_cleanup_layout.addWidget(self.clean_mask_button)
+        mask_layout = QVBoxLayout()
+        mask_layout.addWidget(
+            _hint(
+                "Colored pixels are vein. Apply Gaussian, then Apply Otsu: it "
+                "picks the side with fewer pixels (the veins) and ignores the "
+                "paper around the leaf. If the leaf blade turns colored instead, "
+                "toggle Invert. Paint or erase on vein_mask to fix spots."
+            )
+        )
+        mask_layout.addLayout(gaussian_layout)
+        mask_layout.addWidget(self.apply_gaussian_button)
+        mask_layout.addWidget(self.exclude_background_checkbox)
+        mask_layout.addWidget(self.otsu_button)
+        mask_layout.addWidget(self.invert_threshold_checkbox)
+        mask_layout.addWidget(self.threshold_label)
+        mask_layout.addLayout(threshold_layout)
+        mask_layout.addWidget(_subheading("Clean up (optional)"))
+        for label, spinbox in (
+            (self.min_object_size_label, self.min_object_size_spinbox),
+            (self.max_hole_size_label, self.max_hole_size_spinbox),
+            (self.closing_radius_label, self.closing_radius_spinbox),
+            (self.opening_radius_label, self.opening_radius_spinbox),
+        ):
+            # 校正後は単位付きの長い表示になるので、折り返して横にはみ出さない。
+            label.setWordWrap(True)
+            label.setMinimumWidth(0)
+            row = QHBoxLayout()
+            row.addWidget(label, 1)
+            row.addWidget(spinbox)
+            mask_layout.addLayout(row)
+        mask_layout.addWidget(self.clean_mask_button)
 
-        order_labels_layout = QVBoxLayout()
-        order_labels_layout.addWidget(self.create_order_labels_button)
+        paint_order_layout = QHBoxLayout()
+        paint_order_layout.addWidget(QLabel("Paint as"))
+        paint_order_layout.addWidget(self.paint_order_combo, 1)
+
+        orders_layout = QVBoxLayout()
+        orders_layout.addWidget(
+            _hint(
+                "Press Create Order Labels: every vein pixel starts as "
+                "Uncertain (purple). Choose an order and drag over veins in the "
+                "image; only vein pixels change color. Set the brush size in "
+                "napari's layer controls (top left)."
+            )
+        )
+        orders_layout.addWidget(self.create_order_labels_button)
+        orders_layout.addLayout(paint_order_layout)
 
         leaf_area_layout = QHBoxLayout()
         leaf_area_layout.addWidget(self.leaf_area_label)
         leaf_area_layout.addWidget(self.leaf_area_input, 1)
         leaf_area_layout.addWidget(self.leaf_area_unit_combo)
 
+        leaf_area_section_layout = QVBoxLayout()
+        leaf_area_section_layout.addWidget(
+            _hint(
+                "Area of the fresh leaf, measured on the scan taken before "
+                "preparation. VLA = vein length / leaf area for each order. "
+                "Change the value and export again to recompute."
+            )
+        )
+        leaf_area_section_layout.addLayout(leaf_area_layout)
+
         output_dir_layout = QHBoxLayout()
         output_dir_layout.addWidget(QLabel("Output"))
         output_dir_layout.addWidget(self.output_dir_input, 1)
         output_dir_layout.addWidget(self.change_output_dir_button)
 
-        measurement_layout = QVBoxLayout()
-        measurement_layout.addLayout(leaf_area_layout)
-        measurement_layout.addLayout(output_dir_layout)
-        measurement_layout.addWidget(self.export_button)
+        export_layout = QVBoxLayout()
+        export_layout.addWidget(
+            _hint(
+                "Writes vein length and VLA per order (CSV), the label image, "
+                "a QC image, and a metadata file for reproducibility."
+            )
+        )
+        export_layout.addLayout(output_dir_layout)
+        export_layout.addWidget(self.export_button)
 
         settings_buttons_layout = QHBoxLayout()
         settings_buttons_layout.addWidget(self.reload_settings_button)
@@ -378,20 +455,20 @@ class WorkflowControls:
         stages_layout = QVBoxLayout(scroll_content)
         stages_layout.setContentsMargins(0, 0, 0, 0)
         stage_layouts = (
-            ("calibration", "Scale calibration", calibration_layout),
-            ("vein_paths", "Vein paths (1°/2°)", vein_paths_layout),
-            ("roi", "ROI", roi_layout),
-            ("mask_creation", "Mask creation", mask_creation_layout),
-            ("mask_cleanup", "Mask cleanup", mask_cleanup_layout),
-            ("order_labels", "Vein order labels", order_labels_layout),
-            ("measurement", "Measurement", measurement_layout),
+            ("image", "1. Image & scale", image_layout),
+            ("roi", "2. ROI", roi_layout),
+            ("mask", "3. Vein mask", mask_layout),
+            ("orders", "4. Paint vein orders", orders_layout),
+            ("leaf_area", "5. Leaf area & VLA", leaf_area_section_layout),
+            ("export", "6. Export", export_layout),
             ("settings", "Settings", settings_layout),
         )
         for key, title, stage_layout in stage_layouts:
             section = CollapsibleSection(
                 title,
                 stage_layout,
-                expanded=(key == "calibration"),
+                expanded=(key == "image"),
+                key=key,
             )
             section.toggle_button.toggled.connect(
                 lambda checked, key=key: self._on_section_toggled(key, checked)
@@ -481,6 +558,7 @@ class WorkflowControls:
         """Enable controls used after a smoothed layer exists."""
         self.otsu_button.setEnabled(enabled)
         self.invert_threshold_checkbox.setEnabled(enabled)
+        self.exclude_background_checkbox.setEnabled(True)
         self.threshold_label.setEnabled(enabled)
         self.threshold_spinbox.setEnabled(enabled)
         self.threshold_slider.setEnabled(enabled)
@@ -497,6 +575,7 @@ class WorkflowControls:
         self.opening_radius_spinbox.setEnabled(enabled)
         self.clean_mask_button.setEnabled(enabled)
         self.create_order_labels_button.setEnabled(enabled)
+        self.paint_order_combo.setEnabled(enabled)
 
     def set_measurement_enabled(self, enabled: bool) -> None:
         """Enable measurement once a mask (and so order labels) can exist."""
@@ -560,3 +639,25 @@ class WorkflowControls:
         self.set_status(message)
         show_warning(message)
 
+
+
+def _hint(text: str) -> QLabel:
+    """Return a short, wrapped instruction shown at the top of a step."""
+    label = QLabel(text)
+    label.setWordWrap(True)
+    label.setStyleSheet("color: palette(mid);")
+    return label
+
+
+def _subheading(text: str) -> QLabel:
+    """Return a small bold label that separates parts of one step."""
+    label = QLabel(text)
+    label.setStyleSheet("font-weight: bold;")
+    return label
+
+
+def _color_icon(color: str) -> QIcon:
+    """Return a square swatch so each order matches its label color."""
+    pixmap = QPixmap(12, 12)
+    pixmap.fill(QColor(color))
+    return QIcon(pixmap)

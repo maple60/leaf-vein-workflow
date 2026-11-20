@@ -134,8 +134,8 @@ def test_workflow_controls_are_scrollable_and_collapsible(widget_flow):
         assert found is not None
         return found
 
-    calibration = button("scale_calibration")
-    cleanup = button("mask_cleanup")
+    calibration = button("image")
+    cleanup = button("export")
     assert calibration.isChecked()
     assert not cleanup.isChecked()
     assert cleanup.arrowType() == Qt.ArrowType.RightArrow
@@ -167,10 +167,59 @@ def test_completed_stages_open_the_next_section(widget_flow):
 
     flow.widget.calibration_value_input.setText("300")
     flow.widget.apply_scale()
-    assert is_open("roi") and not is_open("scale_calibration")
+    assert is_open("roi") and not is_open("image")
 
     _advance_to_crop(flow)
-    assert is_open("mask_creation") and not is_open("roi")
+    assert is_open("mask") and not is_open("roi")
+
+    _advance_to_mask(flow)
+    flow.app.processEvents()
+    flow.widget._controls.open_section("orders")
+    flow.widget.create_order_labels()
+    # 塗り分けはこれからなので、手順4は開いたまま。
+    assert is_open("orders")
+
+
+def test_dock_shows_the_six_steps_in_order(widget_flow):
+    from qtpy.QtWidgets import QToolButton
+
+    flow = widget_flow
+    titles = [
+        section.toggle_button.text()
+        for section in flow.widget._controls.sections.values()
+    ]
+    assert titles == [
+        "1. Image & scale",
+        "2. ROI",
+        "3. Vein mask",
+        "4. Paint vein orders",
+        "5. Leaf area & VLA",
+        "6. Export",
+        "Settings",
+    ]
+    # パス計測は今は表示しない。
+    assert flow.widget.findChild(QToolButton, "workflow_section_vein_paths") is None
+    assert not flow.widget.draw_vein_paths_button.isVisibleTo(flow.widget)
+
+
+def test_paint_order_picker_sets_the_painted_label(widget_flow):
+    flow = widget_flow
+    _advance_to_mask(flow)
+    combo = flow.widget.paint_order_combo
+    combo.setCurrentIndex(combo.findData(2))
+
+    flow.widget.create_order_labels()
+    order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
+    assert order_layer.mode == "paint"
+    assert order_layer.selected_label == 2
+
+    combo.setCurrentIndex(combo.findData(3))
+    assert order_layer.selected_label == 3
+    assert flow.viewer.layers.selection.active is order_layer
+
+    # napari 側でラベルを変えると、dock の選択も追従する。
+    order_layer.selected_label = 1
+    assert combo.currentData() == 1
 
 
 def test_widget_module_reexports_public_api(monkeypatch, tmp_path):
@@ -440,7 +489,9 @@ def test_otsu_creates_editable_mask_and_threshold_updates_it(widget_flow):
     assert flow.widget.create_order_labels_button.isEnabled()
 
     foreground_before = int(np.count_nonzero(mask_layer.data))
-    flow.widget.threshold_slider.setValue(1000)
+    # Otsu は少ない側（葉脈）を自動で選ぶ。その側が縮む向きにスライダーを動かす。
+    inverted = flow.widget.invert_threshold_checkbox.isChecked()
+    flow.widget.threshold_slider.setValue(0 if inverted else 1000)
     _wait_for_delayed_mask_update(flow)
 
     assert np.count_nonzero(mask_layer.data) <= foreground_before
@@ -802,7 +853,7 @@ def test_export_metadata_records_actual_processing(widget_flow, tmp_path):
     }
     assert processing["gaussian_sigma"] == 0.5
     assert "otsu_threshold" in processing
-    assert set(processing["threshold"]) == {"value", "invert"}
+    assert set(processing["threshold"]) == {"value", "invert", "inside_leaf_only"}
     assert len(processing["cleanup"]) == 1
     assert processing["cleanup"][0]["max_hole_px"] == 3
     assert processing["mask_edited_by_hand_after_last_step"] is True
@@ -816,3 +867,55 @@ def test_export_metadata_records_actual_processing(widget_flow, tmp_path):
     for name in meta["files"]:
         assert name.startswith(prefix)
         assert (tmp_path / name).exists()
+
+
+def test_scale_bar_stays_above_layers_added_later(widget_flow):
+    flow = widget_flow
+    flow.widget.calibration_value_input.setText("300")
+    flow.widget.apply_scale()
+    bar = flow.viewer.layers["leaf 10 mm bar"] if "leaf 10 mm bar" in flow.viewer.layers else None
+    if bar is None:
+        bar = next(layer for layer in flow.viewer.layers if layer.name.endswith(" bar"))
+
+    _advance_to_mask(flow)
+    flow.app.processEvents()
+
+    assert flow.viewer.layers[-1] is bar
+
+
+def test_mask_and_order_label_display_defaults(widget_flow):
+    flow = widget_flow
+    _, _, mask_layer = _advance_to_mask(flow)
+    assert mask_layer.opacity == pytest.approx(0.5)
+    assert flow.module.CropWidget is not None
+
+    flow.widget.create_order_labels()
+    order_layer = flow.viewer.layers[flow.module.ORDER_LABELS_LAYER_NAME]
+    assert order_layer.opacity == pytest.approx(0.6)
+
+
+def test_export_button_runs_in_background(widget_flow, tmp_path):
+    from qtpy.QtCore import QEventLoop, QTimer
+
+    flow = widget_flow
+    flow.widget.calibration_value_input.setText("300")
+    flow.widget.apply_scale()
+    _advance_to_mask(flow)
+    flow.widget.create_order_labels()
+    flow.widget.leaf_area_input.setText("10")
+    flow.widget._measurement_workflow.set_output_dir(tmp_path)
+
+    worker = flow.widget.export_measurements(background=True)
+    assert worker is not None
+    assert not flow.widget.export_button.isEnabled()
+
+    loop = QEventLoop()
+    worker.finished.connect(loop.quit)
+    QTimer.singleShot(20000, loop.quit)
+    if flow.widget._export_worker is not None:
+        loop.exec_()
+    flow.app.processEvents()
+
+    assert flow.widget.export_button.isEnabled()
+    assert list(tmp_path.glob("*_measurements.csv"))
+    assert list(tmp_path.glob("*_metadata.yaml"))

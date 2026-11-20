@@ -173,3 +173,26 @@ def test_measure_order_labels_treats_isolated_pixels_as_zero_length():
 
     assert rows["tertiary"]["area_px"] == 2
     assert rows["tertiary"]["length_px"] == 0.0
+
+
+def test_qc_overlay_uses_the_same_order_colors_as_napari():
+    from leaf_vein_workflow.order import ORDER_LABEL_HEX
+
+    labels = np.array([[1, 2, 3, 4]], dtype=np.uint8)
+    mask = labels > 0
+    skeleton = np.zeros_like(labels)
+    overlay = make_qc_overlay(None, mask, skeleton, labels).astype(float) / 255
+
+    for column, value in enumerate((1, 2, 3, 4)):
+        target = np.array(
+            [int(ORDER_LABEL_HEX[value].lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        )
+        # 色は下地と混ぜるので、各次数の色にいちばん近いことを確かめる。
+        distances = {
+            other: np.linalg.norm(
+                overlay[0, column]
+                - np.array([int(h.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)])
+            )
+            for other, h in ORDER_LABEL_HEX.items()
+        }
+        assert min(distances, key=distances.get) == value, (value, target)

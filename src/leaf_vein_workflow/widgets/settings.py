@@ -89,6 +89,7 @@ class SettingsWorkflow:
         mask = values["mask"]
         controls.gaussian_sigma_spinbox.setValue(float(mask["gaussian_sigma"]))
         controls.invert_threshold_checkbox.setChecked(bool(mask["invert_threshold"]))
+        controls.exclude_background_checkbox.setChecked(bool(mask["exclude_background"]))
 
         cleanup = values["cleanup"]
         controls.min_object_size_spinbox.setValue(int(cleanup["small_object_px"]))

@@ -138,3 +138,40 @@ def test_postprocess_mask_rejects_negative_parameters():
 def test_threshold_rejects_unsupported_shape():
     with pytest.raises(ValueError, match="2D grayscale"):
         threshold_image(np.zeros((2, 3, 5)), 0)
+
+
+def _leaf_on_paper():
+    """White paper, a gray leaf with a vein grid (enclosed areoles)."""
+    image = np.full((240, 320), 0.95)
+    image[20:220, 20:300] = 0.55
+    for row in range(20, 220, 10):
+        image[row:row + 2, 20:300] = 0.15
+    for col in range(20, 300, 10):
+        image[20:220, col:col + 2] = 0.15
+    return image
+
+
+def test_vein_threshold_ignores_background_and_picks_dark_veins():
+    from leaf_vein_workflow.threshold import estimate_vein_threshold, threshold_image
+
+    image = _leaf_on_paper()
+    estimate = estimate_vein_threshold(image, exclude_background=True)
+
+    assert estimate.leaf_mask is not None
+    assert estimate.invert is True
+    assert estimate.vein_side == "dark"
+    vein = threshold_image(image, estimate.threshold, invert=True) & estimate.leaf_mask
+    assert np.array_equal(vein, image < 0.3)
+    assert estimate.vein_fraction < 0.5
+
+
+def test_vein_threshold_without_background_uses_the_whole_roi():
+    from leaf_vein_workflow.threshold import estimate_vein_threshold
+
+    inside_blade = _leaf_on_paper()[25:215, 25:295]
+    estimate = estimate_vein_threshold(inside_blade, exclude_background=True)
+
+    # 葉脈で囲まれた葉身は背景とみなさず、1段階の Otsu になる。
+    assert estimate.leaf_mask is None
+    assert estimate.invert is True
+    assert np.isclose(estimate.vein_fraction, np.mean(inside_blade < 0.3))

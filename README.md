@@ -16,7 +16,8 @@ napari plugin for leaf vein image workflow development.
 - Create an editable order labels layer from the confirmed vein mask
   (1 primary, 2 secondary, 3 tertiary, 4 uncertain).
 - Trace 1° and 2° veins as paths on the whole leaf (segmented-line method of
-  Sack & Scoffoni 2013) and export their summed length and VLA.
+  Sack & Scoffoni 2013) and export their summed length and VLA. This is
+  implemented but hidden from the dock for now.
 - Measure skeleton length per vein order and VLA against a leaf area typed in
   mm² or cm², and export the results.
 
@@ -47,6 +48,19 @@ Then open the widget from:
 Plugins > Leaf Vein Workflow > Leaf Vein Workflow
 ```
 
+The dock shows six numbered steps, one open at a time:
+
+1. **Image & scale**: open the leaf scan and apply the scan resolution.
+2. **ROI**: drag the rectangle over the area to analyze and press `Add ROI`.
+3. **Vein mask**: `Apply Gaussian`, `Apply Otsu`, adjust the threshold, fix
+   spots by hand, and optionally `Clean Mask`.
+4. **Paint vein orders**: `Create Order Labels`, choose an order in
+   `Paint as`, and drag over veins.
+5. **Leaf area & VLA**: type the fresh-leaf area.
+6. **Export**: choose the output folder and press `Export Measurements`.
+
+Each step starts with a one-line instruction. Details follow.
+
 With the widget open, use napari's normal image loading workflow. The plugin
 creates and activates the ROI drawing layer automatically when an image layer is
 added. Before or after creating the ROI, choose a scale calibration method and
@@ -63,19 +77,30 @@ for display only and is updated, not duplicated, when the scale changes.
 
 Draw one rectangle, then click `Add ROI` in the widget to create the ROI crop
 layer. Click `Apply Gaussian` to create `smoothed_image`, then click
-`Apply Otsu` to create `vein_mask`. After that explicit Otsu step, `Invert
-threshold` and `Mask threshold` update the current mask.
+`Apply Otsu` to create `vein_mask`. Colored (yellow) pixels are vein.
+With `ROI includes background (paper)` on (the default), Otsu first separates
+the leaf from the background around it, then finds the vein threshold inside
+the leaf only, so a whole-leaf ROI works and the paper is never part of the
+mask. If no background is found (an ROI inside the blade), it uses the whole
+ROI. Otsu then picks the side with fewer pixels as vein and sets `Invert (dark
+pixels are vein)` to match. The status line shows the share colored as vein
+and warns when it is more than veins usually cover. After that explicit Otsu
+step, `Invert` and `Mask threshold` update the current mask.
 
 If needed, set the morphology controls and click `Clean Mask`. Correct the mask
 manually in paint mode, then click `Create Order Labels` to begin manual
-vein-order annotation inside the confirmed mask. Cleanup inputs remain integer
+vein-order annotation inside the confirmed mask. Every vein pixel starts as
+4 (uncertain, purple). Choose 1°, 2°, 3°, or Uncertain in `Paint as` (each
+item shows its label color) and drag over veins; pixels outside the mask are
+never painted. Picking a label in napari's own layer controls updates
+`Paint as` too. Cleanup inputs remain integer
 pixel values for reproducible morphology behavior; when the image is calibrated,
 their labels also show object/hole areas in mm² and closing/opening radii in µm
 or mm.
 
-In the `Measurement` section, type the leaf area (for example measured from a
+In `5. Leaf area & VLA`, type the leaf area (for example measured from a
 scan taken before specimen preparation) and choose mm² or cm²; it is converted
-to mm² internally. Click `Export Measurements` to measure the current labels and
+to mm² internally. In `6. Export`, click `Export Measurements` to measure the current labels and
 write them to the output folder, which defaults to `output/` under the folder
 napari was started from (`Change...` picks another one). The files are a
 measurements CSV with total length and VLA (mm mm⁻²) for 1°, 2°, 3°, 1°+2°, and
@@ -83,8 +108,15 @@ major (1°–3°), the order labels as `.npy`, a QC overlay PNG, and a skeleton
 branch table. Combined rows are the sum of the per-order skeleton lengths.
 Results are not shown in the dock; a notification confirms the export and warns
 about pixels still labelled 4 (uncertain), which are excluded from every order.
+Export runs in the background so napari stays usable; a full 3200 dpi leaf
+takes about 30 s.
 
-For 1° and 2° veins on a whole-leaf image, open `Vein paths (1°/2°)`, choose
+The display scale bar stays above layers added later, `vein_mask` is drawn in
+yellow at 50% opacity, and `order_labels` at 60% opacity so the veins beneath
+stay visible.
+
+Path tracing for 1° and 2° veins is implemented but hidden from the dock for
+now. When it is shown again: on a whole-leaf image, choose
 the order, click `Draw Vein Paths`, and trace each vein (click vertices,
 double-click to finish). New paths take the selected order; select existing
 paths and change the order to relabel them. `Export Measurements` then also
@@ -122,8 +154,8 @@ keeps the previous one as `*.bak`. The recommended scanner resolution is
 1200 dpi, enough to resolve 2nd-order vein width.
 
 Workflow sections open one at a time, and finishing a stage (Apply Scale, Add
-ROI, Create Order Labels) opens the next one, so the dock rarely needs
-scrolling.
+ROI) opens the next one, so the dock rarely needs scrolling. After `Create
+Order Labels` the painting step stays open.
 
 Run tests:
 

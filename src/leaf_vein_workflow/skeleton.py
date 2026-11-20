@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 from skan import Skeleton
 from skan.csr import summarize
-from skimage.morphology import dilation, disk, medial_axis, skeletonize
+from scipy.ndimage import distance_transform_edt
+from skimage.morphology import dilation, disk, skeletonize
 
 from .calibration import millimetres_per_pixel
 
@@ -108,8 +109,8 @@ def create_skeleton_helpers(
     skeleton = skeletonize(foreground).astype(np.uint8)
     skeleton_bool = skeleton.astype(bool)
 
-    _medial_skeleton, radius_px = medial_axis(foreground, return_distance=True)
-    radius_px = radius_px.astype(float, copy=False)
+    # 背景までの距離（= medial_axis の距離と同じ定義）。medial_axis より速い。
+    radius_px = distance_transform_edt(foreground).astype(float, copy=False)
     diameter_px = radius_px * 2.0
     diameter_on_skeleton = np.where(skeleton_bool, diameter_px, np.nan)
 
