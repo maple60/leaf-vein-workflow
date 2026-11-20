@@ -4,8 +4,10 @@ project:
   render:
     - index.qmd
     - notebooks/workflow_overview.qmd
+    - notebooks/scanning_protocol.qmd
     - notebooks/napari_plugin_development.qmd
     - notebooks/skeletonization.qmd
+    - notebooks/vein_order_algorithms.qmd
     - notebooks/data_source.qmd
     - notebooks/zotero_leaf_vein_literature.qmd
     - notebooks/prometheus_leaf_vein_protocol.qmd
@@ -25,10 +27,14 @@ website:
         menu:
           - href: notebooks/workflow_overview.qmd
             text: Workflow overview
+          - href: notebooks/scanning_protocol.qmd
+            text: 葉脈標本のスキャン
           - href: notebooks/napari_plugin_development.qmd
             text: napari プラグイン作成
           - href: notebooks/skeletonization.qmd
             text: 葉脈の抽出
+          - href: notebooks/vein_order_algorithms.qmd
+            text: 葉脈 mask と次数の自動振り分け
           - href: notebooks/data_source.qmd
             text: サンプルデータセット
       - text: Reports
@@ -47,8 +53,10 @@ website:
       - section: Manual
         contents:
           - notebooks/workflow_overview.qmd
+          - notebooks/scanning_protocol.qmd
           - notebooks/napari_plugin_development.qmd
           - notebooks/skeletonization.qmd
+          - notebooks/vein_order_algorithms.qmd
           - notebooks/data_source.qmd
       - section: Reports
         contents:

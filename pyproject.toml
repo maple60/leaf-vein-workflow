@@ -18,6 +18,8 @@ dependencies = [
     "numba>=0.59",
     "numpy",
     "pandas>=3.0.3",
+    "platformdirs>=4.10.0",
+    "pyyaml>=6.0.3",
     "qtpy",
     "scikit-image",
     "skan>=0.13.1",

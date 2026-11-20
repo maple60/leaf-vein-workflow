@@ -1,8 +1,10 @@
 """Image thresholding helpers independent of napari."""
 
+from dataclasses import dataclass
 from typing import SupportsFloat
 
 import numpy as np
+from scipy import ndimage
 from skimage.filters import gaussian
 from skimage.morphology import (
     closing,
@@ -40,8 +42,90 @@ def to_grayscale(image: np.ndarray) -> np.ndarray:
 
 def otsu_threshold(image: np.ndarray, bins: int = 256) -> float:
     """Estimate an Otsu threshold from a supported image array."""
+    return _otsu_values(to_grayscale(image).ravel(), bins=bins)
+
+
+@dataclass(slots=True)
+class VeinThreshold:
+    """Otsu result that says which side is vein and where the leaf is."""
+
+    threshold: float
+    invert: bool
+    vein_fraction: float
+    leaf_threshold: float | None = None
+    leaf_mask: np.ndarray | None = None
+
+    @property
+    def vein_side(self) -> str:
+        return "dark" if self.invert else "bright"
+
+
+def estimate_vein_threshold(
+    image: np.ndarray,
+    *,
+    exclude_background: bool = True,
+) -> VeinThreshold:
+    """Estimate a vein threshold and decide which side of it is vein.
+
+    With ``exclude_background``, a first Otsu split separates the leaf from the
+    background (the class covering most of the image border).  A second Otsu
+    split inside the leaf then separates veins from the lamina.  Veins are
+    taken to be the smaller of the two classes, so ``invert`` is set when the
+    darker pixels are the minority.
+    """
     grayscale = to_grayscale(image)
+    leaf_threshold = None
+    leaf_mask = None
     values = grayscale.ravel()
+
+    if exclude_background:
+        first = _otsu_values(values)
+        bright = grayscale > first
+        background = bright if _border(bright).mean() >= 0.5 else ~bright
+        # 背景らしい領域が無い（ROI が葉身の内側だけ）ときは1段階に戻す。
+        if _looks_like_background(background):
+            leaf_threshold = first
+            leaf_mask = ~background
+            values = grayscale[leaf_mask]
+
+    threshold = _otsu_values(values)
+    dark_fraction = float(np.mean(values <= threshold))
+    invert = dark_fraction <= 0.5
+    vein_fraction = dark_fraction if invert else 1.0 - dark_fraction
+    return VeinThreshold(
+        threshold=threshold,
+        invert=invert,
+        vein_fraction=vein_fraction,
+        leaf_threshold=leaf_threshold,
+        leaf_mask=leaf_mask,
+    )
+
+
+def _border(array: np.ndarray) -> np.ndarray:
+    return np.concatenate((array[0, :], array[-1, :], array[:, 0], array[:, -1]))
+
+
+def _looks_like_background(background: np.ndarray) -> bool:
+    """Return whether a class is paper around the leaf, not lamina between veins.
+
+    Paper around a leaf is mostly connected to the ROI edge.  Inside a leaf
+    blade, the lighter class is lamina split by veins into many enclosed
+    areoles, most of which do not reach the edge.
+    """
+    fraction = float(background.mean())
+    if not 0.05 <= fraction <= 0.95:
+        return False
+    labels, _ = ndimage.label(background)
+    edge_labels = np.unique(_border(labels))
+    edge_labels = edge_labels[edge_labels > 0]
+    touching = np.isin(labels, edge_labels)
+    return float(touching.sum()) / float(background.sum()) >= 0.8
+
+
+def _otsu_values(values: np.ndarray, bins: int = 256) -> float:
+    values = np.asarray(values, dtype=float).ravel()
+    if values.size == 0:
+        raise ValueError("Image is empty.")
 
     minimum = float(np.min(values))
     maximum = float(np.max(values))

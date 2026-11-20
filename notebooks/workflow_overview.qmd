@@ -10,35 +10,64 @@ format:
 
 このノートは、`leaf-vein-workflow` の現在の MVP 実装について、人間が読んで流れを理解するための説明です。
 
-このプラグインが今やることは、次の 3 段階に絞られています。
+このプラグインが今やることは、次の 4 段階に絞られています。
 
+- DPI、µm/px、mm/px、または手動で引いたスケールバー線から、元画像ごとの mm/px を校正する。
 - napari で画像を開き、長方形 ROI を 1 つ描き、`Add ROI` ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。
 - 切り抜き画像に Gaussian smoothing を適用し、Otsu 閾値で葉脈候補の mask Labels レイヤーを作り、形態学的処理と手作業で整える。
 - 確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。
+- 次数ごとの骨格長と、入力した葉面積（mm²）に対する VLA を計算し、export する。
 
-まだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、骨格のセグメンテーション、VLA の計算、major/minor の自動分離です。
+まだ扱わないことは、スケールバーの OCR・自動検出、複数 ROI、ポリゴン ROI、画像の保存、nD stack、次数の自動分類、minor（4次以上）のラベルです。
 
 ## ユーザーから見た流れ
 
-ユーザー操作としては、次の順番になります。
+dock は次の6つの手順に番号付きで並び、各手順の先頭に1行の操作説明があります。
+
+| 手順 | dock の表示 | やること |
+|---|---|---|
+| 1 | `1. Image & scale` | 画像を読み込み、スキャン解像度で校正する |
+| 2 | `2. ROI` | 解析する範囲を長方形で選ぶ |
+| 3 | `3. Vein mask` | mask を作って葉脈の領域を確定する（後片付けの処理も同じ手順内） |
+| 4 | `4. Paint vein orders` | 葉脈を次数ごとに塗り分ける |
+| 5 | `5. Leaf area & VLA` | 葉面積を入力する（VLA は Export 時に計算） |
+| 6 | `6. Export` | 出力先を選んで書き出す |
+
+1次・2次脈のパス計測（`vein_paths.py`）は実装済みですが、今は dock に表示していません。
+
+細かい操作は次の順番になります。
 
 1. napari を起動する。
 2. `Plugins > Leaf Vein Workflow > Leaf Vein Workflow` から widget を開く。
 3. napari 標準の方法で葉画像を開く。
-4. プラグインが自動で ROI 用の Shapes レイヤーを作る。
-5. 画像上に長方形を 1 つ描く。
-6. `Add ROI` ボタンを押す。
-7. 長方形の範囲だけを切り抜いた Image レイヤーが追加される。
-8. `Gaussian sigma` を確認して `Apply Gaussian` を押す。
-9. 平滑化した `smoothed_image` Image レイヤーだけが作られる。
-10. `Apply Otsu` を押すと、初めて `vein_mask` Labels レイヤーが作られる。
-11. 必要なら `Invert threshold` と `Mask threshold` を調整する。変更後、少し待つと同じ mask レイヤーが更新される。
-12. 形態学的処理の値を確認して `Clean Mask` を押す。
-13. paint mode の `vein_mask` を手作業で修正する。
-14. mask を確認した後に `Create Order Labels` を押す。
-15. `order_labels` Labels レイヤー上で葉脈次数を塗り分ける。
+4. DPI、µm/px、mm/px の値を入力して `Apply Scale` を押す。または `Scale bar` を選び、`Draw Scale Bar Line` でバーに線を1本引き、実長を入力して校正する。校正しない場合は pixel 単位のまま続行できる。
+5. プラグインが自動で作った ROI 用 Shapes レイヤーに長方形を 1 つ描く。
+6. `Add ROI` ボタンを押し、切り抜いた Image レイヤーを作る。
+7. `Gaussian sigma` を確認して `Apply Gaussian` を押す。
+8. 平滑化した `smoothed_image` Image レイヤーだけが作られる。
+9. `Apply Otsu` を押すと、初めて `vein_mask` Labels レイヤーが作られる。
+10. 色の付いた画素（黄色）が葉脈。Otsu は少ない側を葉脈として選び、`Invert (dark pixels are vein)` を自動で合わせる。必要なら `Invert` と `Mask threshold` を調整する。変更後、少し待つと同じ mask レイヤーが更新される。
+11. 形態学的処理の値を確認して `Clean Mask` を押す。
+12. paint mode の `vein_mask` を手作業で修正する。
+13. mask を確認した後に `Create Order Labels` を押す。
+14. （任意）`Mark Base & Apex` で葉の基部と1次脈の先端をクリックする（2点目で `order_labels` の塗る状態に戻る）。`Auto-assign 1°/2°` で1次・2次脈を自動で塗り、残りの脈は太さで3次脈（太い側）と不確定（細い側）に分ける。進み具合は dock 下部のバーに出る。不確定（4）の画素だけを書き換えるので、手で塗った所は残る。
+15. 葉脈の画素はすべて 4（不確定、紫）から始まる。`Paint as` で 1°・2°・3°・Uncertain を選び（色見本はラベルの色と同じ）、画像上の葉脈をドラッグして塗る。mask の外は塗られない。ブラシの太さは napari の layer controls（左上）で変える。napari 側でラベル番号を変えても `Paint as` が追従する。
+16. `5. Leaf area & VLA` の `Leaf area` に葉面積を入力し、単位（mm² / cm²）を選ぶ。内部では mm² に換算する。
+17. `6. Export` の `Export Measurements` を押すと、現在のラベルを計測して出力フォルダに CSV・ラベル（.npy）・QC 画像・branch table を書き出す。出力先の既定は napari を起動したフォルダ直下の `output/` で、`Change...` で変えられる。結果は dock には表示せず、書き出し完了と未分類ピクセルの警告を通知で出す。
+
+dock の各工程は同時に1つだけ開き、`Apply Scale`・`Add ROI` が成功すると次の工程が自動で開く。`Create Order Labels` の後は塗り分けが続くので、手順4は開いたままにする。
 
 重要なのは、各工程がユーザーの操作で明示的に区切られている点です。長方形を描いただけでは crop は作られず、`Apply Gaussian` を押しても `vein_mask` は作られません。mask が初めて作られるのは `Apply Otsu` を押したときです。
+
+## スケール校正
+
+どの入力方法でも、内部では `mm_per_pixel` に統一します。DPI の場合は `25.4 / DPI`、µm/px の場合は値を 1000 で割って mm/px に変換します。スケールバー方式では、専用の Shapes レイヤーに引いた2点の線の pixel 長と、入力した実長から mm/px を求めます。線がない、2本以上ある、実長が0以下である場合は校正を確定しません。
+
+確定した値、入力方法、元の入力値と単位は元画像の metadata に保存され、crop、`smoothed_image`、`vein_mask`、`order_labels` に引き継がれます。再校正すると既存の派生レイヤーも更新されます。ステータスには入力方法に関係なく µm/px、mm/px、mm/px から逆算した等価 DPI を併記します。表示座標と ROI の切り抜き計算を壊さないため、napari の layer `scale` 自体は変更しません。
+
+校正を確定すると、画像の左下にマゼンタの表示用スケールバー（`<画像名> 10 mm bar`）を描きます。画像幅の 40% に 10 mm が収まらない小さい画像では、5・2・1 mm、500・200・100 µm の順に短いバーを使います。定規と見比べて校正値が正しいか目で確かめるためのもので、計測には使いません。再校正すると同じレイヤーを更新し、作業中のレイヤー選択は変えません。
+
+校正済みの `skeleton.py` helperには、従来のpx列に加えて長さ・直径・局所座標のmm列が追加されます。未校正なら従来どおりpx列だけです。次数別計測の `order.py` は既存の `pixel_size_mm` 引数で、長さmm、葉面積mm²、VLA（mm mm\(^{-2}\)）を計算します。
 
 ## 全体像
 
@@ -50,10 +79,12 @@ napari 上では 1 つの dock widget ですが、実装は人間が担当範囲
 | `src/leaf_vein_workflow/widgets/crop_widget.py` | 1 つの widget を組み立て、signal を接続し、公開メソッドを各担当へ委譲する |
 | `src/leaf_vein_workflow/widgets/controls.py` | ボタンや入力欄を作り、工程ごとの有効・無効を管理する |
 | `src/leaf_vein_workflow/widgets/layers.py` | metadata、レイヤー間の対応、検索、選択、削除を一元管理する |
+| `src/leaf_vein_workflow/widgets/calibration.py` | 校正UIの操作、スケールバー線、元画像ごとのmetadata反映を担当する |
 | `src/leaf_vein_workflow/widgets/roi.py` | 画像の検出、ROI Shapes レイヤー、crop の作成を担当する |
 | `src/leaf_vein_workflow/widgets/mask.py` | Gaussian、Otsu、閾値更新、`Clean Mask` を担当する |
 | `src/leaf_vein_workflow/widgets/order_labels.py` | order labels の作成と mask 外への描画防止を担当する |
 | `src/leaf_vein_workflow/crop.py` | 画像配列をどこで切るかを計算する |
+| `src/leaf_vein_workflow/calibration.py` | DPI・直接値・スケールバーを mm/px に変換する |
 | `src/leaf_vein_workflow/threshold.py` | grayscale 化、Gaussian、閾値、mask cleanup を NumPy 配列に対して計算する |
 | `src/leaf_vein_workflow/order.py` | order labels の検証、集計、export に使う napari 非依存の処理を置く |
 
@@ -62,6 +93,7 @@ napari 上では 1 つの dock widget ですが、実装は人間が担当範囲
 ```{mermaid}
 flowchart TD
   A["ユーザーが napari で画像を開く"] --> B["roi.py が画像を検出"]
+  A -.-> A2["任意: 前後どちらでも scale calibration を確定"]
   B --> C["ROI Shapes レイヤーを自動作成"]
   C --> D["長方形描画モードに切り替え"]
   D --> E["ユーザーが長方形 ROI を描く"]
@@ -97,8 +129,8 @@ napari は `src/leaf_vein_workflow/napari.yaml` を読んで、このパッケ�
 
 - napari viewer を `self.viewer` に保存する。
 - `controls.py` でボタン、入力欄、ステータス表示を作る。
-- `layers.py` で ROI、crop、smoothed image、mask、order labels の対応関係を管理する。
-- ROI、mask、order labels の各担当に、共有する controls とレイヤー管理を明示的に渡す。
+- `layers.py` で scale bar、ROI、crop、smoothed image、mask、order labels の対応関係を管理する。
+- calibration、ROI、mask、order labels の各担当に、共有する controls とレイヤー管理を明示的に渡す。
 - `crop_widget.py` でボタンや Qt signal を各担当の処理へ接続する。
 - 新しく追加された画像と、すでに開かれている画像の両方を ROI 担当に渡す。
 
@@ -224,7 +256,15 @@ mask 処理は `widgets/mask.py` が担当し、`Apply Gaussian`、`Apply Otsu`�
 
 `Apply Gaussian` は、現在の crop Image レイヤーに `threshold.py` の `smooth_image()` を適用し、`smoothed_image` Image レイヤーだけを作成または更新します。この時点では `vein_mask` を作りません。Gaussian sigma の初期値は 1 で、必要に応じて実行前に変更できます。
 
-`Apply Otsu` は、平滑化済み画像から `otsu_threshold()` で閾値を推定します。その閾値を使って `threshold_image()` を実行し、ここで初めて `vein_mask` Labels レイヤーを作成します。二値化の前には `to_grayscale()` で画像を 2D grayscale に変換し、RGB/RGBA 画像では alpha を無視します。
+`Apply Otsu` は、平滑化済み画像から `estimate_vein_threshold()` で閾値を推定します。
+
+- `ROI includes background (paper)` が有効（既定）なら、まず Otsu で葉と背景を分けます。ROI の縁に多い側を背景とし、その大部分が縁につながっていれば背景とみなします。葉身の内側だけの ROI では、明るい側（葉身）は葉脈で囲まれた小さな網目に分かれて縁に届かないので、背景とはみなさず1段階の Otsu に戻ります。
+- 背景を除いた葉の中だけでもう一度 Otsu をかけ、葉脈と葉身を分けます。背景は mask から常に外します。
+- 葉脈は葉の中で少ない側なので、少ない側を葉脈として `Invert` を自動で設定します。
+
+3200 dpi の標本画像で確かめたところ、葉全体の ROI では背景を除いて葉の 25% が葉脈に、葉身内側の ROI では 22% が葉脈になりました。1段階の Otsu で葉全体を選ぶと、葉身全体（54%）が mask になっていました。
+
+その閾値を使って `threshold_image()` を実行し、ここで初めて `vein_mask` Labels レイヤーを作成します。二値化の前には `to_grayscale()` で画像を 2D grayscale に変換し、RGB/RGBA 画像では alpha を無視します。
 
 `Invert threshold` が有効な場合は、閾値以下の画素を 1 として扱います。これは、葉脈が背景より暗い画像で使う想定です。
 
@@ -232,7 +272,7 @@ mask 処理は `widgets/mask.py` が担当し、`Apply Gaussian`、`Apply Otsu`�
 
 mask は napari の Labels レイヤーとして作られます。レイヤー名は `vein_mask` です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの `data` と `translate` を更新します。
 
-`Clean Mask` は、small object removal、hole filling、closing、opening の設定を `postprocess_mask()` に渡し、現在の mask を明示的に整えます。cleanup 後は自動の閾値更新を止め、`vein_mask` を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。
+`Clean Mask` は、small object removal、hole filling、closing、opening の設定を `postprocess_mask()` に渡し、現在の mask を明示的に整えます。入力欄は従来どおり整数pxですが、校正済み画像では small object と hole の面積をmm²、closing と opening の半径をµmまたはmmでラベルに併記します。値の変更、再校正、別画像への切り替えに応じて換算表示も更新されます。未校正画像ではpxだけを表示します。cleanup 後は自動の閾値更新を止め、`vein_mask` を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。
 
 ## order labels レイヤーの作成
 
@@ -240,7 +280,9 @@ mask は napari の Labels レイヤーとして作られます。レイヤー�
 
 作成後は `vein_mask` を非表示にし、`order_labels` を active な paint mode にします。order labels への描画は確認済み mask の対象領域内だけに制限され、mask が後から変わった場合も領域外のラベルを 0 に戻します。
 
-現在の実装では、`vein_mask == 0` の white-out 領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは `order_labels.py` 側も一緒に確認する必要があります。
+`vein_mask` は 1 = 葉脈（黄色、不透明度 0.5）、0 = 背景（透明）です。status 行に葉脈として塗られた割合を出し、45% を超えると葉身や背景を選んでいる疑いがあると知らせます。mask を手で直すときは label 1 で塗ると葉脈を足し、消しゴム（label 0）で葉脈を消せます。order labels は `vein_mask > 0` の領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。order labels を作った後に mask を直すと、mask から消えた部分のラベルは 0 に戻り、mask に足した部分は label 4（uncertain）になります。Export では order labels を `vein_mask` と照合し、mask にあるのに次数が 0 の画素があれば警告します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは `order_labels.py` 側も一緒に確認する必要があります。
+
+葉脈が前景なので、`Clean Mask` の「Small object area」は小さな葉脈の断片を、「Maximum hole area」は葉脈の内側の小さな穴を対象にします。穴埋めを大きくすると小さな網目（areole）まで潰れるため、既定値は 50 px にしています。
 
 order labels の値は、次の用途を想定しています。
 
@@ -249,10 +291,89 @@ order labels の値は、次の用途を想定しています。
 | 0 | 背景または分類対象外 |
 | 1 | primary |
 | 2 | secondary |
-| 3 | minor |
+| 3 | tertiary（3次脈） |
 | 4 | uncertain / 未分類 |
 
 同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きせず、そのレイヤーを再利用します。
+
+## 1次・2次脈の自動振り分け
+
+`auto_order.py`（napari に依存しない）が、Manual of Leaf Architecture（Ellis et al., 2009）の次数の決め方を骨格のグラフの上で行います。ユーザーは葉の基部と1次脈の先端を2回クリックするだけです。
+
+| 段階 | 処理 | Ellis の対応する記述 |
+|---|---|---|
+| 1次脈 | 基部から先端まで、1歩のコストを「長さ ÷ 直径²」とした最短経路 | 1次脈は最も太く、基部から先端へ走る |
+| 2次脈の候補 | 1次脈の縁のすぐ外の輪で、出ていく枝の太さを測る。同じ側の近くで最も太い枝の 70% 以上なら候補 | 次数は付け根の最も太い所で判断する。2次脈は先端へ向かって細くなるので、固定の境目は使わない |
+| 2次脈の走り方 | 同じ側の葉縁まで最短経路でたどり、太さが急に落ちた所で切る | ほぼ同じ太さで続く脈は同じ次数 |
+| 3次脈の除外 | たどった経路の大半がより太い2次脈と重なる候補は、1次と2次をつなぐ3次脈として外す | 3次脈は1次・2次脈どうしをつなぐ |
+
+距離の設定は mm で持ち、校正値で画素に直すので、解像度が変わっても同じ規則が使えます。3200 dpi のコナラ標本では、1次脈と約30本の2次脈が取れ、基部付近の脈は手で直す必要がありました。結果は不確定（4）の画素にだけ書き込み、クリック位置・設定・本数を `order_labels.auto_order` としてメタデータに残します。
+
+PlantPose（Liu et al., 2026）のような学習ベースの骨格推定は木構造を出力し、ループや次数、細い脈の太さを扱わないため、ここでは使っていません。
+
+## Export の実行
+
+`Export Measurements` ボタンは書き出しを別スレッドで実行し、その間も napari を操作できます（`widgets/measurement.py`）。
+
+1. `prepare_export()` がメインスレッドでレイヤーと入力欄を読み、ラベル・mask・元画像のコピーを `ExportJob` にまとめる。
+2. `run_export_job()` が別スレッドで骨格化、長さの計測、ファイル書き出しを行う。napari のレイヤーや Qt には触れない。
+3. 終わったら通知を出し、ボタンを元に戻す。
+
+3200 dpi の葉全体（約 3,900 × 8,400 px）では計測と骨格の表で約 30 秒かかります。葉身全体が mask になっていた場合は骨格化に3分以上かかっていました。直径は `distance_transform_edt` で求めます（`medial_axis` と同じ「背景までの距離」で、より速い）。
+
+## 再現性のためのメタデータ
+
+Export のたびに `<時刻>_<画像名>_metadata.yaml` を書き出し、同じ Export のファイルには同じ接頭辞を付けます。設定ファイルは「既定値」にすぎず、実際にはスライダーで閾値を動かしたり、mask を手で直したりするため、各工程で**実際に使った値**をレイヤーの metadata に記録しておき、それをまとめて書き出します。
+
+| 項目 | 内容 |
+|---|---|
+| `source_image` | 元画像のパス、SHA-256、shape |
+| `calibration` | mm/px、校正方法、入力値と単位 |
+| `leaf_area` | 入力値、単位、mm² 換算値 |
+| `order_labels.processing` | ROI 範囲、Gaussian sigma、Otsu 値、最終閾値と invert、Clean Mask の全実行（各回の値と、その前に手修正があったか） |
+| `mask_edited_by_hand_after_last_step` | 最後の自動処理の後に mask を手で直したか（内容のハッシュで判定） |
+| `label_pixel_counts` ほか | 次数ごとの画素数、未分類・次数なしの画素数 |
+| `vein_paths` | 次数ごとのパス本数 |
+| `settings` | 使っていた設定ファイルと、その時点の既定値 |
+| `software` | Python と主要パッケージのバージョン |
+
+手で直した mask はパラメータからは再現できないため、`*_vein_mask.npy` として mask 自体も保存します。
+
+## 設定ファイル
+
+各入力欄の既定値は、widget を開いたときに YAML の設定ファイルから読み込みます（`settings.py`）。リポジトリには推奨値を書いた `leaf_vein_workflow.example.yaml` が入っています。
+
+- リポジトリのフォルダで napari を起動し、`leaf_vein_workflow.yaml` がなければ、example をコピーして作ります。値を変えたいときはこの `leaf_vein_workflow.yaml` を編集します。
+- `leaf_vein_workflow.yaml` は git の管理外なので、自分の値がコミットされたり、更新とぶつかったりしません。
+- 推奨値に戻したいときは、example を `leaf_vein_workflow.yaml` に上書きコピーします（`Reset to Defaults` でも同じ）。
+- 別のフォルダから起動したときは、ユーザーごとの `config.yaml` を使います。
+
+使っているファイルの場所は `Settings` セクションに表示されます。
+
+| キー | 推奨値 | 内容 |
+|---|---|---|
+| `calibration.method` / `value` | `dpi` / 1200 | 校正方法と値。2次脈の太さを測れる解像度を推奨値にしている |
+| `scale_bar.length_mm` | 10 | Apply Scale 後に描く表示用バーの長さ |
+| `mask.gaussian_sigma` / `invert_threshold` | 1.0 / false | 平滑化と閾値の向き（向きは Apply Otsu が自動で上書き） |
+| `mask.exclude_background` | true | ROI に葉の周りの背景が含まれる前提で、2段階の Otsu を使う |
+| `cleanup.*` | 100 / 50 / 1 / 0 px | 葉脈片の除去、穴埋め、closing、opening |
+| `measurement.leaf_area_unit` / `output_dir` | `mm2` / `output` | 葉面積の単位と出力先（相対パスは起動フォルダ基準） |
+
+ファイルに書いたキーだけが推奨値を上書きします。書いていないキーや不正な値は推奨値に戻り、不正な値には警告を出します。`Open Settings File` はファイルがなければ推奨値入りのコメント付きファイルを作って開き、`Reload` で編集を反映し、`Reset to Defaults` で推奨値のファイルに戻します（元のファイルは `*.bak` に残す）。
+
+## 計測と VLA
+
+### パス計測（1次・2次）
+
+参考プロトコル（Sack & Scoffoni 2013）では、1次脈と 2次脈は葉全体の画像で segmented line としてなぞり、長さを合計して葉面積で割ります。`vein_paths.py` はこの方法に対応します（今は dock に表示していません）。`Draw Vein Paths` を押すと元画像に `<画像名> vein paths` の Shapes レイヤーができ、path 描画モードになります。クリックで頂点を置き、ダブルクリックで1本を確定します。
+
+各パスは `order` feature（1 または 2）を持ち、新しいパスには dock で選んだ次数が付きます。既存のパスを選択して次数を切り替えると付け替わり、色（1次 = 赤橙、2次 = 青）も更新されます。長さは頂点間の距離の合計で、校正値は元画像から引き継ぎます。`Export Measurements` で `*_path_measurements.csv`（次数ごとの本数・長さ・VLA）と、全頂点を記録した `*_path_vertices.csv` を書き出します。3次脈は葉全体ではなく矩形の標本領域で測る方法なので、パス計測の対象にしていません。
+
+### 次数ラベル計測
+
+`widgets/measurement.py` が `order.py` の `measure_order_labels` を呼び、label 1・2・3 をそれぞれ別に骨格化して skan の branch 長を合計します。合算行（`primary_secondary` = 1+2、`major` = 1+2+3）は、単一次数の長さの和です。合併領域を骨格化し直すと次数の境界で骨格が短くなり、major が primary より短くなることがあるためです。major を 1–3 次とする定義は Sack & Scoffoni (2013) に従っています。
+
+葉面積は画像からではなく、GUI に入力した値を使います（標本化前のスキャンで測った値を想定）。cm² で入力した場合は 100 倍して mm² に換算します。VLA は `length_mm / leaf_area_mm2` で、`apply_leaf_area` により長さを保ったまま葉面積だけ差し替えられます。CSV には `leaf_area_source` 列で葉面積の出どころ（`input` または `leaf_mask`）を残します。label 4 のまま残ったピクセルはどの次数にも入らず、結果欄に件数を警告として出します。
 
 ## エラーや警告になる例
 
@@ -260,6 +381,8 @@ order labels の値は、次の用途を想定しています。
 
 | 状況 | 理由 |
 |---|---|
+| 校正値が0以下、NaN、inf | 実単位へ安全に換算できない |
+| スケールバー線がない、または2本以上ある | どの線長を使うか決められない |
 | ROI レイヤー以外を選択している | どの ROI を使うか分からない |
 | ROI が 0 個 | 切り抜く範囲がない |
 | ROI が 2 個以上 | MVP では 1 個だけ対応 |
@@ -272,6 +395,8 @@ order labels の値は、次の用途を想定しています。
 | crop 画像に NaN や inf が含まれる | 閾値計算が信用できない |
 
 ## テストで確認していること
+
+`tests/test_calibration.py` では、DPI・µm/px・mm/px・手動スケールバーからの換算、無効値の拒否、校正metadataだけを派生レイヤー用にコピーできることを確認しています。
 
 `tests/test_crop.py` では、napari に依存しない切り抜き計算を確認しています。
 
@@ -296,6 +421,7 @@ order labels の値は、次の用途を想定しています。
 - 2D mask から骨格画像を作れること。
 - Labels 形式の整数 mask でも、0 より大きい画素を前景として扱うこと。
 - 空 mask や 2D 以外の入力がエラーになること。
+- 校正値を渡すと既存px列を変えずに長さ・直径・局所座標のmm列が追加されること。
 
 `tests/test_widget_import.py` では、Qt backend がある環境で `_widget.py` から widget を import できることと、画像追加から order labels までの工程を確認しています。
 
@@ -305,6 +431,7 @@ order labels の値は、次の用途を想定しています。
 - `Clean Mask` 後も mask が active な paint mode に保たれること。
 - order labels が mask 外に描けず、既存の手動ラベルが再作成時に上書きされないこと。
 - ROI を切り直すと古い派生レイヤーが削除されること。
+- 数値入力と手動スケールバーの校正値が派生レイヤーへ継承され、再校正で置き換わること。
 
 ## 開発時に見る順番
 
@@ -316,10 +443,11 @@ order labels の値は、次の用途を想定しています。
 4. `widgets/crop_widget.py` で 1 つの widget の組み立て、signal 接続、各工程への委譲を見る。
 5. `widgets/controls.py` で UI 部品と有効・無効の切り替えを見る。
 6. `widgets/layers.py` で metadata、レイヤー間の対応、active/visible、削除の規則を見る。
-7. `widgets/roi.py` と `crop.py` で画像追加、ROI 編集、切り抜き処理を見る。
-8. `widgets/mask.py` と `threshold.py` で Gaussian、Otsu、timer、cleanup の流れを見る。
-9. `widgets/order_labels.py` で order labels の作成と描画制限を見て、必要なら `order.py` で検証、集計、export 処理を見る。
-10. `tests/test_widget_import.py` で、これらが 1 つの明示的な操作フローとして接続されていることを確認する。
+7. `widgets/calibration.py` と `calibration.py` で校正UI、metadata、mm/px換算を見る。
+8. `widgets/roi.py` と `crop.py` で画像追加、ROI 編集、切り抜き処理を見る。
+9. `widgets/mask.py` と `threshold.py` で Gaussian、Otsu、timer、cleanup の流れを見る。
+10. `widgets/order_labels.py` で order labels の作成と描画制限を見て、必要なら `order.py` で検証、集計、export 処理を見る。
+11. `tests/test_widget_import.py` で、これらが 1 つの明示的な操作フローとして接続されていることを確認する。
 
 ## まとめ
 

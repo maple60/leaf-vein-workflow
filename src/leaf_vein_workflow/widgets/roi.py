@@ -12,6 +12,7 @@ from qtpy.QtCore import QTimer
 from ..crop import crop_to_rectangle, rectangle_to_slices
 from .controls import WorkflowControls
 from .layers import (
+    PROCESSING_KEY,
     ROLE_KEY,
     ROLE_ROI_CROP,
     ROLE_ROI_SHAPES,
@@ -51,6 +52,7 @@ class RoiWorkflow:
         )
         roi_layer.metadata[ROLE_KEY] = ROLE_ROI_SHAPES
         roi_layer.metadata[SOURCE_IMAGE_KEY] = layer.name
+        roi_layer.metadata.update(self.layers.inherited_calibration(layer))
         self.layers.roi_to_image[id(roi_layer)] = layer
         roi_layer.events.data.connect(
             lambda event, roi_layer=roi_layer: self.on_roi_data_changed(roi_layer)
@@ -123,9 +125,23 @@ class RoiWorkflow:
             return
 
         existing_crop = self.layers.roi_to_crop.get(id(roi_layer))
+        crop_metadata = {
+            ROLE_KEY: ROLE_ROI_CROP,
+            SOURCE_IMAGE_KEY: image_layer.name,
+            PROCESSING_KEY: {
+                "roi": {
+                    "row_start": int(y_slice.start),
+                    "row_stop": int(y_slice.stop),
+                    "col_start": int(x_slice.start),
+                    "col_stop": int(x_slice.stop),
+                }
+            },
+            **self.layers.inherited_calibration(image_layer),
+        }
         if existing_crop is not None and self.layers.is_present(existing_crop):
             existing_crop.data = cropped
             existing_crop.translate = (y_slice.start, x_slice.start)
+            existing_crop.metadata.update(crop_metadata)
             crop_layer = existing_crop
         else:
             crop_layer = self.layers.viewer.add_image(
@@ -133,10 +149,7 @@ class RoiWorkflow:
                 name=self.layers.unique_name(f"{image_layer.name} ROI"),
                 rgb=cropped.ndim == 3 and cropped.shape[-1] in (3, 4),
                 translate=(y_slice.start, x_slice.start),
-                metadata={
-                    ROLE_KEY: ROLE_ROI_CROP,
-                    SOURCE_IMAGE_KEY: image_layer.name,
-                },
+                metadata=crop_metadata,
             )
             self.layers.roi_to_crop[id(roi_layer)] = crop_layer
 

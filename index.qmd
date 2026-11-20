@@ -9,6 +9,7 @@ title: "leaf-vein-workflow"
 ## Manual
 
 - [Leaf Vein Workflow の挙動と関数の流れ](notebooks/workflow_overview.qmd)
+- [葉脈標本のスキャンプロトコル（GT-X980）](notebooks/scanning_protocol.qmd)
 - [napari プラグイン作成の要点](notebooks/napari_plugin_development.qmd)
 - [葉脈の抽出](notebooks/skeletonization.qmd)
 - [サンプルデータセット](notebooks/data_source.qmd)

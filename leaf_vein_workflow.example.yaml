@@ -1,0 +1,48 @@
+# leaf-vein-workflow settings
+# Only the keys written here override the built-in recommended values.
+# Delete a key (or use "Reset to Defaults" in the widget) to go back to the
+# recommended value. In the repository, copying leaf_vein_workflow.example.yaml
+# over leaf_vein_workflow.yaml also restores every recommended value.
+
+calibration:
+  # dpi, um_per_pixel, mm_per_pixel, or scale_bar
+  method: dpi
+  # Scanner resolution. 1200 dpi (about 21 um/px) resolves 2nd-order vein width.
+  value: 1200
+
+scale_bar:
+  # Display bar drawn after Apply Scale. Shorter round lengths are used when
+  # this does not fit within 40% of the image width.
+  length_mm: 10
+
+mask:
+  gaussian_sigma: 1.0
+  # Starting value only: Apply Otsu picks the side with fewer pixels (veins).
+  # false: pixels brighter than the threshold become vein.
+  # true: pixels darker than the threshold become vein.
+  invert_threshold: false
+  # true: the ROI contains background (paper) around the leaf. Apply Otsu then
+  # separates leaf from background first and finds veins inside the leaf.
+  exclude_background: true
+
+cleanup:
+  # Remove vein fragments up to this many pixels.
+  small_object_px: 100
+  # Fill holes inside veins up to this many pixels (large values fill areoles).
+  max_hole_px: 50
+  closing_radius_px: 1
+  opening_radius_px: 0
+
+measurement:
+  # mm2 or cm2
+  leaf_area_unit: mm2
+  # Relative paths are resolved against the folder napari was started from.
+  output_dir: output
+
+auto_order:
+  # After clicking base and apex, switch back to painting on order_labels.
+  activate_labels_after_marking: true
+  # Label remaining veins of 3° gauge as 3 (thinner minor veins stay Uncertain).
+  assign_tertiary: true
+  # Smallest 3° gauge in mm. null: chosen from the leaf (Otsu on vein gauges).
+  tertiary_min_gauge_mm: null
