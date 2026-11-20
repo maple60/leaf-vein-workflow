@@ -300,6 +300,574 @@
     ]
   },
   {
+    "objectID": "notebooks/skeletonization.html",
+    "href": "notebooks/skeletonization.html",
+    "title": "葉脈の抽出",
+    "section": "",
+    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#ライブラリのインポート",
+    "href": "notebooks/skeletonization.html#ライブラリのインポート",
+    "title": "葉脈の抽出",
+    "section": "",
+    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#画像の読み込み",
+    "href": "notebooks/skeletonization.html#画像の読み込み",
+    "title": "葉脈の抽出",
+    "section": "画像の読み込み",
+    "text": "画像の読み込み\n解析に使用する画像を読み込みます。\n\n# 画像読み込み\nfile_path = \"data/BEL-T44-BS_img.png\"\nimg = imread(file_path)\n\nprint(type(img))\nprint(img.shape)\nprint(img.dtype)\n\n画像を確認してみます。\n\nfig, ax = plt.subplots()\nif img.ndim == 2:\n    ax.imshow(img, cmap=\"gray\")\nelse:\n    ax.imshow(img)\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#グレースケール化",
+    "href": "notebooks/skeletonization.html#グレースケール化",
+    "title": "葉脈の抽出",
+    "section": "グレースケール化",
+    "text": "グレースケール化\nもし RGB/RGBA 画像の場合は、グレースケール化します。 ここでは GUI 側でも使っている to_grayscale() を使います。 RGBA 画像では alpha channel は無視します。\n\ngray = to_grayscale(img)\n\n# 値域をざっくり 0-1 にそろえる\nif gray.max() &gt; 1:\n    gray = gray / 255",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#切り取り",
+    "href": "notebooks/skeletonization.html#切り取り",
+    "title": "葉脈の抽出",
+    "section": "切り取り",
+    "text": "切り取り\nROIを指定して、画像を切り取ります。 ここでは例として、(ymin, xmin, ymax, xmax) = (2000, 2000, 5000, 5000) の範囲を切り取ります。\n\nbbox = (2000, 2000, 5000, 5000) # (ymin, xmin, ymax, xmax)\n\nfig, ax = plt.subplots()\nax.imshow(gray, cmap=\"gray\")\nrect = plt.Rectangle((bbox[1], bbox[0]), bbox[3]-bbox[1], bbox[2]-bbox[0], edgecolor=\"red\", facecolor=\"none\", lw=2)\nax.add_patch(rect)\nfig.tight_layout()\nplt.show()\nplt.close(fig)\nimg_crop = gray[bbox[0]:bbox[2], bbox[1]:bbox[3]]",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#ガウシアンフィルタによる平滑化",
+    "href": "notebooks/skeletonization.html#ガウシアンフィルタによる平滑化",
+    "title": "葉脈の抽出",
+    "section": "ガウシアンフィルタによる平滑化",
+    "text": "ガウシアンフィルタによる平滑化\nガウシアンフィルタで平滑化します。 sigma は 1 に設定します。\n\nimg_smooth = gaussian(img_crop, sigma=1)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_smooth, cmap=\"gray\")\naxes[1].set_title(\"smoothed image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#二値化",
+    "href": "notebooks/skeletonization.html#二値化",
+    "title": "葉脈の抽出",
+    "section": "二値化",
+    "text": "二値化\n解析前の二値化を行います。 ここでは Otsu の方法で閾値を決定します。 napariでの二値化では、調整できるようにします。 現在の画像では葉脈が背景より暗いため、img_smooth &lt; threshold を前景として扱います。 GUI ではこの条件が Invert threshold を有効にした状態に相当します。\n\nthreshold = threshold_otsu(img_smooth)\nimg_binary = img_smooth &lt; threshold\n\nprint(f\"Otsu threshold: {threshold:.6f}\")\nprint(f\"Binary foreground pixels: {np.count_nonzero(img_binary)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_binary, cmap=\"gray\")\naxes[1].set_title(\"binary image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#後処理",
+    "href": "notebooks/skeletonization.html#後処理",
+    "title": "葉脈の抽出",
+    "section": "後処理",
+    "text": "後処理\n小さい穴やゴミを除去します。\n\n# 小さいゴミ除去\nmax_size = 100\nvein_mask = remove_small_objects(img_binary, max_size=max_size)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n葉脈内部の穴埋めや境界の整形を行います。\n\n# 太い葉脈内部の穴埋め\nvein_mask = remove_small_holes(vein_mask, max_size=500)\n# 境界を少し整える\nvein_mask = closing(vein_mask, footprint=disk(2))\nvein_mask = opening(vein_mask, footprint=disk(1))\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#skeletonize",
+    "href": "notebooks/skeletonization.html#skeletonize",
+    "title": "葉脈の抽出",
+    "section": "Skeletonize",
+    "text": "Skeletonize\n後処理済みの vein_mask から skeleton を作ります。 この skeleton が、GUI で mask layer から作る skeleton layer に対応します。\n\nskeleton = skeletonize(vein_mask)\n\nprint(f\"Mask foreground pixels: {np.count_nonzero(vein_mask)}\")\nprint(f\"Skeleton pixels: {np.count_nonzero(skeleton)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\naxes[1].imshow(skeleton, cmap=\"gray\")\naxes[1].set_title(\"skeleton image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n前の画像に重ねてみます。 表示用に skeleton を太らせて、赤色で重ねます。\n\nfig, ax = plt.subplots()\n\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 表示用に太らせた skeleton を作る\nskeleton_display = dilation(skeleton, footprint=disk(3))\n\nskeleton_overlay = np.zeros((*skeleton.shape, 4), dtype=np.float32)\nskeleton_overlay[skeleton_display] = [1, 0, 0, 1]  # red, alpha=1\n\nax.imshow(skeleton_overlay)\nax.set_title(\"skeleton overlay\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#脈の太さの推定",
+    "href": "notebooks/skeletonization.html#脈の太さの推定",
+    "title": "葉脈の抽出",
+    "section": "脈の太さの推定",
+    "text": "脈の太さの推定\nmask の distance transform から、各 foreground pixel が背景からどれだけ離れているかを求めます。 skeleton 上の距離を 2 倍すると、局所的な直径の近似値として使えます。\nこの値は threshold や mask 後処理に依存するため、major/minor を自動分類する決定値ではなく、手動確認前のヒントとして扱います。\n\nmedial_skeleton, radius_px = medial_axis(vein_mask, return_distance=True)\ndiameter_px = radius_px * 2\ndiameter_on_skeleton = np.where(skeleton, diameter_px, np.nan)\n\nprint(pd.Series(diameter_px[skeleton], name=\"skeleton-diameter-px\").describe())\n\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(9, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\ndiameter_image = axes[1].imshow(diameter_on_skeleton, cmap=\"magma\")\naxes[1].set_title(\"diameter on skeleton (px)\")\nfig.colorbar(diameter_image, ax=axes[1], fraction=0.046, pad=0.04)\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n先ほどと同様に、太らせて重ねてみます。\n\nfig, ax = plt.subplots()\nax.imshow(vein_mask, cmap=\"gray\")\n\n# skeleton 上だけに値を持つ画像\ndiameter_on_skeleton = np.where(skeleton, diameter_px, 0)\n\n# footprint は共通で定義\nfoot = disk(5)\n\n# 値つき画像を太らせる\ndiameter_display = dilation(diameter_on_skeleton, footprint=foot)\n\n# 表示範囲だけを制限するためのマスク\ndisplay_mask = dilation(skeleton, footprint=foot)\n\n# skeleton 以外は透明にする\ndiameter_display = np.where(display_mask, diameter_display, np.nan)\n\nim = ax.imshow(diameter_display, cmap=\"magma\", alpha=0.9)\nax.set_title(\"diameter-colored skeleton overlay\")\nfig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label=\"diameter (px)\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#branch-node-の抽出",
+    "href": "notebooks/skeletonization.html#branch-node-の抽出",
+    "title": "葉脈の抽出",
+    "section": "branch / node の抽出",
+    "text": "branch / node の抽出\nskan を使って skeleton を branch 単位の表に変換します。 branch-type は、0 が tip-tip、1 が tip-junction、2 が junction-junction、3 が cycle です。\n\nskeleton_graph = Skeleton(skeleton, spacing=1)\nbranch_table = summarize(skeleton_graph, separator=\"-\").copy()\nbranch_table[\"branch-id\"] = np.arange(len(branch_table))\n\nbranch_type_labels = {\n    0: \"tip-tip\",\n    1: \"tip-junction\",\n    2: \"junction-junction\",\n    3: \"cycle\",\n}\nbranch_table[\"branch-type-label\"] = branch_table[\"branch-type\"].map(branch_type_labels)\n\nmean_diameter = []\nmedian_diameter = []\nmax_diameter = []\n\nfor branch_index in range(skeleton_graph.n_paths):\n    coords = skeleton_graph.path_coordinates(branch_index).astype(int)\n    branch_diameter = diameter_px[coords[:, 0], coords[:, 1]]\n    mean_diameter.append(float(np.mean(branch_diameter)))\n    median_diameter.append(float(np.median(branch_diameter)))\n    max_diameter.append(float(np.max(branch_diameter)))\n\nbranch_table[\"mean-diameter-px\"] = mean_diameter\nbranch_table[\"median-diameter-px\"] = median_diameter\nbranch_table[\"max-diameter-px\"] = max_diameter\n\nspur_length_px = 20\nbranch_table[\"spur-candidate\"] = (\n    (branch_table[\"branch-type\"] == 1)\n    & (branch_table[\"branch-distance\"] &lt;= spur_length_px)\n)\n\nprint(f\"Number of branches: {len(branch_table)}\")\nprint(branch_table[\"branch-type-label\"].value_counts().to_string())\nprint(\n    branch_table[\n        [\"mean-diameter-px\", \"median-diameter-px\", \"max-diameter-px\"]\n    ].describe().to_string()\n)\nprint(\n    branch_table[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"spur-candidate\",\n        ]\n    ]\n    .head(10)\n    .to_string(index=False)\n)\n\nnode は skeleton graph の degree で確認します。 degree 1 は endpoint、degree 2 は通常の線分上の pixel、degree 3 以上は branchpoint として扱います。\n\nnode_table = pd.DataFrame(\n    {\n        \"node-id\": np.arange(len(skeleton_graph.degrees)),\n        \"coord-y-px\": skeleton_graph.coordinates[:, 0],\n        \"coord-x-px\": skeleton_graph.coordinates[:, 1],\n        \"degree\": skeleton_graph.degrees,\n    }\n)\nnode_table[\"image-y-px\"] = node_table[\"coord-y-px\"] + bbox[0]\nnode_table[\"image-x-px\"] = node_table[\"coord-x-px\"] + bbox[1]\nnode_table[\"node-type\"] = \"path\"\nnode_table.loc[node_table[\"degree\"] == 1, \"node-type\"] = \"endpoint\"\nnode_table.loc[node_table[\"degree\"] &gt;= 3, \"node-type\"] = \"branchpoint\"\n\nkey_node_table = node_table[node_table[\"node-type\"] != \"path\"].copy()\n\nprint(key_node_table[\"node-type\"].value_counts().to_string())\nprint(key_node_table.head(10).to_string(index=False))",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#spur-pruning-の候補確認",
+    "href": "notebooks/skeletonization.html#spur-pruning-の候補確認",
+    "title": "葉脈の抽出",
+    "section": "spur pruning の候補確認",
+    "text": "spur pruning の候補確認\nここでは pruning 自体は行わず、短い terminal branch を候補として表で確認します。 spur_length_px は GUI では調整可能な値にする想定です。\n\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].sort_values(\n    \"branch-distance\"\n)\n\nprint(f\"Spur candidates at &lt;= {spur_length_px} px: {len(spur_candidates)}\")\nprint(\n    spur_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ]\n    .head(20)\n    .to_string(index=False)\n)\n\n\n# spur candidates を branch-id ベースで取り出す\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].copy()\n\nfig, ax = plt.subplots(figsize=(8, 8))\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 全 branch を薄い水色で描く\nfor branch_id in branch_table[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"cyan\", linewidth=1, alpha=0.6)\n\n# spur candidate を黄色で強調\nfor branch_id in spur_candidates[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"yellow\", linewidth=2.5, alpha=1.0)\n\n# endpoint と branchpoint を描く\nendpoint_table = node_table[node_table[\"node-type\"] == \"endpoint\"]\nbranchpoint_table = node_table[node_table[\"node-type\"] == \"branchpoint\"]\n\nax.scatter(\n    endpoint_table[\"coord-x-px\"],\n    endpoint_table[\"coord-y-px\"],\n    s=20,\n    c=\"lime\",\n    label=\"endpoint\",\n    zorder=3,\n)\n\nax.scatter(\n    branchpoint_table[\"coord-x-px\"],\n    branchpoint_table[\"coord-y-px\"],\n    s=30,\n    c=\"red\",\n    label=\"branchpoint\",\n    zorder=3,\n)\n\nax.set_title(\"branches / nodes / spur candidates\")\nax.legend(loc=\"upper right\")\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
+    "href": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
+    "title": "葉脈の抽出",
+    "section": "major / minor 分離前の太さヒント",
+    "text": "major / minor 分離前の太さヒント\nmajor / minor の自動分類はまだ行いません。 ただし、太さが大きい branch は major vein 候補として確認する価値があります。 この表は、napari で手動 order labels を作るときの確認用ヒントとして使います。\n\nwide_branch_candidates = branch_table.sort_values(\n    [\"mean-diameter-px\", \"branch-distance\"],\n    ascending=[False, False],\n).head(20)\n\nprint(\n    wide_branch_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ].to_string(index=False)\n)\n\n今後の方針としては、まず手動ラベルを基準にし、太さ・接続関係・midrib からの距離を補助情報として重ねるのが安全です。 完全自動分類よりも、「自動候補 + napari で修正」のほうが、画像条件の違いや葉脈の切断に強いです。\nskan は branch table を安定して作る用途に向いています。 一方で、branchpoint が複数 pixel の塊になる場合や、junction 近傍で branch が細かく分割される場合があります。 そのため、GUI に接続するときは branch table をそのまま最終分類に使うのではなく、可視化・候補提示・手動修正の補助として使うのがよいです。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈の抽出"
+    ]
+  },
+  {
+    "objectID": "notebooks/scanning_protocol.html",
+    "href": "notebooks/scanning_protocol.html",
+    "title": "葉脈標本のスキャンプロトコル（GT-X980）",
+    "section": "",
+    "text": "透明化・染色済みの葉脈標本を EPSON GT-X980 で透過スキャンし、葉全体の形状および major veins（1〜3次脈）の測定用原画像を保存する。 まず全標本の全葉画像を取得する。minor veins（4次以上）の局所撮影は、余力があれば追加する。\n2026年11月20日の試行では、同じ標本を2400 dpiと3200 dpiで取得した。 同一部分を同じ表示倍率で目視比較した範囲では、3200 dpiによる主要な葉脈の判別の改善は小さかったため、全葉取得の標準を2400 dpiとした。 これは1標本での目視確認であり、解像度間で測定値が一致することを検証した結果ではない。各標本で3次脈まで追えることを確認する。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈標本のスキャンプロトコル（GT-X980）"
+    ]
+  },
+  {
+    "objectID": "notebooks/scanning_protocol.html#目的と今回の方針",
+    "href": "notebooks/scanning_protocol.html#目的と今回の方針",
+    "title": "葉脈標本のスキャンプロトコル（GT-X980）",
+    "section": "",
+    "text": "透明化・染色済みの葉脈標本を EPSON GT-X980 で透過スキャンし、葉全体の形状および major veins（1〜3次脈）の測定用原画像を保存する。 まず全標本の全葉画像を取得する。minor veins（4次以上）の局所撮影は、余力があれば追加する。\n2026年11月20日の試行では、同じ標本を2400 dpiと3200 dpiで取得した。 同一部分を同じ表示倍率で目視比較した範囲では、3200 dpiによる主要な葉脈の判別の改善は小さかったため、全葉取得の標準を2400 dpiとした。 これは1標本での目視確認であり、解像度間で測定値が一致することを検証した結果ではない。各標本で3次脈まで追えることを確認する。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈標本のスキャンプロトコル（GT-X980）"
+    ]
+  },
+  {
+    "objectID": "notebooks/scanning_protocol.html#全葉スキャンの標準設定",
+    "href": "notebooks/scanning_protocol.html#全葉スキャンの標準設定",
+    "title": "葉脈標本のスキャンプロトコル（GT-X980）",
+    "section": "全葉スキャンの標準設定",
+    "text": "全葉スキャンの標準設定\n\n\n\n項目\n設定\n\n\n\n\nスキャナー\nEPSON GT-X980\n\n\nソフトウェア\nEPSON Scan\n\n\nモード\nプロフェッショナルモード\n\n\n読み取り方式\n透過原稿\n\n\n原稿種\nフィルム（フィルムエリアガイド使用）\n\n\nフィルムタイプ\nポジフィルム\n\n\nイメージタイプ\n48bitカラー（RGB各16bit）\n\n\n解像度\n2400 dpi\n\n\n出力サイズ\n等倍、ズーム100%\n\n\n保存形式\n**通常のTIFF（*.tif）**、1標本につき1ファイル\n\n\nTIFFのデータの並び\nWindows\n\n\nTIFFのカラー／グレースケール圧縮\n非圧縮\n\n\nICCプロファイルの埋め込み\nオン\n\n\n\nポジフィルムは、透過原稿をネガ反転せずに取り込むための選択である。 Multi-TIFFは複数ページをまとめる形式、PRINT Image Matching II（TIFF）は印刷向け情報を持つ形式であり、今回の原画像保存には通常のTIFFを使う。 TIFFのモノクロ圧縮設定は、今回のカラー取り込みには適用されない。\nICCプロファイルはRGB値の色としての解釈を伝える情報であり、埋め込み自体は葉脈の強調処理ではない。 ただし、スキャン時の色管理設定や、後処理ソフトによるプロファイル変換は画素値に関係するため、解析時は色空間の変換の有無をそろえる。\n\nスキャナー側の補正\n次の補正はオフにする。\n\nアンシャープマスク\nモアレ除去\n退色復元\n逆光補正\nホコリ除去\nDIGITAL ICE Technology\n粒状低減（選択可能な場合）\n\n露出、ヒストグラム、濃度補正、色管理などの条件も記録し、比較する標本間でできるだけそろえる。 上記のチェックを外すだけで、自動露出や色管理まで無効になるとは限らない。 今回の試行での露出・色管理の詳細値は未記録なので、以後の取得前に設定を確認し、画面の保存などで残す。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈標本のスキャンプロトコル（GT-X980）"
+    ]
+  },
+  {
+    "objectID": "notebooks/scanning_protocol.html#取得手順と確認",
+    "href": "notebooks/scanning_protocol.html#取得手順と確認",
+    "title": "葉脈標本のスキャンプロトコル（GT-X980）",
+    "section": "取得手順と確認",
+    "text": "取得手順と確認\n\n原稿台と標本の外側の汚れを確認する。汚れていたらエタノールで拭き取る。\n透過スキャン用に蓋の白い原稿マットを外す。\n標本を平らに置き、葉身・葉先・葉柄の必要部分が読み取り可能な範囲に収まるようにする。端のほうに置くと\n以下の画面例に沿って、設定確認、プレビュー、範囲指定、保存設定の確認を行い、本スキャンする。\n完了後、保存画像を開き、葉先や葉縁の欠け、ぼけ、白飛び・黒つぶれ、3次脈の視認性を確認する。プレビューだけで判定しない。\n標本IDとファイル名の対応を記録する。気泡、損傷、折れ、濃い染色斑、異物なども記録する。\n\n\n1. 設定を確認してプレビューする\nプレビュー前の画面で、原稿種、ポジフィルム、48bitカラー、2400 dpi、等倍・100%、画像補正オフを確認し、［プレビュー］を押す。 原稿サイズや出力サイズの幅・高さは取り込み枠に応じて変わるので、画面例の数値に合わせる必要はない。\n\n\n\n\n\n\n図 1: プレビュー前のEPSON Scan設定画面。2400 dpi、48bitカラー、等倍で取り込む。\n\n\n\n\n\n2. プレビュー画像で範囲を指定してスキャンを押す\n［通常表示］のプレビュー画像上で、葉身・葉先・葉柄の必要部分を欠かさず、なるべく標本だけが入るように手動で矩形の取り込み枠を指定する。 少しの余白を残し、周囲の大きな枠や不要な背景はできるだけ除く。 取り込み範囲が大きいほど画素数が増え、スキャン時間と保存容量が大きくなる。\n範囲を確認したら、EPSON Scanの設定画面にある［スキャン］を押す。\n\n\n\n\n\n\n図 2: プレビュー画像で手動指定した取り込み枠。点線の矩形内が本スキャンの対象となる。\n\n\n\n\n\n3. 保存ファイルの設定を確認して本スキャンする\n［保存ファイルの設定］画面で、保存先、標本IDを含むファイル名、開始番号を確認する。 保存形式が［TIFF（*.tif）］であり、詳細欄が「データの並び：Windows」「カラー／グレースケール圧縮：非圧縮」「ICCプロファイルの埋め込み：ON」となっていることを確認する。 変更が必要な場合は［詳細設定］で調整する。\n［OK］を押すと本スキャンが始まる。2400 dpi・48bitカラーでの取り込みは時間がかかるため、完了を待つ。 画像はこの画面で指定した保存先に出力される。画面例では［ピクチャ］だが、実際の標本画像の保存先はデータ管理用フォルダーに合わせて選ぶ。\n\n\n\n\n\n\n図 3: 保存ファイルの設定。保存先とファイル名、TIFF形式および詳細を確認してOKを押す。\n\n\n\n\n\n画像とスケールの確認\nスキャナーが設定どおりの画素数で出力したかを確認する際には、2400 dpiは約0.01058 mm/画素（10.58 µm/画素）に相当する。 この値はサンプリング間隔であり、実際の光学的な分解能を保証しない。 必要に応じて既知長のスケールで実寸との対応も確認する。\n原画像を残し、色チャンネル選択、コントラスト調整、二値化などは別ファイルまたは解析処理として行う。 JPEGからTIFFへの変換では、JPEG圧縮で失われた情報は戻らない。JPEGで取得した試行画像とTIFF原画像は区別する。\nこのページの説明用スクリーンショットは、リポジトリ内の notebooks/images/scanning_protocol/ にPNG形式で保存する。 ページから相対パスで参照し、文書と一緒に管理する。測定対象となる標本のTIFF原画像とは保存先を分ける。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈標本のスキャンプロトコル（GT-X980）"
+    ]
+  },
+  {
+    "objectID": "notebooks/scanning_protocol.html#ファイル名と取得記録",
+    "href": "notebooks/scanning_protocol.html#ファイル名と取得記録",
+    "title": "葉脈標本のスキャンプロトコル（GT-X980）",
+    "section": "ファイル名と取得記録",
+    "text": "ファイル名と取得記録\n例として、全葉画像は 標本ID_whole_2400dpi.tif、再取得時は 標本ID_whole_2400dpi_r02.tif とする。 同名ファイルの自動上書きは避け、既存ID体系があればそれを優先する。\n取得記録には少なくとも、標本ID、ファイル名、取得日、解像度、色深度、透過／反射、露出・色管理設定、取得上の問題を残す。 スキャン条件を変えた場合は、変更理由も記録する。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈標本のスキャンプロトコル（GT-X980）"
+    ]
+  },
+  {
+    "objectID": "notebooks/scanning_protocol.html#minor-veinsの追加撮影案未確定",
+    "href": "notebooks/scanning_protocol.html#minor-veinsの追加撮影案未確定",
+    "title": "葉脈標本のスキャンプロトコル（GT-X980）",
+    "section": "minor veinsの追加撮影案（未確定）",
+    "text": "minor veinsの追加撮影案（未確定）\n以下は全葉取得後に検討する追加案であり、今回の全葉の標準手順には含めない。\n\n同じ標本の葉身を長さ方向に上・中・下の3区画に分け、各区画から1領域を選ぶ。\n一次脈を避け、主脈と葉縁の間を対象とする。位置を全葉画像に記録する。\n局所を4800 dpiで再スキャンする。2400 dpi画像を切り出して拡大する操作とは異なる。\n撮影範囲は例えば5 × 5 mm、測定範囲はその中の2 × 3 mm（6 mm²）を試す。これは今回の試案であり、原法で固定された寸法ではない。\n二次脈または三次脈が撮影範囲の端に入ると、葉脈次数を判断する手掛かりになる。二次脈の長さをminorに含めない。\nminor VLAの分母を測定領域全体とするか、二次脈などの占有面積を除くかを事前に定め、標本間で統一する。\n\nScoffoni et al.（2011）は、上・中・下の中央付近から各1領域、計3領域（各1.5または6 mm²）を顕微鏡の5×または10×対物レンズで撮影し、細脈の測定値を平均している。 公開プロトコルでも各1.5 mm²以上の3矩形領域を用い、次数判定のため画像上辺に二次脈または三次脈を含めることを勧めている。 この方法は顕微鏡画像を前提とし、スキャン画像の解像力不足を指摘している。 したがって、4800 dpiスキャンをminorの定量に採用するには、最細脈や自由末端の見落としがないか、可能なら同一領域の顕微鏡画像と比較して検証する。\nGT-X980のフィルムエリアガイド使用時の公称光学解像度は4800 dpiであり、6400 dpiはフィルムホルダー使用時の仕様である。 今回の設置方法で6400 dpiを選択できても、追加の構造情報が得られるとは限らない。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈標本のスキャンプロトコル（GT-X980）"
+    ]
+  },
+  {
+    "objectID": "notebooks/scanning_protocol.html#methods用文案",
+    "href": "notebooks/scanning_protocol.html#methods用文案",
+    "title": "葉脈標本のスキャンプロトコル（GT-X980）",
+    "section": "Methods用文案",
+    "text": "Methods用文案\n以下は採用した全葉設定に対応する文案である。実際の取得記録と照合し、未実施の処理や確認を実施済みとして記述しない。 透明化・染色・封入方法、標本数、サンプリング設計、葉脈次数の判定と計測方法は別途追記する。\n\n透明化・染色した葉脈標本の全葉画像を、フラットベッドスキャナー（EPSON GT-X980）およびEPSON Scanを用いて透過光で取得した。プロフェッショナルモードで原稿種を「フィルム（フィルムエリアガイド使用）」、フィルムタイプを「ポジフィルム」とし、2400 dpi、48bitカラー、等倍で取り込んだ。アンシャープマスク、モアレ除去、退色復元、逆光補正、ホコリ除去およびDIGITAL ICEは使用せず、画像をICCプロファイル付きの非圧縮TIFFとして保存した。Major veinsを1〜3次脈、minor veinsを4次以上と定義し、全葉画像をmajor veinsの測定に用いた。\n\nminorの局所撮影は現段階のMethods文案に含めない。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈標本のスキャンプロトコル（GT-X980）"
+    ]
+  },
+  {
+    "objectID": "notebooks/scanning_protocol.html#根拠と参考資料",
+    "href": "notebooks/scanning_protocol.html#根拠と参考資料",
+    "title": "葉脈標本のスキャンプロトコル（GT-X980）",
+    "section": "根拠と参考資料",
+    "text": "根拠と参考資料\n既存研究のdpi設定は装置・標本条件を含む個別の例であり、それだけで今回の解像力を保証するものではない。\n\n\n\n資料\n関連する方法・仕様\n\n\n\n\nSack et al.（2012）, Nature Communications\n全葉を600〜1200 dpiで取得し、1〜3次脈の形質を測定。minorは顕微鏡画像を使用。\n\n\nQuercus ilexの研究（2014）, Annals of Botany\n透明化・染色葉を1200 dpiで取得し、1〜3次脈の長さからmajor vein densityを算出。\n\n\nScoffoni et al.（2011）, Plant Physiology\nmajorを1〜3次、minorを4次以上とする定義、minorの3領域測定。\n\n\nScoffoni・Sack, Quantifying leaf vein traits\n撮影位置、次数判定、占有面積の扱い。別ページの参考プロトコルも参照。\n\n\nGT-X980ユーザーズガイド：フィルムのスキャン\n原稿種、フィルムタイプ、色深度などの設定。\n\n\nGT-X980製品情報\nフィルムホルダー使用時6400 dpi、反射原稿／フィルムエリアガイド使用時4800 dpi。\n\n\nInternational Color Consortium：プロファイル\n埋め込みプロファイルによる色データの解釈。\n\n\n\n資料参照日：2026年11月20日。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈標本のスキャンプロトコル（GT-X980）"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "leaf-vein-workflow",
+    "section": "",
+    "text": "leaf-vein-workflow は、葉脈画像の ROI 切り出し、二値 mask 作成、骨格化、手動分類のための napari plugin です。\nこのサイトは、実装の保守と利用手順の確認に使うためのドキュメントです。"
+  },
+  {
+    "objectID": "index.html#manual",
+    "href": "index.html#manual",
+    "title": "leaf-vein-workflow",
+    "section": "Manual",
+    "text": "Manual\n\nLeaf Vein Workflow の挙動と関数の流れ\n葉脈標本のスキャンプロトコル（GT-X980）\nnapari プラグイン作成の要点\n葉脈の抽出\nサンプルデータセット"
+  },
+  {
+    "objectID": "index.html#reports",
+    "href": "index.html#reports",
+    "title": "leaf-vein-workflow",
+    "section": "Reports",
+    "text": "Reports\n\nZotero文献から見る葉脈研究\n参考プロトコル: 葉脈形質の定量\n生態学研究における葉脈形質の測定方法とツール比較\n葉脈形質の測定法と既存ツールの比較報告"
+  },
+  {
+    "objectID": "index.html#development",
+    "href": "index.html#development",
+    "title": "leaf-vein-workflow",
+    "section": "Development",
+    "text": "Development\nローカル環境の準備:\nuv sync\nnapari の起動:\nuv run napari\nテスト:\nuv run pytest\nドキュメントの確認:\nquarto preview --no-execute"
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html",
+    "href": "notebooks/workflow_overview.html",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "",
+    "text": "このノートは、leaf-vein-workflow の現在の MVP 実装について、人間が読んで流れを理解するための説明です。\nこのプラグインが今やることは、次の 4 段階に絞られています。\n\nDPI、µm/px、mm/px、または手動で引いたスケールバー線から、元画像ごとの mm/px を校正する。\nnapari で画像を開き、長方形 ROI を 1 つ描き、Add ROI ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。\n切り抜き画像に Gaussian smoothing を適用し、Otsu 閾値で葉脈候補の mask Labels レイヤーを作り、形態学的処理と手作業で整える。\n確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。\n次数ごとの骨格長と、入力した葉面積（mm²）に対する VLA を計算し、export する。\n\nまだ扱わないことは、スケールバーの OCR・自動検出、複数 ROI、ポリゴン ROI、画像の保存、nD stack、次数の自動分類、minor（4次以上）のラベルです。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#このノートの目的",
+    "href": "notebooks/workflow_overview.html#このノートの目的",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "",
+    "text": "このノートは、leaf-vein-workflow の現在の MVP 実装について、人間が読んで流れを理解するための説明です。\nこのプラグインが今やることは、次の 4 段階に絞られています。\n\nDPI、µm/px、mm/px、または手動で引いたスケールバー線から、元画像ごとの mm/px を校正する。\nnapari で画像を開き、長方形 ROI を 1 つ描き、Add ROI ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。\n切り抜き画像に Gaussian smoothing を適用し、Otsu 閾値で葉脈候補の mask Labels レイヤーを作り、形態学的処理と手作業で整える。\n確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。\n次数ごとの骨格長と、入力した葉面積（mm²）に対する VLA を計算し、export する。\n\nまだ扱わないことは、スケールバーの OCR・自動検出、複数 ROI、ポリゴン ROI、画像の保存、nD stack、次数の自動分類、minor（4次以上）のラベルです。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#ユーザーから見た流れ",
+    "href": "notebooks/workflow_overview.html#ユーザーから見た流れ",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "ユーザーから見た流れ",
+    "text": "ユーザーから見た流れ\ndock は次の6つの手順に番号付きで並び、各手順の先頭に1行の操作説明があります。\n\n\n\n\n\n\n\n\n手順\ndock の表示\nやること\n\n\n\n\n1\n1. Image & scale\n画像を読み込み、スキャン解像度で校正する\n\n\n2\n2. ROI\n解析する範囲を長方形で選ぶ\n\n\n3\n3. Vein mask\nmask を作って葉脈の領域を確定する（後片付けの処理も同じ手順内）\n\n\n4\n4. Paint vein orders\n葉脈を次数ごとに塗り分ける\n\n\n5\n5. Leaf area & VLA\n葉面積を入力する（VLA は Export 時に計算）\n\n\n6\n6. Export\n出力先を選んで書き出す\n\n\n\n1次・2次脈のパス計測（vein_paths.py）は実装済みですが、今は dock に表示していません。\n細かい操作は次の順番になります。\n\nnapari を起動する。\nPlugins &gt; Leaf Vein Workflow &gt; Leaf Vein Workflow から widget を開く。\nnapari 標準の方法で葉画像を開く。\nDPI、µm/px、mm/px の値を入力して Apply Scale を押す。または Scale bar を選び、Draw Scale Bar Line でバーに線を1本引き、実長を入力して校正する。校正しない場合は pixel 単位のまま続行できる。\nプラグインが自動で作った ROI 用 Shapes レイヤーに長方形を 1 つ描く。\nAdd ROI ボタンを押し、切り抜いた Image レイヤーを作る。\nGaussian sigma を確認して Apply Gaussian を押す。\n平滑化した smoothed_image Image レイヤーだけが作られる。\nApply Otsu を押すと、初めて vein_mask Labels レイヤーが作られる。\n色の付いた画素（黄色）が葉脈。Otsu は少ない側を葉脈として選び、Invert (dark pixels are vein) を自動で合わせる。必要なら Invert と Mask threshold を調整する。変更後、少し待つと同じ mask レイヤーが更新される。\n形態学的処理の値を確認して Clean Mask を押す。\npaint mode の vein_mask を手作業で修正する。\nmask を確認した後に Create Order Labels を押す。\n（任意）Mark Base & Apex で葉の基部と1次脈の先端をクリックする（2点目で order_labels の塗る状態に戻る）。Auto-assign 1°/2° で1次・2次脈を自動で塗り、残りの脈は太さで3次脈（太い側）と不確定（細い側）に分ける。進み具合は dock 下部のバーに出る。不確定（4）の画素だけを書き換えるので、手で塗った所は残る。\n葉脈の画素はすべて 4（不確定、紫）から始まる。Paint as で 1°・2°・3°・Uncertain を選び（色見本はラベルの色と同じ）、画像上の葉脈をドラッグして塗る。mask の外は塗られない。ブラシの太さは napari の layer controls（左上）で変える。napari 側でラベル番号を変えても Paint as が追従する。\n5. Leaf area & VLA の Leaf area に葉面積を入力し、単位（mm² / cm²）を選ぶ。内部では mm² に換算する。\n6. Export の Export Measurements を押すと、現在のラベルを計測して出力フォルダに CSV・ラベル（.npy）・QC 画像・branch table を書き出す。出力先の既定は napari を起動したフォルダ直下の output/ で、Change... で変えられる。結果は dock には表示せず、書き出し完了と未分類ピクセルの警告を通知で出す。\n\ndock の各工程は同時に1つだけ開き、Apply Scale・Add ROI が成功すると次の工程が自動で開く。Create Order Labels の後は塗り分けが続くので、手順4は開いたままにする。\n重要なのは、各工程がユーザーの操作で明示的に区切られている点です。長方形を描いただけでは crop は作られず、Apply Gaussian を押しても vein_mask は作られません。mask が初めて作られるのは Apply Otsu を押したときです。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#スケール校正",
+    "href": "notebooks/workflow_overview.html#スケール校正",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "スケール校正",
+    "text": "スケール校正\nどの入力方法でも、内部では mm_per_pixel に統一します。DPI の場合は 25.4 / DPI、µm/px の場合は値を 1000 で割って mm/px に変換します。スケールバー方式では、専用の Shapes レイヤーに引いた2点の線の pixel 長と、入力した実長から mm/px を求めます。線がない、2本以上ある、実長が0以下である場合は校正を確定しません。\n確定した値、入力方法、元の入力値と単位は元画像の metadata に保存され、crop、smoothed_image、vein_mask、order_labels に引き継がれます。再校正すると既存の派生レイヤーも更新されます。ステータスには入力方法に関係なく µm/px、mm/px、mm/px から逆算した等価 DPI を併記します。表示座標と ROI の切り抜き計算を壊さないため、napari の layer scale 自体は変更しません。\n校正を確定すると、画像の左下にマゼンタの表示用スケールバー（&lt;画像名&gt; 10 mm bar）を描きます。画像幅の 40% に 10 mm が収まらない小さい画像では、5・2・1 mm、500・200・100 µm の順に短いバーを使います。定規と見比べて校正値が正しいか目で確かめるためのもので、計測には使いません。再校正すると同じレイヤーを更新し、作業中のレイヤー選択は変えません。\n校正済みの skeleton.py helperには、従来のpx列に加えて長さ・直径・局所座標のmm列が追加されます。未校正なら従来どおりpx列だけです。次数別計測の order.py は既存の pixel_size_mm 引数で、長さmm、葉面積mm²、VLA（mm mm(^{-2})）を計算します。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#全体像",
+    "href": "notebooks/workflow_overview.html#全体像",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "全体像",
+    "text": "全体像\nnapari 上では 1 つの dock widget ですが、実装は人間が担当範囲を追いやすいように責務別に分かれています。\n\n\n\n\n\n\n\nファイル\n役割\n\n\n\n\nsrc/leaf_vein_workflow/_widget.py\nmanifest と既存 import のために CropWidget と定数を再公開する入口\n\n\nsrc/leaf_vein_workflow/widgets/crop_widget.py\n1 つの widget を組み立て、signal を接続し、公開メソッドを各担当へ委譲する\n\n\nsrc/leaf_vein_workflow/widgets/controls.py\nボタンや入力欄を作り、工程ごとの有効・無効を管理する\n\n\nsrc/leaf_vein_workflow/widgets/layers.py\nmetadata、レイヤー間の対応、検索、選択、削除を一元管理する\n\n\nsrc/leaf_vein_workflow/widgets/calibration.py\n校正UIの操作、スケールバー線、元画像ごとのmetadata反映を担当する\n\n\nsrc/leaf_vein_workflow/widgets/roi.py\n画像の検出、ROI Shapes レイヤー、crop の作成を担当する\n\n\nsrc/leaf_vein_workflow/widgets/mask.py\nGaussian、Otsu、閾値更新、Clean Mask を担当する\n\n\nsrc/leaf_vein_workflow/widgets/order_labels.py\norder labels の作成と mask 外への描画防止を担当する\n\n\nsrc/leaf_vein_workflow/crop.py\n画像配列をどこで切るかを計算する\n\n\nsrc/leaf_vein_workflow/calibration.py\nDPI・直接値・スケールバーを mm/px に変換する\n\n\nsrc/leaf_vein_workflow/threshold.py\ngrayscale 化、Gaussian、閾値、mask cleanup を NumPy 配列に対して計算する\n\n\nsrc/leaf_vein_workflow/order.py\norder labels の検証、集計、export に使う napari 非依存の処理を置く\n\n\n\n初心者向けに言うと、_widget.py は変わらない「玄関」、crop_widget.py は全体をつなぐ「進行係」、widgets/ の残りは工程別の「担当者」です。crop.py、threshold.py、order.py は napari の画面を直接触らない「計算の係」です。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#napari-への登録",
+    "href": "notebooks/workflow_overview.html#napari-への登録",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "napari への登録",
+    "text": "napari への登録\nnapari は src/leaf_vein_workflow/napari.yaml を読んで、このパッケージの widget を見つけます。\nこのファイルでは、leaf_vein_workflow._widget:CropWidget が widget として登録されています。つまり napari のメニューからプラグインを開くと、CropWidget クラスが作られます。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#cropwidget-の初期化",
+    "href": "notebooks/workflow_overview.html#cropwidget-の初期化",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "CropWidget の初期化",
+    "text": "CropWidget の初期化\nCropWidget は、napari に渡す 1 つの dock widget です。実際のクラスは widgets/crop_widget.py にあり、_widget.py は従来と同じ import 先を保つためにそれを再公開します。\n作られた直後に、主に次の準備をします。\n\nnapari viewer を self.viewer に保存する。\ncontrols.py でボタン、入力欄、ステータス表示を作る。\nlayers.py で scale bar、ROI、crop、smoothed image、mask、order labels の対応関係を管理する。\ncalibration、ROI、mask、order labels の各担当に、共有する controls とレイヤー管理を明示的に渡す。\ncrop_widget.py でボタンや Qt signal を各担当の処理へ接続する。\n新しく追加された画像と、すでに開かれている画像の両方を ROI 担当に渡す。\n\nCropWidget の add_roi()、apply_gaussian_filter()、use_otsu_threshold()、clean_mask()、create_order_labels() は、既存コードやテストから同じ名前で呼べます。ただし実処理は対応する工程モジュールへ委譲されます。これにより、画面は 1 つのままでも、修正時に読む範囲を絞れます。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#画像が追加されたとき",
+    "href": "notebooks/workflow_overview.html#画像が追加されたとき",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "画像が追加されたとき",
+    "text": "画像が追加されたとき\n画像レイヤーが追加されると、crop_widget.py がその event を roi.py の画像準備処理へ渡します。\nROI 担当は、次の確認をします。\n\n追加されたレイヤーが napari の Image レイヤーか。\nその画像が、プラグイン自身が作った crop レイヤーではないか。\nすでに ROI レイヤーと結びついている画像ではないか。\n\nこの確認を通った画像だけに、ROI 用の Shapes レイヤーを作ります。\nROI レイヤーには、metadata として次の情報が入ります。\n\n\n\n\n\n\n\nmetadata\n意味\n\n\n\n\nleaf_vein_workflow_role = roi_shapes\nこの Shapes レイヤーは ROI 用である\n\n\nsource_image = 元画像名\nどの画像から作られた ROI か\n\n\n\nさらに、layers.py のレイヤー管理が、ROI レイヤーと元画像レイヤーの対応を保存します。各工程が個別の対応表を持たないため、派生レイヤーを探す規則や削除する順序を 1 箇所で確認できます。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#roi-が編集されたとき",
+    "href": "notebooks/workflow_overview.html#roi-が編集されたとき",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "ROI が編集されたとき",
+    "text": "ROI が編集されたとき\nユーザーが ROI を描いたり編集したりすると、roi.py の ROI 確認処理が呼ばれます。\nここで確認しているのは、主に次の 2 点です。\n\nROI が 1 つだけあるか。\nその ROI が長方形か。\n\nROI が 0 個、または 2 個以上ある場合は、ステータス表示で「長方形を 1 つだけ描いてください」と案内します。長方形以外の場合は、警告を出します。\nただし、この段階ではまだ画像を切り抜きません。ここでは「準備ができたか」を確認しているだけです。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#add-roi-を押したとき",
+    "href": "notebooks/workflow_overview.html#add-roi-を押したとき",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "Add ROI を押したとき",
+    "text": "Add ROI を押したとき\nAdd ROI ボタンを押すと、公開メソッド CropWidget.add_roi() が roi.py の切り抜き処理へ委譲します。\nROI 担当は、まず次の順番でチェックします。\n\n現在選択されているレイヤーが ROI 用 Shapes レイヤーか。\nその ROI レイヤーが元画像と結びついているか。\nROI が 1 つだけか。\nROI が長方形か。\nROI が画像と重なっているか。\n\nすべて通った場合だけ、実際の切り抜き処理に進みます。\n切り抜き処理では、rectangle_to_slices() と crop_to_rectangle() の 2 つを使います。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#rectangle_to_slices",
+    "href": "notebooks/workflow_overview.html#rectangle_to_slices",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "rectangle_to_slices()",
+    "text": "rectangle_to_slices()\nrectangle_to_slices() は、ROI の頂点座標を NumPy の slice に変換する関数です。\nたとえば、長方形 ROI の座標がだいたい次の範囲だったとします。\n\n\n\n座標\n値\n\n\n\n\ny の最小値\n1.2\n\n\ny の最大値\n3.7\n\n\nx の最小値\n2.1\n\n\nx の最大値\n4.9\n\n\n\nこの場合、関数は次のように整数の範囲へ変換します。\n\n\n\n軸\n変換後\n\n\n\n\ny\nslice(1, 4)\n\n\nx\nslice(2, 5)\n\n\n\n最小値側は floor で下に丸め、最大値側は ceil で上に丸めます。これにより、ROI に含まれる画素を取りこぼしにくくしています。\nまた、ROI が画像の外にはみ出している場合は、画像の範囲内に切り詰めます。完全に画像と重ならない場合は、エラーにします。\n対応している画像は、現在の MVP では次の 2 種類です。\n\n2D grayscale image\n2D RGB/RGBA image",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#crop_to_rectangle",
+    "href": "notebooks/workflow_overview.html#crop_to_rectangle",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "crop_to_rectangle()",
+    "text": "crop_to_rectangle()\ncrop_to_rectangle() は、実際に画像配列を切り抜く関数です。\n内部では、まず rectangle_to_slices() を呼び出して、切り抜く y 範囲と x 範囲を決めます。その後、画像が 2D なら次のように切ります。\nimage_array[y_slice, x_slice]\nRGB/RGBA のように最後の軸が色チャンネルの場合は、色チャンネルを残すために次のように切ります。\nimage_array[y_slice, x_slice, :]\n戻り値は .copy() された配列です。これは、元画像の一部を参照するのではなく、切り抜き画像として独立したデータにするためです。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#crop-レイヤーの作成と更新",
+    "href": "notebooks/workflow_overview.html#crop-レイヤーの作成と更新",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "crop レイヤーの作成と更新",
+    "text": "crop レイヤーの作成と更新\nROI 担当は、切り抜いた画像を napari の Image レイヤーとして追加します。\n新規作成時には、次の情報を指定します。\n\nレイヤー名は 元画像名 ROI\nRGB/RGBA 画像なら rgb=True\ntranslate に ROI の左上位置を入れる\nmetadata に crop レイヤーであることを記録する\n\ntranslate を設定する理由は、切り抜き画像を元画像上の ROI 位置に重ねて表示しやすくするためです。\n同じ ROI レイヤーからすでに crop レイヤーが作られている場合は、新しいレイヤーを増やさず、既存レイヤーの data と translate を更新します。\ncrop を作り直した場合は、古い crop から派生した smoothed_image、vein_mask、order_labels を削除します。新しい範囲に古い解析結果が残らないようにするためです。その後、crop を active layer にし、元画像を非表示にします。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#mask-レイヤーの作成と更新",
+    "href": "notebooks/workflow_overview.html#mask-レイヤーの作成と更新",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "mask レイヤーの作成と更新",
+    "text": "mask レイヤーの作成と更新\nmask 処理は widgets/mask.py が担当し、Apply Gaussian、Apply Otsu、Clean Mask という明示的な工程に分かれています。\nApply Gaussian は、現在の crop Image レイヤーに threshold.py の smooth_image() を適用し、smoothed_image Image レイヤーだけを作成または更新します。この時点では vein_mask を作りません。Gaussian sigma の初期値は 1 で、必要に応じて実行前に変更できます。\nApply Otsu は、平滑化済み画像から estimate_vein_threshold() で閾値を推定します。\n\nROI includes background (paper) が有効（既定）なら、まず Otsu で葉と背景を分けます。ROI の縁に多い側を背景とし、その大部分が縁につながっていれば背景とみなします。葉身の内側だけの ROI では、明るい側（葉身）は葉脈で囲まれた小さな網目に分かれて縁に届かないので、背景とはみなさず1段階の Otsu に戻ります。\n背景を除いた葉の中だけでもう一度 Otsu をかけ、葉脈と葉身を分けます。背景は mask から常に外します。\n葉脈は葉の中で少ない側なので、少ない側を葉脈として Invert を自動で設定します。\n\n3200 dpi の標本画像で確かめたところ、葉全体の ROI では背景を除いて葉の 25% が葉脈に、葉身内側の ROI では 22% が葉脈になりました。1段階の Otsu で葉全体を選ぶと、葉身全体（54%）が mask になっていました。\nその閾値を使って threshold_image() を実行し、ここで初めて vein_mask Labels レイヤーを作成します。二値化の前には to_grayscale() で画像を 2D grayscale に変換し、RGB/RGBA 画像では alpha を無視します。\nInvert threshold が有効な場合は、閾値以下の画素を 1 として扱います。これは、葉脈が背景より暗い画像で使う想定です。\n一度 Apply Otsu を実行した後は、閾値入力欄、slider、Invert threshold の変更に応じて同じ mask を更新します。連続した UI signal ごとに重い処理を繰り返さないよう、短い待ち時間を置く single-shot timer で更新をまとめます。この timer にも「Otsu 実行済み」の確認があり、control の初期化や Apply Gaussian だけで mask が作られることを防ぎます。\nmask は napari の Labels レイヤーとして作られます。レイヤー名は vein_mask です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの data と translate を更新します。\nClean Mask は、small object removal、hole filling、closing、opening の設定を postprocess_mask() に渡し、現在の mask を明示的に整えます。入力欄は従来どおり整数pxですが、校正済み画像では small object と hole の面積をmm²、closing と opening の半径をµmまたはmmでラベルに併記します。値の変更、再校正、別画像への切り替えに応じて換算表示も更新されます。未校正画像ではpxだけを表示します。cleanup 後は自動の閾値更新を止め、vein_mask を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#order-labels-レイヤーの作成",
+    "href": "notebooks/workflow_overview.html#order-labels-レイヤーの作成",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "order labels レイヤーの作成",
+    "text": "order labels レイヤーの作成\n手作業を含む mask の確認が終わった後に Create Order Labels を押すと、widgets/order_labels.py が現在の vein_mask と同じ shape の order_labels Labels レイヤーを作ります。現在の widget フローでは、この操作時に skeleton レイヤーは作りません。\n作成後は vein_mask を非表示にし、order_labels を active な paint mode にします。order labels への描画は確認済み mask の対象領域内だけに制限され、mask が後から変わった場合も領域外のラベルを 0 に戻します。\nvein_mask は 1 = 葉脈（黄色、不透明度 0.5）、0 = 背景（透明）です。status 行に葉脈として塗られた割合を出し、45% を超えると葉身や背景を選んでいる疑いがあると知らせます。mask を手で直すときは label 1 で塗ると葉脈を足し、消しゴム（label 0）で葉脈を消せます。order labels は vein_mask &gt; 0 の領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。order labels を作った後に mask を直すと、mask から消えた部分のラベルは 0 に戻り、mask に足した部分は label 4（uncertain）になります。Export では order labels を vein_mask と照合し、mask にあるのに次数が 0 の画素があれば警告します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは order_labels.py 側も一緒に確認する必要があります。\n葉脈が前景なので、Clean Mask の「Small object area」は小さな葉脈の断片を、「Maximum hole area」は葉脈の内側の小さな穴を対象にします。穴埋めを大きくすると小さな網目（areole）まで潰れるため、既定値は 50 px にしています。\norder labels の値は、次の用途を想定しています。\n\n\n\nlabel\n意味\n\n\n\n\n0\n背景または分類対象外\n\n\n1\nprimary\n\n\n2\nsecondary\n\n\n3\ntertiary（3次脈）\n\n\n4\nuncertain / 未分類\n\n\n\n同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きせず、そのレイヤーを再利用します。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#次2次脈の自動振り分け",
+    "href": "notebooks/workflow_overview.html#次2次脈の自動振り分け",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "1次・2次脈の自動振り分け",
+    "text": "1次・2次脈の自動振り分け\nauto_order.py（napari に依存しない）が、Manual of Leaf Architecture（Ellis et al., 2009）の次数の決め方を骨格のグラフの上で行います。ユーザーは葉の基部と1次脈の先端を2回クリックするだけです。\n\n\n\n\n\n\n\n\n段階\n処理\nEllis の対応する記述\n\n\n\n\n1次脈\n基部から先端まで、1歩のコストを「長さ ÷ 直径²」とした最短経路\n1次脈は最も太く、基部から先端へ走る\n\n\n2次脈の候補\n1次脈の縁のすぐ外の輪で、出ていく枝の太さを測る。同じ側の近くで最も太い枝の 70% 以上なら候補\n次数は付け根の最も太い所で判断する。2次脈は先端へ向かって細くなるので、固定の境目は使わない\n\n\n2次脈の走り方\n同じ側の葉縁まで最短経路でたどり、太さが急に落ちた所で切る\nほぼ同じ太さで続く脈は同じ次数\n\n\n3次脈の除外\nたどった経路の大半がより太い2次脈と重なる候補は、1次と2次をつなぐ3次脈として外す\n3次脈は1次・2次脈どうしをつなぐ\n\n\n\n距離の設定は mm で持ち、校正値で画素に直すので、解像度が変わっても同じ規則が使えます。3200 dpi のコナラ標本では、1次脈と約30本の2次脈が取れ、基部付近の脈は手で直す必要がありました。結果は不確定（4）の画素にだけ書き込み、クリック位置・設定・本数を order_labels.auto_order としてメタデータに残します。\nPlantPose（Liu et al., 2026）のような学習ベースの骨格推定は木構造を出力し、ループや次数、細い脈の太さを扱わないため、ここでは使っていません。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#export-の実行",
+    "href": "notebooks/workflow_overview.html#export-の実行",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "Export の実行",
+    "text": "Export の実行\nExport Measurements ボタンは書き出しを別スレッドで実行し、その間も napari を操作できます（widgets/measurement.py）。\n\nprepare_export() がメインスレッドでレイヤーと入力欄を読み、ラベル・mask・元画像のコピーを ExportJob にまとめる。\nrun_export_job() が別スレッドで骨格化、長さの計測、ファイル書き出しを行う。napari のレイヤーや Qt には触れない。\n終わったら通知を出し、ボタンを元に戻す。\n\n3200 dpi の葉全体（約 3,900 × 8,400 px）では計測と骨格の表で約 30 秒かかります。葉身全体が mask になっていた場合は骨格化に3分以上かかっていました。直径は distance_transform_edt で求めます（medial_axis と同じ「背景までの距離」で、より速い）。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#再現性のためのメタデータ",
+    "href": "notebooks/workflow_overview.html#再現性のためのメタデータ",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "再現性のためのメタデータ",
+    "text": "再現性のためのメタデータ\nExport のたびに &lt;時刻&gt;_&lt;画像名&gt;_metadata.yaml を書き出し、同じ Export のファイルには同じ接頭辞を付けます。設定ファイルは「既定値」にすぎず、実際にはスライダーで閾値を動かしたり、mask を手で直したりするため、各工程で実際に使った値をレイヤーの metadata に記録しておき、それをまとめて書き出します。\n\n\n\n\n\n\n\n項目\n内容\n\n\n\n\nsource_image\n元画像のパス、SHA-256、shape\n\n\ncalibration\nmm/px、校正方法、入力値と単位\n\n\nleaf_area\n入力値、単位、mm² 換算値\n\n\norder_labels.processing\nROI 範囲、Gaussian sigma、Otsu 値、最終閾値と invert、Clean Mask の全実行（各回の値と、その前に手修正があったか）\n\n\nmask_edited_by_hand_after_last_step\n最後の自動処理の後に mask を手で直したか（内容のハッシュで判定）\n\n\nlabel_pixel_counts ほか\n次数ごとの画素数、未分類・次数なしの画素数\n\n\nvein_paths\n次数ごとのパス本数\n\n\nsettings\n使っていた設定ファイルと、その時点の既定値\n\n\nsoftware\nPython と主要パッケージのバージョン\n\n\n\n手で直した mask はパラメータからは再現できないため、*_vein_mask.npy として mask 自体も保存します。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#設定ファイル",
+    "href": "notebooks/workflow_overview.html#設定ファイル",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "設定ファイル",
+    "text": "設定ファイル\n各入力欄の既定値は、widget を開いたときに YAML の設定ファイルから読み込みます（settings.py）。リポジトリには推奨値を書いた leaf_vein_workflow.example.yaml が入っています。\n\nリポジトリのフォルダで napari を起動し、leaf_vein_workflow.yaml がなければ、example をコピーして作ります。値を変えたいときはこの leaf_vein_workflow.yaml を編集します。\nleaf_vein_workflow.yaml は git の管理外なので、自分の値がコミットされたり、更新とぶつかったりしません。\n推奨値に戻したいときは、example を leaf_vein_workflow.yaml に上書きコピーします（Reset to Defaults でも同じ）。\n別のフォルダから起動したときは、ユーザーごとの config.yaml を使います。\n\n使っているファイルの場所は Settings セクションに表示されます。\n\n\n\n\n\n\n\n\nキー\n推奨値\n内容\n\n\n\n\ncalibration.method / value\ndpi / 1200\n校正方法と値。2次脈の太さを測れる解像度を推奨値にしている\n\n\nscale_bar.length_mm\n10\nApply Scale 後に描く表示用バーの長さ\n\n\nmask.gaussian_sigma / invert_threshold\n1.0 / false\n平滑化と閾値の向き（向きは Apply Otsu が自動で上書き）\n\n\nmask.exclude_background\ntrue\nROI に葉の周りの背景が含まれる前提で、2段階の Otsu を使う\n\n\ncleanup.*\n100 / 50 / 1 / 0 px\n葉脈片の除去、穴埋め、closing、opening\n\n\nmeasurement.leaf_area_unit / output_dir\nmm2 / output\n葉面積の単位と出力先（相対パスは起動フォルダ基準）\n\n\n\nファイルに書いたキーだけが推奨値を上書きします。書いていないキーや不正な値は推奨値に戻り、不正な値には警告を出します。Open Settings File はファイルがなければ推奨値入りのコメント付きファイルを作って開き、Reload で編集を反映し、Reset to Defaults で推奨値のファイルに戻します（元のファイルは *.bak に残す）。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#計測と-vla",
+    "href": "notebooks/workflow_overview.html#計測と-vla",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "計測と VLA",
+    "text": "計測と VLA\n\nパス計測（1次・2次）\n参考プロトコル（Sack & Scoffoni 2013）では、1次脈と 2次脈は葉全体の画像で segmented line としてなぞり、長さを合計して葉面積で割ります。vein_paths.py はこの方法に対応します（今は dock に表示していません）。Draw Vein Paths を押すと元画像に &lt;画像名&gt; vein paths の Shapes レイヤーができ、path 描画モードになります。クリックで頂点を置き、ダブルクリックで1本を確定します。\n各パスは order feature（1 または 2）を持ち、新しいパスには dock で選んだ次数が付きます。既存のパスを選択して次数を切り替えると付け替わり、色（1次 = 赤橙、2次 = 青）も更新されます。長さは頂点間の距離の合計で、校正値は元画像から引き継ぎます。Export Measurements で *_path_measurements.csv（次数ごとの本数・長さ・VLA）と、全頂点を記録した *_path_vertices.csv を書き出します。3次脈は葉全体ではなく矩形の標本領域で測る方法なので、パス計測の対象にしていません。\n\n\n次数ラベル計測\nwidgets/measurement.py が order.py の measure_order_labels を呼び、label 1・2・3 をそれぞれ別に骨格化して skan の branch 長を合計します。合算行（primary_secondary = 1+2、major = 1+2+3）は、単一次数の長さの和です。合併領域を骨格化し直すと次数の境界で骨格が短くなり、major が primary より短くなることがあるためです。major を 1–3 次とする定義は Sack & Scoffoni (2013) に従っています。\n葉面積は画像からではなく、GUI に入力した値を使います（標本化前のスキャンで測った値を想定）。cm² で入力した場合は 100 倍して mm² に換算します。VLA は length_mm / leaf_area_mm2 で、apply_leaf_area により長さを保ったまま葉面積だけ差し替えられます。CSV には leaf_area_source 列で葉面積の出どころ（input または leaf_mask）を残します。label 4 のまま残ったピクセルはどの次数にも入らず、結果欄に件数を警告として出します。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#エラーや警告になる例",
+    "href": "notebooks/workflow_overview.html#エラーや警告になる例",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "エラーや警告になる例",
+    "text": "エラーや警告になる例\n次の場合は、切り抜き処理に進まず、警告またはエラーになります。\n\n\n\n\n\n\n\n状況\n理由\n\n\n\n\n校正値が0以下、NaN、inf\n実単位へ安全に換算できない\n\n\nスケールバー線がない、または2本以上ある\nどの線長を使うか決められない\n\n\nROI レイヤー以外を選択している\nどの ROI を使うか分からない\n\n\nROI が 0 個\n切り抜く範囲がない\n\n\nROI が 2 個以上\nMVP では 1 個だけ対応\n\n\nROI が長方形ではない\nMVP では rectangle のみ対応\n\n\nROI が画像と重ならない\n切り抜ける画素がない\n\n\n画像が 2D grayscale または RGB/RGBA ではない\nMVP の対応範囲外\n\n\ncrop レイヤーがまだない状態で Apply Gaussian を押す\n平滑化する画像がない\n\n\nApply Gaussian 前\nApply Otsu control がまだ無効になっている\n\n\nvein_mask 作成前に Clean Mask または Create Order Labels を押す\n処理対象の mask がない\n\n\ncrop 画像に NaN や inf が含まれる\n閾値計算が信用できない",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#テストで確認していること",
+    "href": "notebooks/workflow_overview.html#テストで確認していること",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "テストで確認していること",
+    "text": "テストで確認していること\ntests/test_calibration.py では、DPI・µm/px・mm/px・手動スケールバーからの換算、無効値の拒否、校正metadataだけを派生レイヤー用にコピーできることを確認しています。\ntests/test_crop.py では、napari に依存しない切り抜き計算を確認しています。\n\n小数座標が floor と ceil で正しく slice になること。\n画像外にはみ出た ROI が画像範囲に切り詰められること。\nRGB 画像の色チャンネルが保たれること。\n空の ROI や画像外 ROI がエラーになること。\n未対応の画像 shape がエラーになること。\n\ntests/test_threshold.py では、napari に依存しない二値化計算を確認しています。\n\ngrayscale 画像をそのまま float の 2D 配列として扱えること。\nRGB/RGBA 画像を grayscale に変換できること。\nGaussian smoothing が入力と同じ shape の 2D 画像を返すこと。\n手動閾値で明るい前景と暗い前景の両方を mask にできること。\nOtsu 閾値が単純な二峰性画像を分けられること。\nsmall object removal、hole filling、closing、opening で mask を整えられること。\n未対応の画像 shape がエラーになること。\n\n現在の widget フローからは骨格化を呼びませんが、独立した計算 helper の回帰確認として tests/test_skeleton.py は残っています。\n\n2D mask から骨格画像を作れること。\nLabels 形式の整数 mask でも、0 より大きい画素を前景として扱うこと。\n空 mask や 2D 以外の入力がエラーになること。\n校正値を渡すと既存px列を変えずに長さ・直径・局所座標のmm列が追加されること。\n\ntests/test_widget_import.py では、Qt backend がある環境で _widget.py から widget を import できることと、画像追加から order labels までの工程を確認しています。\n\nAdd ROI 後に crop が active になり、元画像が非表示になること。\nApply Gaussian では smoothed_image だけが作られ、vein_mask はまだ存在しないこと。\nApply Otsu 後に初めて mask が作られ、閾値 UI で更新できること。\nClean Mask 後も mask が active な paint mode に保たれること。\norder labels が mask 外に描けず、既存の手動ラベルが再作成時に上書きされないこと。\nROI を切り直すと古い派生レイヤーが削除されること。\n数値入力と手動スケールバーの校正値が派生レイヤーへ継承され、再校正で置き換わること。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#開発時に見る順番",
+    "href": "notebooks/workflow_overview.html#開発時に見る順番",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "開発時に見る順番",
+    "text": "開発時に見る順番\n挙動を追うときは、次の順番で読むと理解しやすいです。\n\nREADME.md でユーザー操作を確認する。\nsrc/leaf_vein_workflow/napari.yaml で widget 登録を確認する。\nsrc/leaf_vein_workflow/_widget.py で互換用の公開入口を確認する。\nwidgets/crop_widget.py で 1 つの widget の組み立て、signal 接続、各工程への委譲を見る。\nwidgets/controls.py で UI 部品と有効・無効の切り替えを見る。\nwidgets/layers.py で metadata、レイヤー間の対応、active/visible、削除の規則を見る。\nwidgets/calibration.py と calibration.py で校正UI、metadata、mm/px換算を見る。\nwidgets/roi.py と crop.py で画像追加、ROI 編集、切り抜き処理を見る。\nwidgets/mask.py と threshold.py で Gaussian、Otsu、timer、cleanup の流れを見る。\nwidgets/order_labels.py で order labels の作成と描画制限を見て、必要なら order.py で検証、集計、export 処理を見る。\ntests/test_widget_import.py で、これらが 1 つの明示的な操作フローとして接続されていることを確認する。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
+    "objectID": "notebooks/workflow_overview.html#まとめ",
+    "href": "notebooks/workflow_overview.html#まとめ",
+    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "section": "まとめ",
+    "text": "まとめ\n現在の実装は、葉脈解析そのものではなく、葉脈解析の前段階として「人が ROI を指定し、Gaussian と Otsu を明示的に適用し、mask を cleanup と手作業で確認してから、葉脈次数を塗り分ける」ための機能です。\n設計上は、napari 依存の処理も UI、レイヤー管理、ROI、mask、order labels に分かれ、NumPy ベースの計算処理とも分離されています。manifest 互換性は _widget.py、widget 全体の接続は crop_widget.py、個々の工程は対応する担当モジュールから読み始めればよく、1 ファイルの内部を端から探す必要はありません。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "Leaf Vein Workflow の挙動と関数の流れ"
+    ]
+  },
+  {
     "objectID": "notebooks/napari_plugin_development.html",
     "href": "notebooks/napari_plugin_development.html",
     "title": "napari プラグイン作成の要点",
@@ -480,403 +1048,123 @@
     ]
   },
   {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "leaf-vein-workflow",
+    "objectID": "notebooks/vein_order_algorithms.html",
+    "href": "notebooks/vein_order_algorithms.html",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
     "section": "",
-    "text": "leaf-vein-workflow は、葉脈画像の ROI 切り出し、二値 mask 作成、骨格化、手動分類のための napari plugin です。\nこのサイトは、実装の保守と利用手順の確認に使うためのドキュメントです。"
+    "text": "このノートは、napari プラグインの中で動いている計算を、数式と実データでの振る舞いから説明します。 対象は次の4つです。\n\n2段階 Otsu による葉脈 mask の作成（threshold.py）\n骨格と直径（太さ）の求め方（skeleton.py、auto_order.py）\n1次脈・2次脈の自動振り分け（auto_order.py）\n長さと VLA の計算（order.py）\n\n実データは、3200 dpi でスキャンしたコナラ（Quercus serrata）の葉脈標本1枚です。 2次脈がまっすぐ鋸歯に入る型（craspedodromous）の葉です。",
+    "crumbs": [
+      "Home",
+      "Manual",
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
+    ]
   },
   {
-    "objectID": "index.html#manual",
-    "href": "index.html#manual",
-    "title": "leaf-vein-workflow",
-    "section": "Manual",
-    "text": "Manual\n\nLeaf Vein Workflow の挙動と関数の流れ\nnapari プラグイン作成の要点\n葉脈の抽出\nサンプルデータセット"
-  },
-  {
-    "objectID": "index.html#reports",
-    "href": "index.html#reports",
-    "title": "leaf-vein-workflow",
-    "section": "Reports",
-    "text": "Reports\n\nZotero文献から見る葉脈研究\n参考プロトコル: 葉脈形質の定量\n生態学研究における葉脈形質の測定方法とツール比較\n葉脈形質の測定法と既存ツールの比較報告"
-  },
-  {
-    "objectID": "index.html#development",
-    "href": "index.html#development",
-    "title": "leaf-vein-workflow",
-    "section": "Development",
-    "text": "Development\nローカル環境の準備:\nuv sync\nnapari の起動:\nuv run napari\nテスト:\nuv run pytest\nドキュメントの確認:\nquarto preview --no-execute"
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html",
-    "href": "notebooks/workflow_overview.html",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
+    "objectID": "notebooks/vein_order_algorithms.html#目的",
+    "href": "notebooks/vein_order_algorithms.html#目的",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
     "section": "",
-    "text": "このノートは、leaf-vein-workflow の現在の MVP 実装について、人間が読んで流れを理解するための説明です。\nこのプラグインが今やることは、次の 3 段階に絞られています。\n\nnapari で画像を開き、長方形 ROI を 1 つ描き、Add ROI ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。\n切り抜き画像に Gaussian smoothing を適用し、Otsu 閾値で葉脈候補の mask Labels レイヤーを作り、形態学的処理と手作業で整える。\n確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。\n\nまだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、骨格のセグメンテーション、VLA の計算、major/minor の自動分離です。",
+    "text": "このノートは、napari プラグインの中で動いている計算を、数式と実データでの振る舞いから説明します。 対象は次の4つです。\n\n2段階 Otsu による葉脈 mask の作成（threshold.py）\n骨格と直径（太さ）の求め方（skeleton.py、auto_order.py）\n1次脈・2次脈の自動振り分け（auto_order.py）\n長さと VLA の計算（order.py）\n\n実データは、3200 dpi でスキャンしたコナラ（Quercus serrata）の葉脈標本1枚です。 2次脈がまっすぐ鋸歯に入る型（craspedodromous）の葉です。",
     "crumbs": [
       "Home",
       "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
     ]
   },
   {
-    "objectID": "notebooks/workflow_overview.html#このノートの目的",
-    "href": "notebooks/workflow_overview.html#このノートの目的",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "",
-    "text": "このノートは、leaf-vein-workflow の現在の MVP 実装について、人間が読んで流れを理解するための説明です。\nこのプラグインが今やることは、次の 3 段階に絞られています。\n\nnapari で画像を開き、長方形 ROI を 1 つ描き、Add ROI ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。\n切り抜き画像に Gaussian smoothing を適用し、Otsu 閾値で葉脈候補の mask Labels レイヤーを作り、形態学的処理と手作業で整える。\n確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。\n\nまだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、骨格のセグメンテーション、VLA の計算、major/minor の自動分離です。",
+    "objectID": "notebooks/vein_order_algorithms.html#記号",
+    "href": "notebooks/vein_order_algorithms.html#記号",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
+    "section": "記号",
+    "text": "記号\nこのノートでは、次の記号を使います。\n\n\n\n\n\n\n\n記号\n意味\n\n\n\n\n\\(I(p)\\)\n画素 \\(p\\) の明るさ（グレースケール、Gaussian で平滑化済み。8 bit の画像では 0〜255）\n\n\n\\(M\\)\n葉脈 mask（葉脈 = 1 の画素の集合）\n\n\n\\(S\\)\n\\(M\\) の骨格（中心線の画素の集合）\n\n\n\\(d(p)\\)\n画素 \\(p\\) での葉脈の直径（px）\n\n\n\\(G=(V,E)\\)\n骨格の画素を頂点、隣り合う画素どうしを辺とするグラフ\n\n\n\\(\\ell(u,v)\\)\n辺の長さ（縦横の隣は 1、斜めの隣は \\(\\sqrt2\\)）\n\n\n\\(s\\)\n校正値（mm/px）。3200 dpi では \\(s = 25.4/3200 = 0.0079375\\)",
     "crumbs": [
       "Home",
       "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
     ]
   },
   {
-    "objectID": "notebooks/workflow_overview.html#ユーザーから見た流れ",
-    "href": "notebooks/workflow_overview.html#ユーザーから見た流れ",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "ユーザーから見た流れ",
-    "text": "ユーザーから見た流れ\nユーザー操作としては、次の順番になります。\n\nnapari を起動する。\nPlugins &gt; Leaf Vein Workflow &gt; Leaf Vein Workflow から widget を開く。\nnapari 標準の方法で葉画像を開く。\nプラグインが自動で ROI 用の Shapes レイヤーを作る。\n画像上に長方形を 1 つ描く。\nAdd ROI ボタンを押す。\n長方形の範囲だけを切り抜いた Image レイヤーが追加される。\nGaussian sigma を確認して Apply Gaussian を押す。\n平滑化した smoothed_image Image レイヤーだけが作られる。\nApply Otsu を押すと、初めて vein_mask Labels レイヤーが作られる。\n必要なら Invert threshold と Mask threshold を調整する。変更後、少し待つと同じ mask レイヤーが更新される。\n形態学的処理の値を確認して Clean Mask を押す。\npaint mode の vein_mask を手作業で修正する。\nmask を確認した後に Create Order Labels を押す。\norder_labels Labels レイヤー上で葉脈次数を塗り分ける。\n\n重要なのは、各工程がユーザーの操作で明示的に区切られている点です。長方形を描いただけでは crop は作られず、Apply Gaussian を押しても vein_mask は作られません。mask が初めて作られるのは Apply Otsu を押したときです。",
+    "objectID": "notebooks/vein_order_algorithms.html#準備",
+    "href": "notebooks/vein_order_algorithms.html#準備",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
+    "section": "準備",
+    "text": "準備\n\nコード\n画像の場所、ROI、2回のクリックの位置をここで決めます。クリック位置は napari で付けるのと同じ「切り抜いた画像の座標」（行, 列）です。\n\nimport time\nfrom pathlib import Path\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nfrom scipy import ndimage\nfrom skimage import io\nfrom skimage.morphology import remove_small_holes, remove_small_objects\n\nfrom leaf_vein_workflow.auto_order import auto_assign_orders\nfrom leaf_vein_workflow.order import measure_order_labels\nfrom leaf_vein_workflow.threshold import (\n    estimate_vein_threshold,\n    otsu_threshold,\n    smooth_image,\n    threshold_image,\n    to_grayscale,\n)\n\nSCAN = Path(\n    r\"C:\\Users\\Konrai\\Dropbox\\GitHub\\phd-thesis\\assets\"\n    r\"\\20260719_konara_tomakomai_244_01_3200dpi_kleaf_011.jpg\"\n)\nplt.rcParams[\"font.family\"] = [\"Yu Gothic\", \"Meiryo\", \"sans-serif\"]  # 図の日本語\nFIG = Path(\"figures/auto_order\")\nFIG.mkdir(parents=True, exist_ok=True)\nROI = (slice(230, 4088), slice(42, 8452))  # napari の ROI と同じ範囲\nMM_PER_PX = 25.4 / 3200\nBASE, APEX = (1956, 7447), (1844, 195)  # 葉の基部と1次脈の先端（切り抜き座標）\n\ngray = to_grayscale(io.imread(SCAN))\ncrop = gray[ROI]\nsmooth = smooth_image(crop, 1.0)\nprint(\"ROI の大きさ:\", crop.shape)",
     "crumbs": [
       "Home",
       "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
     ]
   },
   {
-    "objectID": "notebooks/workflow_overview.html#全体像",
-    "href": "notebooks/workflow_overview.html#全体像",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "全体像",
-    "text": "全体像\nnapari 上では 1 つの dock widget ですが、実装は人間が担当範囲を追いやすいように責務別に分かれています。\n\n\n\n\n\n\n\nファイル\n役割\n\n\n\n\nsrc/leaf_vein_workflow/_widget.py\nmanifest と既存 import のために CropWidget と定数を再公開する入口\n\n\nsrc/leaf_vein_workflow/widgets/crop_widget.py\n1 つの widget を組み立て、signal を接続し、公開メソッドを各担当へ委譲する\n\n\nsrc/leaf_vein_workflow/widgets/controls.py\nボタンや入力欄を作り、工程ごとの有効・無効を管理する\n\n\nsrc/leaf_vein_workflow/widgets/layers.py\nmetadata、レイヤー間の対応、検索、選択、削除を一元管理する\n\n\nsrc/leaf_vein_workflow/widgets/roi.py\n画像の検出、ROI Shapes レイヤー、crop の作成を担当する\n\n\nsrc/leaf_vein_workflow/widgets/mask.py\nGaussian、Otsu、閾値更新、Clean Mask を担当する\n\n\nsrc/leaf_vein_workflow/widgets/order_labels.py\norder labels の作成と mask 外への描画防止を担当する\n\n\nsrc/leaf_vein_workflow/crop.py\n画像配列をどこで切るかを計算する\n\n\nsrc/leaf_vein_workflow/threshold.py\ngrayscale 化、Gaussian、閾値、mask cleanup を NumPy 配列に対して計算する\n\n\nsrc/leaf_vein_workflow/order.py\norder labels の検証、集計、export に使う napari 非依存の処理を置く\n\n\n\n初心者向けに言うと、_widget.py は変わらない「玄関」、crop_widget.py は全体をつなぐ「進行係」、widgets/ の残りは工程別の「担当者」です。crop.py、threshold.py、order.py は napari の画面を直接触らない「計算の係」です。",
+    "objectID": "notebooks/vein_order_algorithms.html#段階-otsu-による葉脈-mask",
+    "href": "notebooks/vein_order_algorithms.html#段階-otsu-による葉脈-mask",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
+    "section": "1. 2段階 Otsu による葉脈 mask",
+    "text": "1. 2段階 Otsu による葉脈 mask\nスキャン画像に対してROIを切り出すと、背景と葉でまず分かれます。 このため一度の二値化では、葉内部の葉脈だけはうまく分離できません。 そこで、葉と背景の二値化をした後、葉の中で葉脈と葉身を分ける二段階の Otsu threshold を使います。\n\n目的\n葉脈の画素と、それ以外（葉身・背景の紙）を分ける閾値を決めます。 あわせて、閾値のどちら側が葉脈かも決めます。\n\n\n方法\nOtsu の方法（Otsu’s method）は、明るさのヒストグラムを2つの組に分ける閾値 \\(t\\) を選ぶ方法です。 閾値で分けた2組の平均がなるべく離れ、しかも両方の組に十分な画素があるような \\(t\\) を選びます。 式では、次のクラス間分散（between-class variance）を最大にする \\(t\\) です。\n\\[\nt^{*} = \\arg\\max_t \\; \\omega_0(t)\\,\\omega_1(t)\\,\\bigl(\\mu_0(t) - \\mu_1(t)\\bigr)^2\n\\]\nここで \\(\\omega_0, \\omega_1\\) は暗い組・明るい組の画素の割合、\\(\\mu_0, \\mu_1\\) はそれぞれの平均の明るさです。 人が閾値を選ばずに済むので、再現性が上がります。\n問題は、葉全体を囲む ROI では画像に3つの組があることです。 暗い葉脈、中間の葉身、明るい紙です。Otsu は2組にしか分けないので、いちばん大きな差である「葉 と 紙」を分けてしまいます。 そこで、2回に分けて Otsu を使います。\n\n1回目：画像全体で Otsu をかけ、\\(t_1\\) で「葉」と「背景」に分ける。背景は、ROI の縁の画素に多い側とする。\n背景かどうかの確認：背景とした組のうち、ROI の縁につながっている連結成分の画素が 80% 以上なら、本当の背景（紙）とみなす。葉身の内側だけの ROI では、明るい側（葉身）は葉脈に囲まれた小さな網目（areole）に分かれていて縁に届かないので、この条件で区別できる。\n2回目：葉の画素だけで Otsu をかけ、\\(t_2\\) で葉脈と葉身を分ける。\nどちらが葉脈か：葉の中で少ない側を葉脈とする。暗い側が少なければ Invert（暗い画素が葉脈）にする。\n\n最後に、葉脈の側の画素のうち葉の中にあるものを mask にします。式で書くと、暗い側が葉脈の場合は次のとおりです。\n\\[\nM = \\{\\,p \\mid I(p) \\le t_2\\,\\} \\cap \\text{葉}\n\\]\n\n\nコード\n1段階と2段階の Otsu を同じ画像で比べます。\n\nt_one = otsu_threshold(smooth)\none_step_dark = smooth &lt;= t_one\n\nest = estimate_vein_threshold(smooth, exclude_background=True)\nleaf = est.leaf_mask\nvein_raw = threshold_image(smooth, est.threshold, invert=est.invert) & leaf\nprint(f\"1段階: t = {t_one:.3f}, 暗い側 = ROI の {one_step_dark.mean():.1%}\")\nprint(f\"2段階: t1 = {est.leaf_threshold:.3f}, 葉 = ROI の {leaf.mean():.1%}\")\nprint(f\"       t2 = {est.threshold:.3f}, 葉脈の側 = {est.vein_side}, \"\n      f\"葉脈 = 葉の {est.vein_fraction:.1%}\")\n\ninner = smooth_image(gray[1400:2900, 2500:5500], 1.0)\nest_inner = estimate_vein_threshold(inner, exclude_background=True)\nprint(f\"葉身の内側だけの ROI: 背景あり = {est_inner.leaf_mask is not None}, \"\n      f\"葉脈の側 = {est_inner.vein_side}, 葉脈 = {est_inner.vein_fraction:.1%}\")\n\nfig, ax = plt.subplots(1, 3, figsize=(15, 3.6))\nax[0].hist(smooth.ravel(), bins=200, color=\"0.4\")\nax[0].hist(smooth[leaf].ravel(), bins=200, color=\"#03af7a\", alpha=0.6, label=\"葉の画素\")\nfor value, name, color in ((t_one, \"1段階 / t1\", \"k\"), (est.threshold, \"t2\", \"#ff4b00\")):\n    ax[0].axvline(value, color=color, ls=\"--\", label=name)\nax[0].set_xlabel(\"明るさ\"); ax[0].set_ylabel(\"画素数\"); ax[0].legend(frameon=False)\nax[1].imshow(one_step_dark[::8, ::8], cmap=\"gray\"); ax[1].set_title(\"1段階 Otsu（暗い側）\")\nax[2].imshow(vein_raw[::8, ::8], cmap=\"gray\"); ax[2].set_title(\"2段階 Otsu（葉脈）\")\nfor a in ax[1:]:\n    a.set_axis_off()\nfig.tight_layout(); fig.savefig(FIG / \"otsu_two_step.png\", dpi=100)\n\n\n\n結果\n実行したときの出力です（明るさは 0〜255）。\n\n1段階の Otsu：\\(t = 172.0\\)。暗い側は ROI の 53.8%。\n2段階の Otsu：\n\n1回目 \\(t_1 = 172.0\\)。葉は ROI の 53.8%。\n2回目 \\(t_2 = 89.7\\)。少ない側は暗い側で、葉脈は葉の 25.2%。\n\n葉身の内側だけの ROI（約 1,500 × 3,000 px）：背景は見つからず1段階に戻り、暗い側の 21.8% が葉脈になりました。\n\n\n\n\n1段階と2段階の Otsu。左は明るさのヒストグラム（灰色は ROI 全体、緑は葉の画素だけ）。\n\n\n\n\n結果の読み方\nヒストグラムには3つの山があります。明るさ 245 付近の高い山が紙、120 付近が葉身、それより暗い長い裾が葉脈です。\n1段階の Otsu の閾値（172）は、紙と葉の間の谷に入ります。暗い側（53.8%）を mask にすると、中央の図のように葉身全体が選ばれます。以前、Export で葉身全体が mask になっていたのはこのためです。\n2段階目では、葉の画素だけ（緑のヒストグラム）で閾値を選び直します。\\(t_2 = 89.7\\) は、葉身の山の暗い側の裾に入り、右の図のように葉脈の網目だけが残ります。葉脈が葉の 25.2% という値は、葉身の内側だけを ROI にしたとき（21.8%）とも近く、同じ組を選べていると考えられます。\n\n\n注意点\n\n「葉脈は葉の中で少ない側」という前提は、葉脈密度が高い葉や、mask が太り気味のときに崩れることがあります。napari では状態表示に葉脈の割合を出し、45% を超えると注意を出します。\n背景の判定（縁につながる割合 80%）は経験的な値です。葉が ROI の縁に大きく接していると、紙が縁で分断されて判定が変わる可能性があります。\n透過光で撮った標本では葉脈が暗く写ります。反射光の生葉では逆になることがありますが、「少ない側」で決めているので向きの指定は不要です。",
     "crumbs": [
       "Home",
       "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
     ]
   },
   {
-    "objectID": "notebooks/workflow_overview.html#napari-への登録",
-    "href": "notebooks/workflow_overview.html#napari-への登録",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "napari への登録",
-    "text": "napari への登録\nnapari は src/leaf_vein_workflow/napari.yaml を読んで、このパッケージの widget を見つけます。\nこのファイルでは、leaf_vein_workflow._widget:CropWidget が widget として登録されています。つまり napari のメニューからプラグインを開くと、CropWidget クラスが作られます。",
+    "objectID": "notebooks/vein_order_algorithms.html#骨格と直径",
+    "href": "notebooks/vein_order_algorithms.html#骨格と直径",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
+    "section": "2. 骨格と直径",
+    "text": "2. 骨格と直径\n\n目的\n葉脈の長さと太さを測るために、mask から中心線（骨格）と各点の直径を求めます。\n\n\n方法\n骨格化（skeletonization）は、領域のつながり方を保ったまま外側から1画素ずつ削り、幅1画素の中心線にする処理です。 実装には、Pythonで scikit-image の skeletonize 関数を使用します。\n直径は、ユークリッド距離変換（Euclidean distance transform, EDT）で求めます。 EDT は、mask の中の各画素に「いちばん近い背景画素までの距離」を入れた画像です。 中心線の上では、この距離が葉脈の半径にあたるので、直径は次の式で求めます。\n\\[\nd(p) = 2\\,\\mathrm{EDT}_M(p)\n\\]\n以前は medial_axis の距離を使っていましたが、定義は同じで EDT の方が速いので置き換えました。\n骨格はグラフとして扱います。 骨格の画素を頂点とし、8近傍で隣り合う画素どうしを辺で結びます。 実装には、Python で skan の Skeleton 関数を使用します。\n辺の長さ \\(\\ell\\) は、縦横の隣なら 1、斜めの隣なら \\(\\sqrt2\\) です。\n\n\nコード\nmask の後片付けは、napari の Clean Mask の推奨値（100 px 以下の小片を除去、50 px 以下の穴を埋める）と同じにしています。\n\nvein = remove_small_holes(remove_small_objects(vein_raw, 100), 50)\nfrom leaf_vein_workflow.auto_order import _VeinGraph  # 説明のため内部の関数を使う\nfrom leaf_vein_workflow.skeleton import drop_isolated_pixels\nfrom skimage.morphology import skeletonize\n\nskeleton = drop_isolated_pixels(skeletonize(vein).astype(np.uint8)).astype(bool)\ndiameter = 2.0 * ndimage.distance_transform_edt(vein)\ngraph = _VeinGraph(skeleton, diameter)\nprint(f\"mask = ROI の {vein.mean():.1%}, 骨格 = {skeleton.sum():,} px, 頂点 = {graph.n:,}\")\nvalues, counts = np.unique(np.round(graph.diameter[graph.diameter &lt; 10], 1), return_counts=True)\nprint(\"骨格上の直径（10 px 未満）に現れる値:\", values[:12].tolist())\n\n\n\n結果\n\nmask（Clean Mask の推奨値で後片付けした後）は ROI の 13.3%。\n骨格は 486,213 px で、そのまま 486,213 個の頂点になりました。\n骨格上の直径に現れる値（10 px 未満）は 2.0, 2.8, 4.0, 4.5, 5.7, 6.0, 6.3, 7.2, 8.0, … と飛び飛びでした。\n\n\n\n結果の読み方\n直径が飛び飛びの値になるのは、EDT が画素の中心どうしの距離（\\(\\sqrt{a^2+b^2}\\) の形の値）しか取らないためです。たとえば 4.0 と 4.5 の間の値は出ません。\n3200 dpi では 1 px が約 7.9 µm なので、4 px の脈は約 32 µm、6 px は約 48 µm です。細い脈の太さは、この刻みの粗さの範囲でしか区別できません。\n\n\n注意点\n\n直径は画素の格子の上で測るので、細い脈ほど相対誤差が大きくなります。3200 dpi で 4 px（約 32 µm）の脈では、1 px の違いが 25% にあたります。1200 dpi では 2次脈でも数 px になり、太さの比較が難しくなります。\n分岐点では、2本の脈が重なって EDT が大きくなります（分岐点の太り）。このため、太さは分岐点から離れた所で測ります（4.2 節）。",
     "crumbs": [
       "Home",
       "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
     ]
   },
   {
-    "objectID": "notebooks/workflow_overview.html#cropwidget-の初期化",
-    "href": "notebooks/workflow_overview.html#cropwidget-の初期化",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "CropWidget の初期化",
-    "text": "CropWidget の初期化\nCropWidget は、napari に渡す 1 つの dock widget です。実際のクラスは widgets/crop_widget.py にあり、_widget.py は従来と同じ import 先を保つためにそれを再公開します。\n作られた直後に、主に次の準備をします。\n\nnapari viewer を self.viewer に保存する。\ncontrols.py でボタン、入力欄、ステータス表示を作る。\nlayers.py で ROI、crop、smoothed image、mask、order labels の対応関係を管理する。\nROI、mask、order labels の各担当に、共有する controls とレイヤー管理を明示的に渡す。\ncrop_widget.py でボタンや Qt signal を各担当の処理へ接続する。\n新しく追加された画像と、すでに開かれている画像の両方を ROI 担当に渡す。\n\nCropWidget の add_roi()、apply_gaussian_filter()、use_otsu_threshold()、clean_mask()、create_order_labels() は、既存コードやテストから同じ名前で呼べます。ただし実処理は対応する工程モジュールへ委譲されます。これにより、画面は 1 つのままでも、修正時に読む範囲を絞れます。",
+    "objectID": "notebooks/vein_order_algorithms.html#長さと-vla",
+    "href": "notebooks/vein_order_algorithms.html#長さと-vla",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
+    "section": "3. 長さと VLA",
+    "text": "3. 長さと VLA\n\n目的\n次数ごとの葉脈の総延長 \\(L_k\\) と、VLA（vein length per area、葉面積あたりの葉脈長）を求めます。\n\n\n方法\n次数 \\(k\\) のラベルが付いた領域を骨格化し、その骨格を枝（分岐点や端点で区切った区間）に分けます。それぞれの枝の長さは、隣り合う画素の間の距離の合計です。\n\\[\nL_k = s \\sum_{\\text{枝 } b} \\;\\sum_{(u,v) \\in b} \\ell(u,v) \\quad [\\text{mm}],\n\\qquad\n\\mathrm{VLA}_k = \\frac{L_k}{A} \\quad [\\text{mm mm}^{-2}]\n\\]\n\\(A\\) は標本にする前の生葉のスキャンで測った葉面積（mm²）です。1次+2次や major（1〜3次）の行は、次数ごとの \\(L_k\\) の和にしています。次数をまとめた領域を骨格化し直すと、次数の境目で骨格が近道をして、major が primary より短くなることがあったためです。\n\n\nコード\n斜めの線を引いて、この長さの測り方の誤差を確かめます。\n\nfrom skimage.draw import line\nfrom skan import Skeleton\nfrom skan.csr import summarize\n\nangles = np.linspace(0, 45, 19)\nratios = []\nfor angle in angles:\n    length = 400\n    r1 = int(round(10 + length * np.sin(np.radians(angle))))\n    c1 = int(round(10 + length * np.cos(np.radians(angle))))\n    img = np.zeros((450, 450), np.uint8)\n    rr, cc = line(10, 10, r1, c1)\n    img[rr, cc] = 1\n    measured = summarize(Skeleton(img), separator=\"-\")[\"branch-distance\"].sum()\n    ratios.append(measured / np.hypot(r1 - 10, c1 - 10))\nratios = np.array(ratios)\nprint(\"測った長さ / 本当の長さ: 最小\", ratios.min().round(3), \"最大\", ratios.max().round(3),\n      \"（最大は\", angles[ratios.argmax()], \"度）\")\nfig, ax = plt.subplots(figsize=(5, 3.2))\nax.plot(angles, ratios, \"o-\", c=\"0.3\")\nax.axhline(1, c=\"k\", lw=0.8)\nax.set_xlabel(\"線の角度（度）\"); ax.set_ylabel(\"測った長さ / 本当の長さ\")\nfig.tight_layout(); fig.savefig(FIG / \"chain_length_bias.png\", dpi=100)\n\n\n\n結果\n測った長さ / 本当の長さは、0° と 45° で 1.000、最大は 22.5° のとき 1.082 でした。\n\n\n\n直線を画素の鎖で測ったときの長さの比\n\n\n\n\n結果の読み方\n画素の鎖で長さを測ると、線の向きによって最大で約 8% 長く出ます。0°（縦横）と 45°（斜め）では1歩の長さ（1 と \\(\\sqrt2\\)）が線の向きと一致するので正確です。その中間の角度では、縦横と斜めの歩みを組み合わせたジグザグになり、まっすぐな線より長くなります。\nこの偏りは向きだけで決まり、葉脈の太さや次数には依存しません。\n\n\n注意点\n\n葉脈は曲がりながら走るので、実際の偏りは角度ごとの偏りの平均になります。種や次数の比較では同じ測り方なので偏りはほぼ打ち消し合いますが、ほかの方法で測った文献値と絶対値を比べるときは注意が必要です。\n骨格には、縁のでこぼこから出る短いひげ（spur）が含まれ、長さを少し過大にします。以前の試算では、10 px 以下のひげが総延長の約 10% でした。ひげの除去はまだ入れていません。",
     "crumbs": [
       "Home",
       "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
     ]
   },
   {
-    "objectID": "notebooks/workflow_overview.html#画像が追加されたとき",
-    "href": "notebooks/workflow_overview.html#画像が追加されたとき",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "画像が追加されたとき",
-    "text": "画像が追加されたとき\n画像レイヤーが追加されると、crop_widget.py がその event を roi.py の画像準備処理へ渡します。\nROI 担当は、次の確認をします。\n\n追加されたレイヤーが napari の Image レイヤーか。\nその画像が、プラグイン自身が作った crop レイヤーではないか。\nすでに ROI レイヤーと結びついている画像ではないか。\n\nこの確認を通った画像だけに、ROI 用の Shapes レイヤーを作ります。\nROI レイヤーには、metadata として次の情報が入ります。\n\n\n\n\n\n\n\nmetadata\n意味\n\n\n\n\nleaf_vein_workflow_role = roi_shapes\nこの Shapes レイヤーは ROI 用である\n\n\nsource_image = 元画像名\nどの画像から作られた ROI か\n\n\n\nさらに、layers.py のレイヤー管理が、ROI レイヤーと元画像レイヤーの対応を保存します。各工程が個別の対応表を持たないため、派生レイヤーを探す規則や削除する順序を 1 箇所で確認できます。",
+    "objectID": "notebooks/vein_order_algorithms.html#次脈2次脈の自動振り分け",
+    "href": "notebooks/vein_order_algorithms.html#次脈2次脈の自動振り分け",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
+    "section": "4. 1次脈・2次脈の自動振り分け",
+    "text": "4. 1次脈・2次脈の自動振り分け\n\n全体の考え方\n次数の決め方は Manual of Leaf Architecture（Ellis et al., 2009）に従います。要点は次の4つです。\n\n次数は太さ（gauge）と走り方（course）の両方で決める。\n次数は、その脈が最も太い所（付け根に近い所）で判断する。\n親とほぼ同じ太さで分かれる脈は、親と同じ次数。\n3次脈は、1次脈・2次脈どうしをつなぐ脈で、網目を作る。\n\nユーザーが与えるのは、葉の基部と1次脈の先端の2点だけです。\n\n\n4.1 1次脈：太い所を通る最短経路\n\n方法\n骨格のグラフの各辺に、次のコストを付けます。\n\\[\nw(u,v) = \\frac{\\ell(u,v)}{\\max\\!\\Bigl(1,\\ \\tfrac{d(u)+d(v)}{2}\\Bigr)^{2}}\n\\]\n基部から先端まで、コストの合計が最小になる経路を Dijkstra 法（重み付きグラフの最短経路を求める標準的な方法）で求め、1次脈とします。\nコストが長さを直径の2乗で割った形なので、太い脈の上は「安く」、細い脈の上は「高く」なります。たとえば直径 80 px の主脈を 1 px 進むコストは \\(1/6400\\) で、直径 5 px の細い脈を 1 px 進むコスト \\(1/25\\) の 256 分の1です。そのため経路は、多少遠回りでも主脈から外れません。2乗という指数は経験的に選んだ値で、大きくするほど太い脈を強く好みます。\nクリックした点は、近く（半径 0.6 mm）の骨格のうち、そこでの最大直径の半分以上の太さがある画素のうち最も近いものに合わせます。「最も太い画素」に合わせると、先端のクリックが上流の分岐点（分岐点の太りで太く見える）へ飛んでしまうためです。\n\n\n\n4.2 1次脈のまわりの座標\n2次脈を探す前に、骨格の各頂点について、1次脈との位置関係を3つの量で表します。\n\n縁からの距離 \\(o(v)\\)：1次脈の中心線までの距離から、そこでの1次脈の半径を引いた値。1次脈の外側の縁から何 px 離れているかを表します。1次脈の半径には、直径を経路に沿って中央値フィルタ（窓 101 点）でならした値の半分を使います。分岐点の太りの影響を避けるためです。\n位置：最も近い1次脈の点が、基部から何番目か。\n側：1次脈の進む向き \\(\\mathbf t\\) と、1次脈から頂点への向き \\(\\mathbf r\\) の外積の符号 \\(\\operatorname{sign}(t_r r_c - t_c r_r)\\)。画像の上下ではなくこの符号で左右を決めるので、葉の向きに左右されません。\n\n\n\n4.3 2次脈の候補：付け根の太さ\n\n方法\n1次脈の縁のすぐ外側に輪を置きます。\n\\[\nR = \\{\\, v \\mid 0.05\\ \\text{mm} &lt; o(v)\\, s \\le 0.37\\ \\text{mm} \\,\\}\n\\]\n輪の中の骨格を連結成分に分けると、1つの成分が「1次脈から出ていく1本の枝」になります。枝の付け根の太さ \\(g\\) は、その成分の直径の中央値です。輪を縁から少し離しているのは、分岐点の太りを避けるためです。Ellis の「次数は付け根の最も太い所で判断する」に対応します。\n枝 \\(i\\) を2次脈の候補とする条件は、次のとおりです。\n\\[\ng_i \\;\\ge\\; \\max\\!\\Bigl(g_{\\min},\\; 0.7 \\max_{j \\in N(i)} g_j\\Bigr)\n\\]\n\\(N(i)\\) は、同じ側で1次脈に沿って ±1.75 mm 以内にある枝の集合、\\(g_{\\min}\\) は 0.048 mm（3200 dpi で 6 px）です。つまり「近くで最も太い枝の 7 割以上」なら候補にします。1次脈の両端（直径の2倍以内）から出る枝は、葉柄や先端なので除きます。\n固定の境目を使わない理由は、次の結果で示します。\n\n\nコード\n\nfrom leaf_vein_workflow.auto_order import AutoOrderParams, _PrimaryGeometry, _secondary_origins\n\npx = lambda mm: mm / MM_PER_PX  # noqa: E731\nparams = AutoOrderParams()\nprimary = graph.cheapest_path(graph.snap(BASE, px(0.6)), graph.snap(APEX, px(0.6)))\ngeometry = _PrimaryGeometry(graph, primary, skeleton.shape)\nprint(f\"1次脈: {graph.length(primary):.0f} px = {graph.length(primary) * MM_PER_PX:.1f} mm\")\npd = geometry.primary_diameter\nprint(f\"1次脈の直径: 基部 {pd[:200].mean():.0f} px, 中央 {pd[len(pd)//2]:.0f} px, \"\n      f\"先端 {pd[-200:].mean():.0f} px\")\n\n# 輪を横切るすべての枝（候補を選ぶ前）\nin_ring = (geometry.node_offset &gt; px(params.ring_inner_mm)) & (\n    geometry.node_offset &lt;= px(params.ring_outer_mm))\nring_img = np.zeros(skeleton.shape, bool)\nring_img[graph.rows[in_ring], graph.cols[in_ring]] = True\ncomp, n = ndimage.label(ring_img, structure=np.ones((3, 3)))\nnode_comp = comp[graph.rows, graph.cols]\ncrossings = []\nfor k in range(1, n + 1):\n    nodes = np.flatnonzero(node_comp == k)\n    if nodes.size &gt;= 0.6 * (px(params.ring_outer_mm) - px(params.ring_inner_mm)):\n        crossings.append((np.median(graph.diameter[nodes]),\n                          np.median(geometry.node_position[nodes]) / len(primary)))\ncrossings = np.array(crossings)\nchosen = _secondary_origins(graph, geometry, params, px)\nfrom skimage.filters import threshold_otsu\notsu_split = np.exp(threshold_otsu(np.log(crossings[:, 0])))\nprint(f\"輪を横切る枝: {len(crossings)} 本, 2次脈の候補: {len(chosen)} 本\")\nprint(f\"太さに Otsu をかけた境目: {otsu_split:.1f} px, 10 px 以上: {(crossings[:, 0] &gt;= 10).sum()} 本\")\n\nfig, ax = plt.subplots(1, 2, figsize=(12, 3.8))\nbins = np.logspace(np.log10(1.8), np.log10(crossings[:, 0].max() * 1.1), 30)\nax[0].hist(crossings[:, 0], bins=bins, color=\"0.5\")\nax[0].axvline(otsu_split, c=\"k\", ls=\"--\", label=f\"Otsu の境目 {otsu_split:.1f} px\")\nax[0].set_xscale(\"log\"); ax[0].set_xlabel(\"付け根の太さ g [px]\"); ax[0].set_ylabel(\"枝の数\")\nax[0].legend(frameon=False)\nchosen_pos = np.array([o.position / len(primary) for o in chosen])\nchosen_g = np.array([o.gauge for o in chosen])\nax[1].scatter(crossings[:, 1], crossings[:, 0], s=10, c=\"0.6\", label=\"輪を横切る枝\")\nax[1].scatter(chosen_pos, chosen_g, s=22, c=\"#005aff\", label=\"2次脈の候補\")\nax[1].plot(np.linspace(0, 1, len(pd)), pd, c=\"#ff4b00\", label=\"1次脈の直径\")\nax[1].set_yscale(\"log\"); ax[1].set_xlabel(\"1次脈に沿った位置（0 = 基部, 1 = 先端）\")\nax[1].set_ylabel(\"直径 [px]\"); ax[1].legend(frameon=False, fontsize=8)\nfig.tight_layout(); fig.savefig(FIG / \"secondary_gauge.png\", dpi=100)\n\n\n\n結果\n\n1次脈の経路は 7,435 px（59.0 mm）でした。直径は基部 124 px、中央 73 px、先端 24 px で、先端に向かって細くなっています。\n1次脈の縁の外の輪を横切る枝は 252 本ありました。\n付け根の太さに Otsu をかけると、境目は 6.7 px になりました。\n10 px 以上の枝は 24 本で、これは目で数えた2次脈の本数（両側で約 25 本）とほぼ一致します。\n「近くで最も太い枝の 7 割以上」の条件では、51 本が2次脈の候補になりました。\n\n\n\n\n左：輪を横切る枝の付け根の太さ。右：1次脈に沿った位置と太さ。\n\n\n\n\n結果の読み方\n左の図のように、付け根の太さの分布は「二つの山」ではなく、4〜6 px の大きな山と、10 px 以上の長い裾の形でした。4〜6 px の山は、1次脈から直接出る3次脈や、さらに細い脈です。10 px 以上の裾が2次脈です。\nOtsu は二つの山を仮定する方法なので、この分布では 6.7 px という、3次脈の山の中の誤った所で切ってしまいます。\n右の図では、2次脈の候補（青）の太さが、1次脈と同じように先端に向かって下がっています。基部近くの2次脈は 20〜40 px ありますが、先端近くでは 7〜12 px です。そのため、固定の境目を一つ決めると、基部の3次脈と先端の2次脈を取り違えます。\n「近くで最も太い枝との比」で選ぶと、場所ごとの太さの違いが打ち消されます。代わりに候補は 51 本と多めになり、3次脈も混ざります。それを 4.5 節の走り方の条件で落とします。\n\n\n\n4.4 2次脈の走り方：葉縁まで追跡し、太さが急に落ちたら切る\n\n方法\n各候補について、輪の外側の端から、同じ側の葉縁の帯（葉の輪郭から 0.2 mm 以内）まで、4.1 節と同じコストで最短経路を求めます。1次脈の内側（\\(o(v) \\le 2\\) px）は通れないようにします。葉の輪郭には、1節の2段階 Otsu で得た「葉」の領域を、穴を埋めてから使います。葉身の中の明るい点が輪郭の穴として残ると、その周りも葉縁の帯とみなされ、追跡が葉の途中で止まってしまうためです（4.7 節）。\n経路がそのまま葉縁まで行くとは限りません。2次脈が縁の手前でループする葉では、細い脈を通って葉縁へ向かうことがあります。そこで、経路に沿った直径の列 \\(d_1, d_2, \\dots\\) を見て、太さが急に落ちた所で切ります。窓の長さを \\(w = \\max(5,\\ 2g)\\) として、\n\\[\n\\operatorname{median}(d_{i}, \\dots, d_{i+w-1}) \\;&lt;\\; 0.55 \\times \\operatorname{median}(d_{i-w}, \\dots, d_{i-1})\n\\]\nとなる最初の \\(i\\) で経路を切ります。2次脈は鋸歯に向かってゆっくり細くなるので、隣り合う窓どうしの比ではこの条件に当たりません。細い脈へ寄り道したときだけ、太さが急に半分近くまで落ちます。Ellis の「ほぼ同じ太さで続く脈は同じ次数」に対応します。\n切られずに葉縁の帯まで届いた経路は、帯の中を長さ 0.4 mm 以内で、最も外側の点まで延ばします。延長の長さを制限しているのは、帯が葉縁の脈（marginal vein）で葉の周り全体につながっていて、制限しないと葉縁に沿って隣の鋸歯まで進んでしまったためです。\n\n\n\n4.5 3次脈の除外：太い2次脈に合流する候補\n\n方法\n1次脈から直接出る3次脈（Ellis の epimedial tertiary）は、付け根の太さだけでは2次脈と区別しきれないことがあります。ただし走り方が違い、少し進むと隣の2次脈に合流します。そこで、次の手順で候補を絞ります。\n\n候補を付け根の太さ \\(g\\) の大きい順に並べる。\n順に見て、経路のうち「すでに採用した2次脈から 3 px 以内」にある点の割合 \\(f\\) を求める。\n\\(f &gt; 0.5\\) なら、太い2次脈に合流する3次脈（または同じ2次脈が輪を2回横切ったもの）として外す。そうでなければ2次脈として採用する。\n\n太い順に見るので、合流先の2次脈が先に採用され、合流する側の細い脈が後で外れます。\n\n\n\n4.6 ラベルを mask 全体に広げる\n\n方法\nここまでで決まるのは骨格（中心線）の上の次数です。これを mask の画素に広げます。\n\n骨格の画素はすべて 4（不確定）にし、mask の各画素に最も近い骨格画素のラベルを付ける（EDT の最近傍の添字を使う）。\n1次脈・2次脈の経路の各点 \\(v\\) から半径 \\(d(v)/2 + 1\\) px 以内の mask の画素を、その次数の本体として塗る。2次脈を先に、1次脈を後に塗り、重なりは1次脈を優先する。\n\n手順2が必要なのは、太い1次脈の中に、縁のでこぼこから出た小さな骨格の枝がたくさんあるためです。手順1だけでは、1次脈の画素の多くがその小さな枝（ラベル 4）に割り当てられ、1次脈が細いジグザグの線になりました。\nnapari では、この結果を現在 4（不確定）の画素だけに書き込みます。手で塗った所は上書きしません。\n\n\n\n4.7 実行結果\n\nコード\n\nstart = time.perf_counter()\n# 3次脈の推定は 4.9 節で扱うので、ここでは 1次・2次までにする\nresult = auto_assign_orders(\n    vein, BASE, APEX, leaf_mask=leaf, mm_per_pixel=MM_PER_PX,\n    params=AutoOrderParams(assign_tertiary=False),\n)\nelapsed = time.perf_counter() - start\nsummary = result.summary()\nprint(f\"{elapsed:.0f} 秒, 2次脈 {summary['n_secondary']} 本, \"\n      f\"合流して外した候補 {summary['n_rejected_merging_into_thicker']} 本\")\n\nrows = measure_order_labels(result.labels, pixel_size_mm=MM_PER_PX)\nfor row in rows:\n    if row[\"label_name\"] in (\"primary\", \"secondary\", \"uncertain\", \"primary_secondary\"):\n        print(f\"{row['label_name']:18s} {row['length_mm']:8.1f} mm\")\n\ns4 = 4\nbase = crop[::s4, ::s4] / 255.0  # to_grayscale は元の 0〜255 のまま返す\nrgb = np.stack([base] * 3, -1) * 0.85 + 0.15\nfor value, color, alpha in ((4, (0.6, 0, 0.6), 0.35), (2, (0, 0.35, 1), 0.9), (1, (1, 0.29, 0), 0.9)):\n    m = result.labels[::s4, ::s4] == value\n    rgb[m] = (1 - alpha) * rgb[m] + alpha * np.array(color)\nplt.imsave(FIG / \"auto_order_result.png\", np.clip(rgb, 0, 1))\n\n\n\n結果\n\n実行時間は約 60 秒でした（ノート PC、骨格の頂点 約 49 万）。\n2次脈として採用したのは 31 本、太い2次脈に合流するとして外した候補は 20 本でした。\nラベル領域から測った長さ（3節の方法）は次のとおりです。\n\n\n\n\nラベル\n長さ\n\n\n\n\n1次脈\n77.2 mm\n\n\n2次脈\n386.2 mm\n\n\n1次+2次\n463.4 mm\n\n\n不確定（手で塗る）\n3,857.0 mm\n\n\n\n\n\n\n自動振り分けの結果。赤 = 1次脈、青 = 2次脈、紫 = 不確定（手で塗る）。\n\n\n\n\n結果の読み方\n図では、2次脈（青）が中央脈から鋸歯まで、両側ともほぼすべて塗られています。先端近くの小さな2次脈も取れています。1次脈から直接出て隣の2次脈に合流する3次脈は、紫（不確定）のまま残っています。\n目で見て誤っている所は、次の3つです。\n\n葉の基部付近（右端）：上側の最も基部寄りの太い2次脈が取れていません。下側にも短い誤りがあります。\n黒い斑点：上側中央の黒い斑点の所で、2次脈に塊が付いています。斑点が葉脈より暗く、mask に入っているためです。\n葉の輪郭の穴：最初の実行では、葉の輪郭に1節の葉の領域をそのまま使ったため、2次脈が 35 本と多く出た一方で、基部側の太い2次脈がいくつか取れませんでした。葉身の中の明るい点が輪郭の「穴」になり、その周りが葉縁の帯とみなされて、追跡が途中で止まったためです。輪郭の穴を埋めてから使うように直し、この図の結果（31 本）になりました。\n\n1次脈の長さが 77.2 mm と、経路の長さ（59.0 mm）より 3 割ほど長く出ています。原因は次の 4.8 節で調べます。\n\n\n\n4.8 塗った領域から測る長さと、たどった経路の長さのずれ\n\n目的\n4.7 節で、1次脈のラベル領域から測った長さ（3節の方法）が、自動でたどった1次脈の経路の長さより長く出ました。VLA1 に直接効くので、原因を確かめます。\n\n\n方法\n1次脈のラベル領域を骨格化し、skan で枝に分けます。skan の枝の種類（branch type）のうち、「分岐点から端点まで」（type 1）の短い枝は、領域の縁のでこぼこから出たひげ（spur）です。その長さの合計を、経路の長さと比べます。\n\n\nコード\n\nfrom skan import Skeleton as SkanSkeleton\nfrom skan.csr import summarize as skan_summarize\n\nprimary_region = result.labels == 1\ntable = skan_summarize(SkanSkeleton(skeletonize(primary_region)), separator=\"-\")\ntotal = table[\"branch-distance\"].sum()\npath_px = graph.length(primary)\nspur = table[(table[\"branch-type\"] == 1) & (table[\"branch-distance\"] &lt; 150)]\nprint(f\"経路の長さ          {path_px * MM_PER_PX:6.1f} mm\")\nprint(f\"領域の骨格の長さ    {total * MM_PER_PX:6.1f} mm（枝 {len(table)} 本）\")\nprint(f\"うち 150 px 未満のひげ {spur['branch-distance'].sum() * MM_PER_PX:6.1f} mm（{len(spur)} 本）\")\nprint(f\"ひげを除いた長さ    {(total - spur['branch-distance'].sum()) * MM_PER_PX:6.1f} mm\")\n\n\n\n結果\n\n\n\n測り方\n長さ\n\n\n\n\nたどった経路\n59.0 mm\n\n\nラベル領域の骨格（枝 151 本）\n77.2 mm\n\n\nうち 150 px 未満のひげ（77 本）\n17.6 mm\n\n\nひげを除いた骨格\n59.6 mm\n\n\n\n\n\n結果の読み方\nラベル領域の骨格には、77 本のひげが合わせて 17.6 mm 含まれていました。これを除くと 59.6 mm になり、たどった経路の長さ（59.0 mm）とほぼ一致します。つまり、長さのずれのほぼすべてがひげです。\nひげが多いのは、1次脈の領域が太い（直径 24〜124 px）うえに、2次脈や3次脈が付いていた所で縁がでこぼこしているためです。骨格化はそのでこぼこの一つ一つに短い枝を出します。\nこれは自動振り分けだけの問題ではありません。 手で塗ったラベルも同じ方法で測るので、太い脈ほど長さが過大になります。今の実装では、VLA1 が約 3 割過大に出ている可能性があります。2次脈の長さも、程度は小さいものの同じ影響を受けていると考えられます。\n対策の候補は2つあります。\n\n骨格のひげを、局所の直径より短い端の枝として除いてから長さを測る。\n自動振り分けを使った場合は、たどった経路の長さをそのまま使う。\n\nどちらにするかは、手で塗った正解との比較で決めるのがよいと考えています。\n\n\n\n4.9 残りの脈を太さで3次脈と細い脈に分ける\n\n目的\n1次脈・2次脈を決めた後、残りの脈の大部分は手で塗ることになります。 その手間を減らすため、残りの脈のうち3次脈らしいものを先に 3 にしておきます。\nただし、残りの脈をすべて 3 にはしません。 3200 dpi の mask には、3次脈より細い脈（4次以上の細かい網目）も入っています。 4.7 節の結果では、残りの脈 3,857 mm に対して1次+2次は 463 mm で、残りの大半は細い脈です。 すべて 3 にすると、細い脈が VLA3 と VLA_major に入ってしまいます。\n\n\n方法\nEllis の定義では、3次脈は「網目を作る脈のうち最も太いもの」で、2次脈より細い脈です。 そこで、太さに上と下の境目を置きます。\n骨格を分岐点・端点で区切った区間 \\(b\\) ごとに、太さ \\(g_b\\) と長さ \\(\\ell_b\\) を求めます。 \\(g_b\\) は区間の直径の中央値で、両端から「端の半径 + 2 px」以内の点は除きます（分岐点の太りを避けるため）。 1次脈・2次脈に半分以上重なる区間は対象にしません。\n区間 \\(b\\) を3次脈とする条件は、次のとおりです。\n\\[\nc \\;\\le\\; g_b \\;&lt;\\; \\operatorname{median}\\{\\, d(v) \\mid v \\in \\text{2次脈} \\,\\}\n\\]\n\n上の境目：2次脈の骨格上の直径の中央値です。これより太い区間は3次脈ではありません。葉柄や、黒い斑点の塊がここで外れます。\n下の境目 \\(c\\)：残りの区間の \\(\\log g_b\\) に、長さ \\(\\ell_b\\) で重みを付けた Otsu をかけて決めます（120 階級のヒストグラム）。長さで重みを付けるのは、短い区間がたくさんあっても、長さとしての割合で分けたいためです。設定ファイルの auto_order.tertiary_min_gauge_mm で固定もできます。\n1次脈の両端：最も近い1次脈の点が基部または先端そのものである区間（葉柄や先端の付近）は判定せず、不確定のままにします。\n\n3 と判定した区間は、4.6 節の手順1で骨格から mask の画素へ広げます。 その後に2次脈・1次脈の本体を上から塗るので、1次・2次の判定は変わりません。\n\n\nコード\n既定の設定（3次脈の推定あり）で振り分け、下の境目を変えると3次脈の長さがどう変わるかも確かめます。\n\nresult3 = auto_assign_orders(vein, BASE, APEX, leaf_mask=leaf, mm_per_pixel=MM_PER_PX)\nlow, high = result3.tertiary_gauge_range_px\nprint(f\"3次脈とした太さ: {low:.1f}〜{high:.1f} px \"\n      f\"（{low * MM_PER_PX * 1000:.0f}〜{high * MM_PER_PX * 1000:.0f} µm）\")\nfor row in measure_order_labels(result3.labels, pixel_size_mm=MM_PER_PX):\n    if row[\"label_name\"] in (\"primary\", \"secondary\", \"tertiary\", \"uncertain\", \"major\"):\n        print(f\"{row['label_name']:10s} {row['length_mm']:8.1f} mm\")\n\n# 下の境目を変えたときの3次脈の長さ（区間の太さと長さから直接数える）\ntaken = np.isin(result.labels[graph.rows, graph.cols], (1, 2))\nseg_g, seg_l = [], []\nfor seg in graph.segments:\n    if taken[seg].mean() &gt; 0.5:\n        continue\n    rr, cc, d = graph.rows[seg], graph.cols[seg], graph.diameter[seg]\n    middle = (np.hypot(rr - rr[0], cc - cc[0]) &gt; d[0] / 2 + 2) & (\n        np.hypot(rr - rr[-1], cc - cc[-1]) &gt; d[-1] / 2 + 2)\n    seg_g.append(np.median(d[middle] if middle.sum() &gt;= 3 else d))\n    seg_l.append(graph.length(seg))\nseg_g, seg_l = np.array(seg_g), np.array(seg_l)\nfor cut in (5.0, 5.5, low, 7.0, 8.0):\n    in_range = (seg_g &gt;= cut) & (seg_g &lt; high)\n    print(f\"下の境目 {cut:4.1f} px → 3次脈 {seg_l[in_range].sum() * MM_PER_PX:6.0f} mm\")\n\nfig, ax = plt.subplots(figsize=(6.5, 3.6))\nedges = np.logspace(np.log10(1.8), np.log10(seg_g.max() * 1.1), 80)\nax.hist(seg_g, bins=edges, weights=seg_l * MM_PER_PX, color=\"0.5\")\nax.axvline(low, c=\"#03af7a\", ls=\"--\", label=f\"下の境目 {low:.1f} px\")\nax.axvline(high, c=\"#005aff\", ls=\"--\", label=f\"上の境目（2次脈の中央値）{high:.1f} px\")\nax.set_xscale(\"log\"); ax.set_xlabel(\"区間の太さ g [px]\"); ax.set_ylabel(\"長さ [mm]\")\nax.legend(frameon=False, fontsize=8)\nfig.tight_layout(); fig.savefig(FIG / \"tertiary_gauge.png\", dpi=100)\n\ncolors = ((4, (0.6, 0, 0.6), 0.45), (3, (0.01, 0.69, 0.48), 0.9),\n          (2, (0, 0.35, 1), 0.9), (1, (1, 0.29, 0), 0.9))\nfor region, step, name in (((slice(None), slice(None)), 4, \"tertiary_result.png\"),\n                           ((slice(1300, 2600), slice(2600, 5600)), 2, \"tertiary_zoom.png\")):\n    b = crop[region][::step, ::step] / 255.0\n    rgb = np.stack([b] * 3, -1) * 0.85 + 0.15\n    sub = result3.labels[region][::step, ::step]\n    for value, color, alpha in colors:\n        m = sub == value\n        rgb[m] = (1 - alpha) * rgb[m] + alpha * np.array(color)\n    plt.imsave(FIG / name, np.clip(rgb, 0, 1))\n\n\n\n結果\n\n3次脈とした太さの範囲は 6.4〜22.4 px（51〜177 µm）でした。上の境目 22.4 px は2次脈の骨格上の直径の中央値です。\nラベル領域から測った長さは次のとおりです（3節の方法）。\n\n\n\n\nラベル\n長さ\n\n\n\n\n1次脈\n77.2 mm\n\n\n2次脈\n386.2 mm\n\n\n3次脈\n1,328.9 mm\n\n\nmajor（1〜3次）\n1,792.3 mm\n\n\n不確定\n2,628.8 mm\n\n\n\n\n下の境目を変えたときの3次脈の長さ（区間の太さと長さから直接数えた値）は次のとおりです。\n\n\n\n\n下の境目\n3次脈の長さ\n\n\n\n\n5.0 px（40 µm）\n2,073 mm\n\n\n5.5 px（44 µm）\n2,021 mm\n\n\n6.4 px（51 µm、自動）\n1,275 mm\n\n\n7.0 px（56 µm）\n1,252 mm\n\n\n8.0 px（64 µm）\n992 mm\n\n\n\n\n\n\n残りの区間の太さの分布（長さで重み付け）と、3次脈とした範囲\n\n\n\n\n\n3次脈の推定まで入れた結果。赤 = 1次脈、青 = 2次脈、緑 = 3次脈、紫 = 不確定。\n\n\n\n\n\n中央付近の拡大\n\n\n\n\n結果の読み方\n拡大図では、緑（3次脈）の多くが、隣り合う2次脈の間をはしご状につなぐ脈になっています。 コナラの3次脈は、このように2次脈どうしを横切る型（percurrent）なので、見た目には妥当な分け方です。 それより細かい網目は紫（不確定）に残りました。 葉柄と黒い斑点も、上の境目で外れて紫のままです。 葉の縁に沿った脈も緑になりました。 Ellis は、3次脈の太さを持つ縁の脈を fimbrial vein と呼んでいます。\n太さの分布（上の図）には谷がなく、飛び飛びの値に長さが集まっています（2節で見た EDT の刻みのため）。 自動の境目 6.4 px のすぐ下には、5.7・6.0・6.3 px の区間がまとまってあり、合わせて約 750 mm あります。 境目がこのかたまりの上に来るか下に来るかで、3次脈の長さが約 2,000 mm から約 1,300 mm に変わります。 表で 5.5 px と 6.4 px の間に大きな差があるのはこのためです。\n自動の境目での直接の数え方（1,275 mm）とラベル領域から測った値（1,328.9 mm）が少し違うのは、ラベル領域の長さに 4.8 節のひげが含まれるためと考えられます。\n\n\n注意点\n\n下の境目は不安定です。 太さの分布に谷がないので、ヒストグラムの区切り方を少し変えるだけで境目が動きます。試作の段階では同じ葉で 5.4 px になり、3次脈の長さは 2,083 mm でした。\n何枚か確かめたうえで、種ごとに auto_order.tertiary_min_gauge_mm を固定する方が、葉どうしの比較には安全です。使った範囲は Export のメタデータ（order_labels.auto_order.tertiary_gauge_range_px）に残ります。\n3次脈の判定は区間ごとの太さだけで、走り方（2次脈どうしをつなぐか）は使っていません。太めの細い脈が 3 に、細めの3次脈が不確定に入ることがあります。手で直す前提の「たたき台」です。\n\n\n\n\n自動振り分け全体の注意点\n\n確かめたのは、2次脈が鋸歯に入る型のコナラ1枚だけです。 2次脈が縁の手前でループする型（brochidodromous）や、基部から複数の1次脈が出る掌状の葉では、まだ確かめていません。掌状の葉では、Ellis の「最も太い1次脈の 75% 以上の太さの脈も1次脈」という規則を足す必要があります。\n定数の多くは、この1枚を見ながら決めた経験的な値です。\n\n太さを好む度合いの指数 2\n輪の位置（0.05〜0.37 mm）\n付け根の太さの比 0.7、窓 ±1.75 mm\n太さの落ち込みの比 0.55\n重なりの割合 0.5\n\n別の種や解像度では見直しが必要かもしれません。すべて AutoOrderParams で変えられ、使った値は Export のメタデータに残ります。\n評価はまだ目視だけです。 手で塗り分けた葉と比べ、\\(L_1\\)・\\(L_2\\)（と VLA）の誤差を数値で確かめるのが次の段階です。ピクセルの一致率より、論文で使う長さの誤差で評価する方が目的に合っています。",
     "crumbs": [
       "Home",
       "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
     ]
   },
   {
-    "objectID": "notebooks/workflow_overview.html#roi-が編集されたとき",
-    "href": "notebooks/workflow_overview.html#roi-が編集されたとき",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "ROI が編集されたとき",
-    "text": "ROI が編集されたとき\nユーザーが ROI を描いたり編集したりすると、roi.py の ROI 確認処理が呼ばれます。\nここで確認しているのは、主に次の 2 点です。\n\nROI が 1 つだけあるか。\nその ROI が長方形か。\n\nROI が 0 個、または 2 個以上ある場合は、ステータス表示で「長方形を 1 つだけ描いてください」と案内します。長方形以外の場合は、警告を出します。\nただし、この段階ではまだ画像を切り抜きません。ここでは「準備ができたか」を確認しているだけです。",
+    "objectID": "notebooks/vein_order_algorithms.html#パラメータ一覧",
+    "href": "notebooks/vein_order_algorithms.html#パラメータ一覧",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
+    "section": "パラメータ一覧",
+    "text": "パラメータ一覧\n\n\n\n\n\n\n\n\n\n名前\n既定値\n3200 dpi での画素数\n役割\n\n\n\n\nsnap_radius_mm\n0.6 mm\n76 px\nクリックを骨格に合わせる半径\n\n\nring_inner_mm / ring_outer_mm\n0.05 / 0.37 mm\n6 / 47 px\n付け根の太さを測る輪（1次脈の縁から）\n\n\nsecondary_window_mm\n1.75 mm\n220 px\n「近くの最も太い枝」を探す範囲\n\n\nsecondary_relative_gauge\n0.7\n—\n近くで最も太い枝に対する比\n\n\nsecondary_min_gauge_mm\n0.048 mm\n6 px\n2次脈の付け根の最小の太さ\n\n\nmargin_band_mm\n0.2 mm\n25 px\n葉縁の帯の幅\n\n\ncontinue_gauge_ratio\n0.55\n—\n太さの急な落ち込みとみなす比\n\n\nmax_shared_with_thicker\n0.5\n—\n太い2次脈と重なる割合の上限\n\n\nassign_tertiary\ntrue\n—\n残りの脈を太さで3次脈と不確定に分けるか\n\n\ntertiary_min_gauge_mm\nnull（自動）\n—\n3次脈の下の境目。null なら長さで重み付けした Otsu で決める\n\n\n\n距離はすべて mm で持ち、校正値で画素に直します。解像度が変わっても、同じ物理的な大きさで判定します。\n葉の輪郭は、2段階 Otsu の1回目で得た葉の領域の穴を埋めて使います（4.7 節の3）。輪郭が渡されないときは、葉脈の網目を閉じて穴を埋めたものを代わりに使います。",
     "crumbs": [
       "Home",
       "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
     ]
   },
   {
-    "objectID": "notebooks/workflow_overview.html#add-roi-を押したとき",
-    "href": "notebooks/workflow_overview.html#add-roi-を押したとき",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "Add ROI を押したとき",
-    "text": "Add ROI を押したとき\nAdd ROI ボタンを押すと、公開メソッド CropWidget.add_roi() が roi.py の切り抜き処理へ委譲します。\nROI 担当は、まず次の順番でチェックします。\n\n現在選択されているレイヤーが ROI 用 Shapes レイヤーか。\nその ROI レイヤーが元画像と結びついているか。\nROI が 1 つだけか。\nROI が長方形か。\nROI が画像と重なっているか。\n\nすべて通った場合だけ、実際の切り抜き処理に進みます。\n切り抜き処理では、rectangle_to_slices() と crop_to_rectangle() の 2 つを使います。",
+    "objectID": "notebooks/vein_order_algorithms.html#参考文献",
+    "href": "notebooks/vein_order_algorithms.html#参考文献",
+    "title": "葉脈 mask と次数の自動振り分けのアルゴリズム",
+    "section": "参考文献",
+    "text": "参考文献\n\nEllis, B., Daly, D. C., Hickey, L. J., et al. (2009). Manual of Leaf Architecture. Cornell University Press. “Determining Vein Order and Type” の節。\nOtsu, N. (1979). A threshold selection method from gray-level histograms. IEEE Transactions on Systems, Man, and Cybernetics, 9(1), 62–66.\nSack, L., & Scoffoni, C. (2013). Leaf venation: structure, function, development, evolution, ecology and applications in the past, present and future. New Phytologist, 198, 983–1000.\nLiu, X., Santo, H., Toda, Y., & Okura, F. (2026). PlantPose: Universal plant skeleton estimation via tree-constrained graph generation. International Journal of Computer Vision, 134, 314.（木構造しか出力せず、次数も出さないため、ここでは使っていない）",
     "crumbs": [
       "Home",
       "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html#rectangle_to_slices",
-    "href": "notebooks/workflow_overview.html#rectangle_to_slices",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "rectangle_to_slices()",
-    "text": "rectangle_to_slices()\nrectangle_to_slices() は、ROI の頂点座標を NumPy の slice に変換する関数です。\nたとえば、長方形 ROI の座標がだいたい次の範囲だったとします。\n\n\n\n座標\n値\n\n\n\n\ny の最小値\n1.2\n\n\ny の最大値\n3.7\n\n\nx の最小値\n2.1\n\n\nx の最大値\n4.9\n\n\n\nこの場合、関数は次のように整数の範囲へ変換します。\n\n\n\n軸\n変換後\n\n\n\n\ny\nslice(1, 4)\n\n\nx\nslice(2, 5)\n\n\n\n最小値側は floor で下に丸め、最大値側は ceil で上に丸めます。これにより、ROI に含まれる画素を取りこぼしにくくしています。\nまた、ROI が画像の外にはみ出している場合は、画像の範囲内に切り詰めます。完全に画像と重ならない場合は、エラーにします。\n対応している画像は、現在の MVP では次の 2 種類です。\n\n2D grayscale image\n2D RGB/RGBA image",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html#crop_to_rectangle",
-    "href": "notebooks/workflow_overview.html#crop_to_rectangle",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "crop_to_rectangle()",
-    "text": "crop_to_rectangle()\ncrop_to_rectangle() は、実際に画像配列を切り抜く関数です。\n内部では、まず rectangle_to_slices() を呼び出して、切り抜く y 範囲と x 範囲を決めます。その後、画像が 2D なら次のように切ります。\nimage_array[y_slice, x_slice]\nRGB/RGBA のように最後の軸が色チャンネルの場合は、色チャンネルを残すために次のように切ります。\nimage_array[y_slice, x_slice, :]\n戻り値は .copy() された配列です。これは、元画像の一部を参照するのではなく、切り抜き画像として独立したデータにするためです。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html#crop-レイヤーの作成と更新",
-    "href": "notebooks/workflow_overview.html#crop-レイヤーの作成と更新",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "crop レイヤーの作成と更新",
-    "text": "crop レイヤーの作成と更新\nROI 担当は、切り抜いた画像を napari の Image レイヤーとして追加します。\n新規作成時には、次の情報を指定します。\n\nレイヤー名は 元画像名 ROI\nRGB/RGBA 画像なら rgb=True\ntranslate に ROI の左上位置を入れる\nmetadata に crop レイヤーであることを記録する\n\ntranslate を設定する理由は、切り抜き画像を元画像上の ROI 位置に重ねて表示しやすくするためです。\n同じ ROI レイヤーからすでに crop レイヤーが作られている場合は、新しいレイヤーを増やさず、既存レイヤーの data と translate を更新します。\ncrop を作り直した場合は、古い crop から派生した smoothed_image、vein_mask、order_labels を削除します。新しい範囲に古い解析結果が残らないようにするためです。その後、crop を active layer にし、元画像を非表示にします。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html#mask-レイヤーの作成と更新",
-    "href": "notebooks/workflow_overview.html#mask-レイヤーの作成と更新",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "mask レイヤーの作成と更新",
-    "text": "mask レイヤーの作成と更新\nmask 処理は widgets/mask.py が担当し、Apply Gaussian、Apply Otsu、Clean Mask という明示的な工程に分かれています。\nApply Gaussian は、現在の crop Image レイヤーに threshold.py の smooth_image() を適用し、smoothed_image Image レイヤーだけを作成または更新します。この時点では vein_mask を作りません。Gaussian sigma の初期値は 1 で、必要に応じて実行前に変更できます。\nApply Otsu は、平滑化済み画像から otsu_threshold() で閾値を推定します。その閾値を使って threshold_image() を実行し、ここで初めて vein_mask Labels レイヤーを作成します。二値化の前には to_grayscale() で画像を 2D grayscale に変換し、RGB/RGBA 画像では alpha を無視します。\nInvert threshold が有効な場合は、閾値以下の画素を 1 として扱います。これは、葉脈が背景より暗い画像で使う想定です。\n一度 Apply Otsu を実行した後は、閾値入力欄、slider、Invert threshold の変更に応じて同じ mask を更新します。連続した UI signal ごとに重い処理を繰り返さないよう、短い待ち時間を置く single-shot timer で更新をまとめます。この timer にも「Otsu 実行済み」の確認があり、control の初期化や Apply Gaussian だけで mask が作られることを防ぎます。\nmask は napari の Labels レイヤーとして作られます。レイヤー名は vein_mask です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの data と translate を更新します。\nClean Mask は、small object removal、hole filling、closing、opening の設定を postprocess_mask() に渡し、現在の mask を明示的に整えます。cleanup 後は自動の閾値更新を止め、vein_mask を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html#order-labels-レイヤーの作成",
-    "href": "notebooks/workflow_overview.html#order-labels-レイヤーの作成",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "order labels レイヤーの作成",
-    "text": "order labels レイヤーの作成\n手作業を含む mask の確認が終わった後に Create Order Labels を押すと、widgets/order_labels.py が現在の vein_mask と同じ shape の order_labels Labels レイヤーを作ります。現在の widget フローでは、この操作時に skeleton レイヤーは作りません。\n作成後は vein_mask を非表示にし、order_labels を active な paint mode にします。order labels への描画は確認済み mask の対象領域内だけに制限され、mask が後から変わった場合も領域外のラベルを 0 に戻します。\n現在の実装では、vein_mask == 0 の white-out 領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは order_labels.py 側も一緒に確認する必要があります。\norder labels の値は、次の用途を想定しています。\n\n\n\nlabel\n意味\n\n\n\n\n0\n背景または分類対象外\n\n\n1\nprimary\n\n\n2\nsecondary\n\n\n3\nminor\n\n\n4\nuncertain / 未分類\n\n\n\n同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きせず、そのレイヤーを再利用します。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html#エラーや警告になる例",
-    "href": "notebooks/workflow_overview.html#エラーや警告になる例",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "エラーや警告になる例",
-    "text": "エラーや警告になる例\n次の場合は、切り抜き処理に進まず、警告またはエラーになります。\n\n\n\n\n\n\n\n状況\n理由\n\n\n\n\nROI レイヤー以外を選択している\nどの ROI を使うか分からない\n\n\nROI が 0 個\n切り抜く範囲がない\n\n\nROI が 2 個以上\nMVP では 1 個だけ対応\n\n\nROI が長方形ではない\nMVP では rectangle のみ対応\n\n\nROI が画像と重ならない\n切り抜ける画素がない\n\n\n画像が 2D grayscale または RGB/RGBA ではない\nMVP の対応範囲外\n\n\ncrop レイヤーがまだない状態で Apply Gaussian を押す\n平滑化する画像がない\n\n\nApply Gaussian 前\nApply Otsu control がまだ無効になっている\n\n\nvein_mask 作成前に Clean Mask または Create Order Labels を押す\n処理対象の mask がない\n\n\ncrop 画像に NaN や inf が含まれる\n閾値計算が信用できない",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html#テストで確認していること",
-    "href": "notebooks/workflow_overview.html#テストで確認していること",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "テストで確認していること",
-    "text": "テストで確認していること\ntests/test_crop.py では、napari に依存しない切り抜き計算を確認しています。\n\n小数座標が floor と ceil で正しく slice になること。\n画像外にはみ出た ROI が画像範囲に切り詰められること。\nRGB 画像の色チャンネルが保たれること。\n空の ROI や画像外 ROI がエラーになること。\n未対応の画像 shape がエラーになること。\n\ntests/test_threshold.py では、napari に依存しない二値化計算を確認しています。\n\ngrayscale 画像をそのまま float の 2D 配列として扱えること。\nRGB/RGBA 画像を grayscale に変換できること。\nGaussian smoothing が入力と同じ shape の 2D 画像を返すこと。\n手動閾値で明るい前景と暗い前景の両方を mask にできること。\nOtsu 閾値が単純な二峰性画像を分けられること。\nsmall object removal、hole filling、closing、opening で mask を整えられること。\n未対応の画像 shape がエラーになること。\n\n現在の widget フローからは骨格化を呼びませんが、独立した計算 helper の回帰確認として tests/test_skeleton.py は残っています。\n\n2D mask から骨格画像を作れること。\nLabels 形式の整数 mask でも、0 より大きい画素を前景として扱うこと。\n空 mask や 2D 以外の入力がエラーになること。\n\ntests/test_widget_import.py では、Qt backend がある環境で _widget.py から widget を import できることと、画像追加から order labels までの工程を確認しています。\n\nAdd ROI 後に crop が active になり、元画像が非表示になること。\nApply Gaussian では smoothed_image だけが作られ、vein_mask はまだ存在しないこと。\nApply Otsu 後に初めて mask が作られ、閾値 UI で更新できること。\nClean Mask 後も mask が active な paint mode に保たれること。\norder labels が mask 外に描けず、既存の手動ラベルが再作成時に上書きされないこと。\nROI を切り直すと古い派生レイヤーが削除されること。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html#開発時に見る順番",
-    "href": "notebooks/workflow_overview.html#開発時に見る順番",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "開発時に見る順番",
-    "text": "開発時に見る順番\n挙動を追うときは、次の順番で読むと理解しやすいです。\n\nREADME.md でユーザー操作を確認する。\nsrc/leaf_vein_workflow/napari.yaml で widget 登録を確認する。\nsrc/leaf_vein_workflow/_widget.py で互換用の公開入口を確認する。\nwidgets/crop_widget.py で 1 つの widget の組み立て、signal 接続、各工程への委譲を見る。\nwidgets/controls.py で UI 部品と有効・無効の切り替えを見る。\nwidgets/layers.py で metadata、レイヤー間の対応、active/visible、削除の規則を見る。\nwidgets/roi.py と crop.py で画像追加、ROI 編集、切り抜き処理を見る。\nwidgets/mask.py と threshold.py で Gaussian、Otsu、timer、cleanup の流れを見る。\nwidgets/order_labels.py で order labels の作成と描画制限を見て、必要なら order.py で検証、集計、export 処理を見る。\ntests/test_widget_import.py で、これらが 1 つの明示的な操作フローとして接続されていることを確認する。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/workflow_overview.html#まとめ",
-    "href": "notebooks/workflow_overview.html#まとめ",
-    "title": "Leaf Vein Workflow の挙動と関数の流れ",
-    "section": "まとめ",
-    "text": "まとめ\n現在の実装は、葉脈解析そのものではなく、葉脈解析の前段階として「人が ROI を指定し、Gaussian と Otsu を明示的に適用し、mask を cleanup と手作業で確認してから、葉脈次数を塗り分ける」ための機能です。\n設計上は、napari 依存の処理も UI、レイヤー管理、ROI、mask、order labels に分かれ、NumPy ベースの計算処理とも分離されています。manifest 互換性は _widget.py、widget 全体の接続は crop_widget.py、個々の工程は対応する担当モジュールから読み始めればよく、1 ファイルの内部を端から探す必要はありません。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "Leaf Vein Workflow の挙動と関数の流れ"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html",
-    "href": "notebooks/skeletonization.html",
-    "title": "葉脈の抽出",
-    "section": "",
-    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#ライブラリのインポート",
-    "href": "notebooks/skeletonization.html#ライブラリのインポート",
-    "title": "葉脈の抽出",
-    "section": "",
-    "text": "import numpy as np\nimport matplotlib.pyplot as plt\n\nfrom skimage.io import imread\nfrom skimage.morphology import (\n    skeletonize,\n    medial_axis,\n    remove_small_objects,\n    remove_small_holes,\n    closing,\n    opening,\n    disk,\n    dilation\n)\nfrom skimage.filters import gaussian, threshold_otsu\n\nfrom skan import Skeleton\nfrom skan.csr import summarize\nimport pandas as pd\n\nfrom leaf_vein_workflow.threshold import to_grayscale",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#画像の読み込み",
-    "href": "notebooks/skeletonization.html#画像の読み込み",
-    "title": "葉脈の抽出",
-    "section": "画像の読み込み",
-    "text": "画像の読み込み\n解析に使用する画像を読み込みます。\n\n# 画像読み込み\nfile_path = \"data/BEL-T44-BS_img.png\"\nimg = imread(file_path)\n\nprint(type(img))\nprint(img.shape)\nprint(img.dtype)\n\n画像を確認してみます。\n\nfig, ax = plt.subplots()\nif img.ndim == 2:\n    ax.imshow(img, cmap=\"gray\")\nelse:\n    ax.imshow(img)\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#グレースケール化",
-    "href": "notebooks/skeletonization.html#グレースケール化",
-    "title": "葉脈の抽出",
-    "section": "グレースケール化",
-    "text": "グレースケール化\nもし RGB/RGBA 画像の場合は、グレースケール化します。 ここでは GUI 側でも使っている to_grayscale() を使います。 RGBA 画像では alpha channel は無視します。\n\ngray = to_grayscale(img)\n\n# 値域をざっくり 0-1 にそろえる\nif gray.max() &gt; 1:\n    gray = gray / 255",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#切り取り",
-    "href": "notebooks/skeletonization.html#切り取り",
-    "title": "葉脈の抽出",
-    "section": "切り取り",
-    "text": "切り取り\nROIを指定して、画像を切り取ります。 ここでは例として、(ymin, xmin, ymax, xmax) = (2000, 2000, 5000, 5000) の範囲を切り取ります。\n\nbbox = (2000, 2000, 5000, 5000) # (ymin, xmin, ymax, xmax)\n\nfig, ax = plt.subplots()\nax.imshow(gray, cmap=\"gray\")\nrect = plt.Rectangle((bbox[1], bbox[0]), bbox[3]-bbox[1], bbox[2]-bbox[0], edgecolor=\"red\", facecolor=\"none\", lw=2)\nax.add_patch(rect)\nfig.tight_layout()\nplt.show()\nplt.close(fig)\nimg_crop = gray[bbox[0]:bbox[2], bbox[1]:bbox[3]]",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#ガウシアンフィルタによる平滑化",
-    "href": "notebooks/skeletonization.html#ガウシアンフィルタによる平滑化",
-    "title": "葉脈の抽出",
-    "section": "ガウシアンフィルタによる平滑化",
-    "text": "ガウシアンフィルタによる平滑化\nガウシアンフィルタで平滑化します。 sigma は 1 に設定します。\n\nimg_smooth = gaussian(img_crop, sigma=1)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_smooth, cmap=\"gray\")\naxes[1].set_title(\"smoothed image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#二値化",
-    "href": "notebooks/skeletonization.html#二値化",
-    "title": "葉脈の抽出",
-    "section": "二値化",
-    "text": "二値化\n解析前の二値化を行います。 ここでは Otsu の方法で閾値を決定します。 napariでの二値化では、調整できるようにします。 現在の画像では葉脈が背景より暗いため、img_smooth &lt; threshold を前景として扱います。 GUI ではこの条件が Invert threshold を有効にした状態に相当します。\n\nthreshold = threshold_otsu(img_smooth)\nimg_binary = img_smooth &lt; threshold\n\nprint(f\"Otsu threshold: {threshold:.6f}\")\nprint(f\"Binary foreground pixels: {np.count_nonzero(img_binary)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_crop, cmap=\"gray\")\naxes[0].set_title(\"cropped image\")\n\naxes[1].imshow(img_binary, cmap=\"gray\")\naxes[1].set_title(\"binary image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#後処理",
-    "href": "notebooks/skeletonization.html#後処理",
-    "title": "葉脈の抽出",
-    "section": "後処理",
-    "text": "後処理\n小さい穴やゴミを除去します。\n\n# 小さいゴミ除去\nmax_size = 100\nvein_mask = remove_small_objects(img_binary, max_size=max_size)\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n葉脈内部の穴埋めや境界の整形を行います。\n\n# 太い葉脈内部の穴埋め\nvein_mask = remove_small_holes(vein_mask, max_size=500)\n# 境界を少し整える\nvein_mask = closing(vein_mask, footprint=disk(2))\nvein_mask = opening(vein_mask, footprint=disk(1))\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(img_binary, cmap=\"gray\")\naxes[0].set_title(\"binary image\")\n\naxes[1].imshow(vein_mask, cmap=\"gray\")\naxes[1].set_title(\"filtered image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#skeletonize",
-    "href": "notebooks/skeletonization.html#skeletonize",
-    "title": "葉脈の抽出",
-    "section": "Skeletonize",
-    "text": "Skeletonize\n後処理済みの vein_mask から skeleton を作ります。 この skeleton が、GUI で mask layer から作る skeleton layer に対応します。\n\nskeleton = skeletonize(vein_mask)\n\nprint(f\"Mask foreground pixels: {np.count_nonzero(vein_mask)}\")\nprint(f\"Skeleton pixels: {np.count_nonzero(skeleton)}\")\n\n# 横並びで表示\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\naxes[1].imshow(skeleton, cmap=\"gray\")\naxes[1].set_title(\"skeleton image\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n前の画像に重ねてみます。 表示用に skeleton を太らせて、赤色で重ねます。\n\nfig, ax = plt.subplots()\n\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 表示用に太らせた skeleton を作る\nskeleton_display = dilation(skeleton, footprint=disk(3))\n\nskeleton_overlay = np.zeros((*skeleton.shape, 4), dtype=np.float32)\nskeleton_overlay[skeleton_display] = [1, 0, 0, 1]  # red, alpha=1\n\nax.imshow(skeleton_overlay)\nax.set_title(\"skeleton overlay\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#脈の太さの推定",
-    "href": "notebooks/skeletonization.html#脈の太さの推定",
-    "title": "葉脈の抽出",
-    "section": "脈の太さの推定",
-    "text": "脈の太さの推定\nmask の distance transform から、各 foreground pixel が背景からどれだけ離れているかを求めます。 skeleton 上の距離を 2 倍すると、局所的な直径の近似値として使えます。\nこの値は threshold や mask 後処理に依存するため、major/minor を自動分類する決定値ではなく、手動確認前のヒントとして扱います。\n\nmedial_skeleton, radius_px = medial_axis(vein_mask, return_distance=True)\ndiameter_px = radius_px * 2\ndiameter_on_skeleton = np.where(skeleton, diameter_px, np.nan)\n\nprint(pd.Series(diameter_px[skeleton], name=\"skeleton-diameter-px\").describe())\n\nfig, axes = plt.subplots(nrows=1, ncols=2, figsize=(9, 4), sharex=True, sharey=True)\naxes[0].imshow(vein_mask, cmap=\"gray\")\naxes[0].set_title(\"post-processed mask\")\n\ndiameter_image = axes[1].imshow(diameter_on_skeleton, cmap=\"magma\")\naxes[1].set_title(\"diameter on skeleton (px)\")\nfig.colorbar(diameter_image, ax=axes[1], fraction=0.046, pad=0.04)\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)\n\n先ほどと同様に、太らせて重ねてみます。\n\nfig, ax = plt.subplots()\nax.imshow(vein_mask, cmap=\"gray\")\n\n# skeleton 上だけに値を持つ画像\ndiameter_on_skeleton = np.where(skeleton, diameter_px, 0)\n\n# footprint は共通で定義\nfoot = disk(5)\n\n# 値つき画像を太らせる\ndiameter_display = dilation(diameter_on_skeleton, footprint=foot)\n\n# 表示範囲だけを制限するためのマスク\ndisplay_mask = dilation(skeleton, footprint=foot)\n\n# skeleton 以外は透明にする\ndiameter_display = np.where(display_mask, diameter_display, np.nan)\n\nim = ax.imshow(diameter_display, cmap=\"magma\", alpha=0.9)\nax.set_title(\"diameter-colored skeleton overlay\")\nfig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label=\"diameter (px)\")\n\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#branch-node-の抽出",
-    "href": "notebooks/skeletonization.html#branch-node-の抽出",
-    "title": "葉脈の抽出",
-    "section": "branch / node の抽出",
-    "text": "branch / node の抽出\nskan を使って skeleton を branch 単位の表に変換します。 branch-type は、0 が tip-tip、1 が tip-junction、2 が junction-junction、3 が cycle です。\n\nskeleton_graph = Skeleton(skeleton, spacing=1)\nbranch_table = summarize(skeleton_graph, separator=\"-\").copy()\nbranch_table[\"branch-id\"] = np.arange(len(branch_table))\n\nbranch_type_labels = {\n    0: \"tip-tip\",\n    1: \"tip-junction\",\n    2: \"junction-junction\",\n    3: \"cycle\",\n}\nbranch_table[\"branch-type-label\"] = branch_table[\"branch-type\"].map(branch_type_labels)\n\nmean_diameter = []\nmedian_diameter = []\nmax_diameter = []\n\nfor branch_index in range(skeleton_graph.n_paths):\n    coords = skeleton_graph.path_coordinates(branch_index).astype(int)\n    branch_diameter = diameter_px[coords[:, 0], coords[:, 1]]\n    mean_diameter.append(float(np.mean(branch_diameter)))\n    median_diameter.append(float(np.median(branch_diameter)))\n    max_diameter.append(float(np.max(branch_diameter)))\n\nbranch_table[\"mean-diameter-px\"] = mean_diameter\nbranch_table[\"median-diameter-px\"] = median_diameter\nbranch_table[\"max-diameter-px\"] = max_diameter\n\nspur_length_px = 20\nbranch_table[\"spur-candidate\"] = (\n    (branch_table[\"branch-type\"] == 1)\n    & (branch_table[\"branch-distance\"] &lt;= spur_length_px)\n)\n\nprint(f\"Number of branches: {len(branch_table)}\")\nprint(branch_table[\"branch-type-label\"].value_counts().to_string())\nprint(\n    branch_table[\n        [\"mean-diameter-px\", \"median-diameter-px\", \"max-diameter-px\"]\n    ].describe().to_string()\n)\nprint(\n    branch_table[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"spur-candidate\",\n        ]\n    ]\n    .head(10)\n    .to_string(index=False)\n)\n\nnode は skeleton graph の degree で確認します。 degree 1 は endpoint、degree 2 は通常の線分上の pixel、degree 3 以上は branchpoint として扱います。\n\nnode_table = pd.DataFrame(\n    {\n        \"node-id\": np.arange(len(skeleton_graph.degrees)),\n        \"coord-y-px\": skeleton_graph.coordinates[:, 0],\n        \"coord-x-px\": skeleton_graph.coordinates[:, 1],\n        \"degree\": skeleton_graph.degrees,\n    }\n)\nnode_table[\"image-y-px\"] = node_table[\"coord-y-px\"] + bbox[0]\nnode_table[\"image-x-px\"] = node_table[\"coord-x-px\"] + bbox[1]\nnode_table[\"node-type\"] = \"path\"\nnode_table.loc[node_table[\"degree\"] == 1, \"node-type\"] = \"endpoint\"\nnode_table.loc[node_table[\"degree\"] &gt;= 3, \"node-type\"] = \"branchpoint\"\n\nkey_node_table = node_table[node_table[\"node-type\"] != \"path\"].copy()\n\nprint(key_node_table[\"node-type\"].value_counts().to_string())\nprint(key_node_table.head(10).to_string(index=False))",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#spur-pruning-の候補確認",
-    "href": "notebooks/skeletonization.html#spur-pruning-の候補確認",
-    "title": "葉脈の抽出",
-    "section": "spur pruning の候補確認",
-    "text": "spur pruning の候補確認\nここでは pruning 自体は行わず、短い terminal branch を候補として表で確認します。 spur_length_px は GUI では調整可能な値にする想定です。\n\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].sort_values(\n    \"branch-distance\"\n)\n\nprint(f\"Spur candidates at &lt;= {spur_length_px} px: {len(spur_candidates)}\")\nprint(\n    spur_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ]\n    .head(20)\n    .to_string(index=False)\n)\n\n\n# spur candidates を branch-id ベースで取り出す\nspur_candidates = branch_table[branch_table[\"spur-candidate\"]].copy()\n\nfig, ax = plt.subplots(figsize=(8, 8))\nax.imshow(vein_mask, cmap=\"gray\")\n\n# 全 branch を薄い水色で描く\nfor branch_id in branch_table[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"cyan\", linewidth=1, alpha=0.6)\n\n# spur candidate を黄色で強調\nfor branch_id in spur_candidates[\"branch-id\"]:\n    coords = skeleton_graph.path_coordinates(branch_id)\n    ax.plot(coords[:, 1], coords[:, 0], color=\"yellow\", linewidth=2.5, alpha=1.0)\n\n# endpoint と branchpoint を描く\nendpoint_table = node_table[node_table[\"node-type\"] == \"endpoint\"]\nbranchpoint_table = node_table[node_table[\"node-type\"] == \"branchpoint\"]\n\nax.scatter(\n    endpoint_table[\"coord-x-px\"],\n    endpoint_table[\"coord-y-px\"],\n    s=20,\n    c=\"lime\",\n    label=\"endpoint\",\n    zorder=3,\n)\n\nax.scatter(\n    branchpoint_table[\"coord-x-px\"],\n    branchpoint_table[\"coord-y-px\"],\n    s=30,\n    c=\"red\",\n    label=\"branchpoint\",\n    zorder=3,\n)\n\nax.set_title(\"branches / nodes / spur candidates\")\nax.legend(loc=\"upper right\")\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
-    ]
-  },
-  {
-    "objectID": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
-    "href": "notebooks/skeletonization.html#major-minor-分離前の太さヒント",
-    "title": "葉脈の抽出",
-    "section": "major / minor 分離前の太さヒント",
-    "text": "major / minor 分離前の太さヒント\nmajor / minor の自動分類はまだ行いません。 ただし、太さが大きい branch は major vein 候補として確認する価値があります。 この表は、napari で手動 order labels を作るときの確認用ヒントとして使います。\n\nwide_branch_candidates = branch_table.sort_values(\n    [\"mean-diameter-px\", \"branch-distance\"],\n    ascending=[False, False],\n).head(20)\n\nprint(\n    wide_branch_candidates[\n        [\n            \"branch-distance\",\n            \"branch-type-label\",\n            \"mean-diameter-px\",\n            \"median-diameter-px\",\n            \"max-diameter-px\",\n            \"image-coord-src-0\",\n            \"image-coord-src-1\",\n            \"image-coord-dst-0\",\n            \"image-coord-dst-1\",\n        ]\n    ].to_string(index=False)\n)\n\n今後の方針としては、まず手動ラベルを基準にし、太さ・接続関係・midrib からの距離を補助情報として重ねるのが安全です。 完全自動分類よりも、「自動候補 + napari で修正」のほうが、画像条件の違いや葉脈の切断に強いです。\nskan は branch table を安定して作る用途に向いています。 一方で、branchpoint が複数 pixel の塊になる場合や、junction 近傍で branch が細かく分割される場合があります。 そのため、GUI に接続するときは branch table をそのまま最終分類に使うのではなく、可視化・候補提示・手動修正の補助として使うのがよいです。",
-    "crumbs": [
-      "Home",
-      "Manual",
-      "葉脈の抽出"
+      "葉脈 mask と次数の自動振り分けのアルゴリズム"
     ]
   },
   {

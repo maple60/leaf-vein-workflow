@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="ja" xml:lang="ja"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.38">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,10 +12,13 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
-code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -70,14 +73,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <meta name="quarto:offset" content="../">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-51ec0baac84c74459878fd0df95b10e6.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-ce0f0d1e95892c391167071f7e5e54e4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -112,19 +116,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </head>
 
-<body class="nav-sidebar docked nav-fixed quarto-light">
+<body class="nav-sidebar docked nav-fixed quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">メインコンテンツにスキップ</a>
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="ウェブサイト">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">leaf-vein-workflow</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="サーチ"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="ナビゲーションを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -143,12 +146,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="dropdown-text">Workflow overview</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../notebooks/scanning_protocol.html">
+ <span class="dropdown-text">葉脈標本のスキャン</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../notebooks/napari_plugin_development.html">
  <span class="dropdown-text">napari プラグイン作成</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../notebooks/skeletonization.html">
  <span class="dropdown-text">葉脈の抽出</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../notebooks/vein_order_algorithms.html">
+ <span class="dropdown-text">葉脈 mask と次数の自動振り分け</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../notebooks/data_source.html">
@@ -183,15 +194,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
 </div>
+            <div id="quarto-search" class="" title="サーチ"></div>
       </div> <!-- /container-fluid -->
     </nav>
-  <nav class="quarto-secondary-nav">
+  <nav class="quarto-secondary-nav" aria-label="ツールバー">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="サイドバーを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../notebooks/workflow_overview.html">Manual</a></li><li class="breadcrumb-item"><a href="../notebooks/workflow_overview.html">Leaf Vein Workflow の挙動と関数の流れ</a></li></ol></nav>
-        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="サイドバーを切り替える" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <nav class="quarto-page-breadcrumbs" aria-label="パンくずリスト"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../notebooks/workflow_overview.html">Manual</a></li><li class="breadcrumb-item"><a href="../notebooks/workflow_overview.html">Leaf Vein Workflow の挙動と関数の流れ</a></li></ol></nav>
+        <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
   </nav>
@@ -199,22 +211,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
-  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto" aria-label="セクション">
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Manual</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="セクションを切り替え">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" aria-controls="quarto-sidebar-section-1" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-1-label">Manual</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" aria-labelledby="quarto-sidebar-section-1-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../notebooks/workflow_overview.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Leaf Vein Workflow の挙動と関数の流れ</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../notebooks/scanning_protocol.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">葉脈標本のスキャンプロトコル（GT-X980）</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -231,6 +246,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../notebooks/vein_order_algorithms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">葉脈 mask と次数の自動振り分けのアルゴリズム</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../notebooks/data_source.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">サンプルデータセット</span></a>
   </div>
@@ -239,13 +260,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
- <span class="menu-text">Reports</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="セクションを切り替え">
-            <i class="bi bi-chevron-right ms-2"></i>
-          </a> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" aria-controls="quarto-sidebar-section-2" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-2-label">Reports</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" aria-labelledby="quarto-sidebar-section-2-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../notebooks/zotero_leaf_vein_literature.html" class="sidebar-item-text sidebar-link">
@@ -278,12 +296,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
+        <nav id="TOC" role="doc-toc" aria-labelledby="toc-title" class="toc-active">
     <h2 id="toc-title">目次</h2>
    
   <ul>
   <li><a href="#このノートの目的" id="toc-このノートの目的" class="nav-link active" data-scroll-target="#このノートの目的">このノートの目的</a></li>
   <li><a href="#ユーザーから見た流れ" id="toc-ユーザーから見た流れ" class="nav-link" data-scroll-target="#ユーザーから見た流れ">ユーザーから見た流れ</a></li>
+  <li><a href="#スケール校正" id="toc-スケール校正" class="nav-link" data-scroll-target="#スケール校正">スケール校正</a></li>
   <li><a href="#全体像" id="toc-全体像" class="nav-link" data-scroll-target="#全体像">全体像</a></li>
   <li><a href="#napari-への登録" id="toc-napari-への登録" class="nav-link" data-scroll-target="#napari-への登録">napari への登録</a></li>
   <li><a href="#cropwidget-の初期化" id="toc-cropwidget-の初期化" class="nav-link" data-scroll-target="#cropwidget-の初期化"><code>CropWidget</code> の初期化</a></li>
@@ -295,6 +314,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#crop-レイヤーの作成と更新" id="toc-crop-レイヤーの作成と更新" class="nav-link" data-scroll-target="#crop-レイヤーの作成と更新">crop レイヤーの作成と更新</a></li>
   <li><a href="#mask-レイヤーの作成と更新" id="toc-mask-レイヤーの作成と更新" class="nav-link" data-scroll-target="#mask-レイヤーの作成と更新">mask レイヤーの作成と更新</a></li>
   <li><a href="#order-labels-レイヤーの作成" id="toc-order-labels-レイヤーの作成" class="nav-link" data-scroll-target="#order-labels-レイヤーの作成">order labels レイヤーの作成</a></li>
+  <li><a href="#次2次脈の自動振り分け" id="toc-次2次脈の自動振り分け" class="nav-link" data-scroll-target="#次2次脈の自動振り分け">1次・2次脈の自動振り分け</a></li>
+  <li><a href="#export-の実行" id="toc-export-の実行" class="nav-link" data-scroll-target="#export-の実行">Export の実行</a></li>
+  <li><a href="#再現性のためのメタデータ" id="toc-再現性のためのメタデータ" class="nav-link" data-scroll-target="#再現性のためのメタデータ">再現性のためのメタデータ</a></li>
+  <li><a href="#設定ファイル" id="toc-設定ファイル" class="nav-link" data-scroll-target="#設定ファイル">設定ファイル</a></li>
+  <li><a href="#計測と-vla" id="toc-計測と-vla" class="nav-link" data-scroll-target="#計測と-vla">計測と VLA</a>
+  <ul class="collapse">
+  <li><a href="#パス計測1次2次" id="toc-パス計測1次2次" class="nav-link" data-scroll-target="#パス計測1次2次">パス計測（1次・2次）</a></li>
+  <li><a href="#次数ラベル計測" id="toc-次数ラベル計測" class="nav-link" data-scroll-target="#次数ラベル計測">次数ラベル計測</a></li>
+  </ul></li>
   <li><a href="#エラーや警告になる例" id="toc-エラーや警告になる例" class="nav-link" data-scroll-target="#エラーや警告になる例">エラーや警告になる例</a></li>
   <li><a href="#テストで確認していること" id="toc-テストで確認していること" class="nav-link" data-scroll-target="#テストで確認していること">テストで確認していること</a></li>
   <li><a href="#開発時に見る順番" id="toc-開発時に見る順番" class="nav-link" data-scroll-target="#開発時に見る順番">開発時に見る順番</a></li>
@@ -303,9 +331,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content" tabindex="-1">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../notebooks/workflow_overview.html">Manual</a></li><li class="breadcrumb-item"><a href="../notebooks/workflow_overview.html">Leaf Vein Workflow の挙動と関数の流れ</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="パンくずリスト"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../notebooks/workflow_overview.html">Manual</a></li><li class="breadcrumb-item"><a href="../notebooks/workflow_overview.html">Leaf Vein Workflow の挙動と関数の流れ</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Leaf Vein Workflow の挙動と関数の流れ</h1>
 </div>
@@ -327,35 +355,95 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="このノートの目的" class="level2">
 <h2 class="anchored" data-anchor-id="このノートの目的">このノートの目的</h2>
 <p>このノートは、<code>leaf-vein-workflow</code> の現在の MVP 実装について、人間が読んで流れを理解するための説明です。</p>
-<p>このプラグインが今やることは、次の 3 段階に絞られています。</p>
+<p>このプラグインが今やることは、次の 4 段階に絞られています。</p>
 <ul>
+<li>DPI、µm/px、mm/px、または手動で引いたスケールバー線から、元画像ごとの mm/px を校正する。</li>
 <li>napari で画像を開き、長方形 ROI を 1 つ描き、<code>Add ROI</code> ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。</li>
 <li>切り抜き画像に Gaussian smoothing を適用し、Otsu 閾値で葉脈候補の mask Labels レイヤーを作り、形態学的処理と手作業で整える。</li>
 <li>確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。</li>
+<li>次数ごとの骨格長と、入力した葉面積（mm²）に対する VLA を計算し、export する。</li>
 </ul>
-<p>まだ扱わないことは、複数 ROI、ポリゴン ROI、画像の保存、nD stack、骨格のセグメンテーション、VLA の計算、major/minor の自動分離です。</p>
+<p>まだ扱わないことは、スケールバーの OCR・自動検出、複数 ROI、ポリゴン ROI、画像の保存、nD stack、次数の自動分類、minor（4次以上）のラベルです。</p>
 </section>
 <section id="ユーザーから見た流れ" class="level2">
 <h2 class="anchored" data-anchor-id="ユーザーから見た流れ">ユーザーから見た流れ</h2>
-<p>ユーザー操作としては、次の順番になります。</p>
+<p>dock は次の6つの手順に番号付きで並び、各手順の先頭に1行の操作説明があります。</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>手順</th>
+<th>dock の表示</th>
+<th>やること</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><code>1. Image &amp; scale</code></td>
+<td>画像を読み込み、スキャン解像度で校正する</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><code>2. ROI</code></td>
+<td>解析する範囲を長方形で選ぶ</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><code>3. Vein mask</code></td>
+<td>mask を作って葉脈の領域を確定する（後片付けの処理も同じ手順内）</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><code>4. Paint vein orders</code></td>
+<td>葉脈を次数ごとに塗り分ける</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td><code>5. Leaf area &amp; VLA</code></td>
+<td>葉面積を入力する（VLA は Export 時に計算）</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td><code>6. Export</code></td>
+<td>出力先を選んで書き出す</td>
+</tr>
+</tbody>
+</table>
+<p>1次・2次脈のパス計測（<code>vein_paths.py</code>）は実装済みですが、今は dock に表示していません。</p>
+<p>細かい操作は次の順番になります。</p>
 <ol type="1">
 <li>napari を起動する。</li>
 <li><code>Plugins &gt; Leaf Vein Workflow &gt; Leaf Vein Workflow</code> から widget を開く。</li>
 <li>napari 標準の方法で葉画像を開く。</li>
-<li>プラグインが自動で ROI 用の Shapes レイヤーを作る。</li>
-<li>画像上に長方形を 1 つ描く。</li>
-<li><code>Add ROI</code> ボタンを押す。</li>
-<li>長方形の範囲だけを切り抜いた Image レイヤーが追加される。</li>
+<li>DPI、µm/px、mm/px の値を入力して <code>Apply Scale</code> を押す。または <code>Scale bar</code> を選び、<code>Draw Scale Bar Line</code> でバーに線を1本引き、実長を入力して校正する。校正しない場合は pixel 単位のまま続行できる。</li>
+<li>プラグインが自動で作った ROI 用 Shapes レイヤーに長方形を 1 つ描く。</li>
+<li><code>Add ROI</code> ボタンを押し、切り抜いた Image レイヤーを作る。</li>
 <li><code>Gaussian sigma</code> を確認して <code>Apply Gaussian</code> を押す。</li>
 <li>平滑化した <code>smoothed_image</code> Image レイヤーだけが作られる。</li>
 <li><code>Apply Otsu</code> を押すと、初めて <code>vein_mask</code> Labels レイヤーが作られる。</li>
-<li>必要なら <code>Invert threshold</code> と <code>Mask threshold</code> を調整する。変更後、少し待つと同じ mask レイヤーが更新される。</li>
+<li>色の付いた画素（黄色）が葉脈。Otsu は少ない側を葉脈として選び、<code>Invert (dark pixels are vein)</code> を自動で合わせる。必要なら <code>Invert</code> と <code>Mask threshold</code> を調整する。変更後、少し待つと同じ mask レイヤーが更新される。</li>
 <li>形態学的処理の値を確認して <code>Clean Mask</code> を押す。</li>
 <li>paint mode の <code>vein_mask</code> を手作業で修正する。</li>
 <li>mask を確認した後に <code>Create Order Labels</code> を押す。</li>
-<li><code>order_labels</code> Labels レイヤー上で葉脈次数を塗り分ける。</li>
+<li>（任意）<code>Mark Base &amp; Apex</code> で葉の基部と1次脈の先端をクリックする（2点目で <code>order_labels</code> の塗る状態に戻る）。<code>Auto-assign 1°/2°</code> で1次・2次脈を自動で塗り、残りの脈は太さで3次脈（太い側）と不確定（細い側）に分ける。進み具合は dock 下部のバーに出る。不確定（4）の画素だけを書き換えるので、手で塗った所は残る。</li>
+<li>葉脈の画素はすべて 4（不確定、紫）から始まる。<code>Paint as</code> で 1°・2°・3°・Uncertain を選び（色見本はラベルの色と同じ）、画像上の葉脈をドラッグして塗る。mask の外は塗られない。ブラシの太さは napari の layer controls（左上）で変える。napari 側でラベル番号を変えても <code>Paint as</code> が追従する。</li>
+<li><code>5. Leaf area &amp; VLA</code> の <code>Leaf area</code> に葉面積を入力し、単位（mm² / cm²）を選ぶ。内部では mm² に換算する。</li>
+<li><code>6. Export</code> の <code>Export Measurements</code> を押すと、現在のラベルを計測して出力フォルダに CSV・ラベル（.npy）・QC 画像・branch table を書き出す。出力先の既定は napari を起動したフォルダ直下の <code>output/</code> で、<code>Change...</code> で変えられる。結果は dock には表示せず、書き出し完了と未分類ピクセルの警告を通知で出す。</li>
 </ol>
+<p>dock の各工程は同時に1つだけ開き、<code>Apply Scale</code>・<code>Add ROI</code> が成功すると次の工程が自動で開く。<code>Create Order Labels</code> の後は塗り分けが続くので、手順4は開いたままにする。</p>
 <p>重要なのは、各工程がユーザーの操作で明示的に区切られている点です。長方形を描いただけでは crop は作られず、<code>Apply Gaussian</code> を押しても <code>vein_mask</code> は作られません。mask が初めて作られるのは <code>Apply Otsu</code> を押したときです。</p>
+</section>
+<section id="スケール校正" class="level2">
+<h2 class="anchored" data-anchor-id="スケール校正">スケール校正</h2>
+<p>どの入力方法でも、内部では <code>mm_per_pixel</code> に統一します。DPI の場合は <code>25.4 / DPI</code>、µm/px の場合は値を 1000 で割って mm/px に変換します。スケールバー方式では、専用の Shapes レイヤーに引いた2点の線の pixel 長と、入力した実長から mm/px を求めます。線がない、2本以上ある、実長が0以下である場合は校正を確定しません。</p>
+<p>確定した値、入力方法、元の入力値と単位は元画像の metadata に保存され、crop、<code>smoothed_image</code>、<code>vein_mask</code>、<code>order_labels</code> に引き継がれます。再校正すると既存の派生レイヤーも更新されます。ステータスには入力方法に関係なく µm/px、mm/px、mm/px から逆算した等価 DPI を併記します。表示座標と ROI の切り抜き計算を壊さないため、napari の layer <code>scale</code> 自体は変更しません。</p>
+<p>校正を確定すると、画像の左下にマゼンタの表示用スケールバー（<code>&lt;画像名&gt; 10 mm bar</code>）を描きます。画像幅の 40% に 10 mm が収まらない小さい画像では、5・2・1 mm、500・200・100 µm の順に短いバーを使います。定規と見比べて校正値が正しいか目で確かめるためのもので、計測には使いません。再校正すると同じレイヤーを更新し、作業中のレイヤー選択は変えません。</p>
+<p>校正済みの <code>skeleton.py</code> helperには、従来のpx列に加えて長さ・直径・局所座標のmm列が追加されます。未校正なら従来どおりpx列だけです。次数別計測の <code>order.py</code> は既存の <code>pixel_size_mm</code> 引数で、長さmm、葉面積mm²、VLA（mm mm(^{-2})）を計算します。</p>
 </section>
 <section id="全体像" class="level2">
 <h2 class="anchored" data-anchor-id="全体像">全体像</h2>
@@ -389,20 +477,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>metadata、レイヤー間の対応、検索、選択、削除を一元管理する</td>
 </tr>
 <tr class="odd">
+<td><code>src/leaf_vein_workflow/widgets/calibration.py</code></td>
+<td>校正UIの操作、スケールバー線、元画像ごとのmetadata反映を担当する</td>
+</tr>
+<tr class="even">
 <td><code>src/leaf_vein_workflow/widgets/roi.py</code></td>
 <td>画像の検出、ROI Shapes レイヤー、crop の作成を担当する</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>src/leaf_vein_workflow/widgets/mask.py</code></td>
 <td>Gaussian、Otsu、閾値更新、<code>Clean Mask</code> を担当する</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>src/leaf_vein_workflow/widgets/order_labels.py</code></td>
 <td>order labels の作成と mask 外への描画防止を担当する</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>src/leaf_vein_workflow/crop.py</code></td>
 <td>画像配列をどこで切るかを計算する</td>
+</tr>
+<tr class="even">
+<td><code>src/leaf_vein_workflow/calibration.py</code></td>
+<td>DPI・直接値・スケールバーを mm/px に変換する</td>
 </tr>
 <tr class="odd">
 <td><code>src/leaf_vein_workflow/threshold.py</code></td>
@@ -439,8 +535,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>napari viewer を <code>self.viewer</code> に保存する。</li>
 <li><code>controls.py</code> でボタン、入力欄、ステータス表示を作る。</li>
-<li><code>layers.py</code> で ROI、crop、smoothed image、mask、order labels の対応関係を管理する。</li>
-<li>ROI、mask、order labels の各担当に、共有する controls とレイヤー管理を明示的に渡す。</li>
+<li><code>layers.py</code> で scale bar、ROI、crop、smoothed image、mask、order labels の対応関係を管理する。</li>
+<li>calibration、ROI、mask、order labels の各担当に、共有する controls とレイヤー管理を明示的に渡す。</li>
 <li><code>crop_widget.py</code> でボタンや Qt signal を各担当の処理へ接続する。</li>
 <li>新しく追加された画像と、すでに開かれている画像の両方を ROI 担当に渡す。</li>
 </ul>
@@ -590,17 +686,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="mask-レイヤーの作成と更新">mask レイヤーの作成と更新</h2>
 <p>mask 処理は <code>widgets/mask.py</code> が担当し、<code>Apply Gaussian</code>、<code>Apply Otsu</code>、<code>Clean Mask</code> という明示的な工程に分かれています。</p>
 <p><code>Apply Gaussian</code> は、現在の crop Image レイヤーに <code>threshold.py</code> の <code>smooth_image()</code> を適用し、<code>smoothed_image</code> Image レイヤーだけを作成または更新します。この時点では <code>vein_mask</code> を作りません。Gaussian sigma の初期値は 1 で、必要に応じて実行前に変更できます。</p>
-<p><code>Apply Otsu</code> は、平滑化済み画像から <code>otsu_threshold()</code> で閾値を推定します。その閾値を使って <code>threshold_image()</code> を実行し、ここで初めて <code>vein_mask</code> Labels レイヤーを作成します。二値化の前には <code>to_grayscale()</code> で画像を 2D grayscale に変換し、RGB/RGBA 画像では alpha を無視します。</p>
+<p><code>Apply Otsu</code> は、平滑化済み画像から <code>estimate_vein_threshold()</code> で閾値を推定します。</p>
+<ul>
+<li><code>ROI includes background (paper)</code> が有効（既定）なら、まず Otsu で葉と背景を分けます。ROI の縁に多い側を背景とし、その大部分が縁につながっていれば背景とみなします。葉身の内側だけの ROI では、明るい側（葉身）は葉脈で囲まれた小さな網目に分かれて縁に届かないので、背景とはみなさず1段階の Otsu に戻ります。</li>
+<li>背景を除いた葉の中だけでもう一度 Otsu をかけ、葉脈と葉身を分けます。背景は mask から常に外します。</li>
+<li>葉脈は葉の中で少ない側なので、少ない側を葉脈として <code>Invert</code> を自動で設定します。</li>
+</ul>
+<p>3200 dpi の標本画像で確かめたところ、葉全体の ROI では背景を除いて葉の 25% が葉脈に、葉身内側の ROI では 22% が葉脈になりました。1段階の Otsu で葉全体を選ぶと、葉身全体（54%）が mask になっていました。</p>
+<p>その閾値を使って <code>threshold_image()</code> を実行し、ここで初めて <code>vein_mask</code> Labels レイヤーを作成します。二値化の前には <code>to_grayscale()</code> で画像を 2D grayscale に変換し、RGB/RGBA 画像では alpha を無視します。</p>
 <p><code>Invert threshold</code> が有効な場合は、閾値以下の画素を 1 として扱います。これは、葉脈が背景より暗い画像で使う想定です。</p>
 <p>一度 <code>Apply Otsu</code> を実行した後は、閾値入力欄、slider、<code>Invert threshold</code> の変更に応じて同じ mask を更新します。連続した UI signal ごとに重い処理を繰り返さないよう、短い待ち時間を置く single-shot timer で更新をまとめます。この timer にも「Otsu 実行済み」の確認があり、control の初期化や <code>Apply Gaussian</code> だけで mask が作られることを防ぎます。</p>
 <p>mask は napari の Labels レイヤーとして作られます。レイヤー名は <code>vein_mask</code> です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの <code>data</code> と <code>translate</code> を更新します。</p>
-<p><code>Clean Mask</code> は、small object removal、hole filling、closing、opening の設定を <code>postprocess_mask()</code> に渡し、現在の mask を明示的に整えます。cleanup 後は自動の閾値更新を止め、<code>vein_mask</code> を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。</p>
+<p><code>Clean Mask</code> は、small object removal、hole filling、closing、opening の設定を <code>postprocess_mask()</code> に渡し、現在の mask を明示的に整えます。入力欄は従来どおり整数pxですが、校正済み画像では small object と hole の面積をmm²、closing と opening の半径をµmまたはmmでラベルに併記します。値の変更、再校正、別画像への切り替えに応じて換算表示も更新されます。未校正画像ではpxだけを表示します。cleanup 後は自動の閾値更新を止め、<code>vein_mask</code> を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。</p>
 </section>
 <section id="order-labels-レイヤーの作成" class="level2">
 <h2 class="anchored" data-anchor-id="order-labels-レイヤーの作成">order labels レイヤーの作成</h2>
 <p>手作業を含む mask の確認が終わった後に <code>Create Order Labels</code> を押すと、<code>widgets/order_labels.py</code> が現在の <code>vein_mask</code> と同じ shape の <code>order_labels</code> Labels レイヤーを作ります。現在の widget フローでは、この操作時に skeleton レイヤーは作りません。</p>
 <p>作成後は <code>vein_mask</code> を非表示にし、<code>order_labels</code> を active な paint mode にします。order labels への描画は確認済み mask の対象領域内だけに制限され、mask が後から変わった場合も領域外のラベルを 0 に戻します。</p>
-<p>現在の実装では、<code>vein_mask == 0</code> の white-out 領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは <code>order_labels.py</code> 側も一緒に確認する必要があります。</p>
+<p><code>vein_mask</code> は 1 = 葉脈（黄色、不透明度 0.5）、0 = 背景（透明）です。status 行に葉脈として塗られた割合を出し、45% を超えると葉身や背景を選んでいる疑いがあると知らせます。mask を手で直すときは label 1 で塗ると葉脈を足し、消しゴム（label 0）で葉脈を消せます。order labels は <code>vein_mask &gt; 0</code> の領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。order labels を作った後に mask を直すと、mask から消えた部分のラベルは 0 に戻り、mask に足した部分は label 4（uncertain）になります。Export では order labels を <code>vein_mask</code> と照合し、mask にあるのに次数が 0 の画素があれば警告します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは <code>order_labels.py</code> 側も一緒に確認する必要があります。</p>
+<p>葉脈が前景なので、<code>Clean Mask</code> の「Small object area」は小さな葉脈の断片を、「Maximum hole area」は葉脈の内側の小さな穴を対象にします。穴埋めを大きくすると小さな網目（areole）まで潰れるため、既定値は 50 px にしています。</p>
 <p>order labels の値は、次の用途を想定しています。</p>
 <table class="caption-top table">
 <thead>
@@ -624,7 +728,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td>3</td>
-<td>minor</td>
+<td>tertiary（3次脈）</td>
 </tr>
 <tr class="odd">
 <td>4</td>
@@ -633,6 +737,184 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 <p>同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きせず、そのレイヤーを再利用します。</p>
+</section>
+<section id="次2次脈の自動振り分け" class="level2">
+<h2 class="anchored" data-anchor-id="次2次脈の自動振り分け">1次・2次脈の自動振り分け</h2>
+<p><code>auto_order.py</code>（napari に依存しない）が、Manual of Leaf Architecture（Ellis et al., 2009）の次数の決め方を骨格のグラフの上で行います。ユーザーは葉の基部と1次脈の先端を2回クリックするだけです。</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>段階</th>
+<th>処理</th>
+<th>Ellis の対応する記述</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1次脈</td>
+<td>基部から先端まで、1歩のコストを「長さ ÷ 直径²」とした最短経路</td>
+<td>1次脈は最も太く、基部から先端へ走る</td>
+</tr>
+<tr class="even">
+<td>2次脈の候補</td>
+<td>1次脈の縁のすぐ外の輪で、出ていく枝の太さを測る。同じ側の近くで最も太い枝の 70% 以上なら候補</td>
+<td>次数は付け根の最も太い所で判断する。2次脈は先端へ向かって細くなるので、固定の境目は使わない</td>
+</tr>
+<tr class="odd">
+<td>2次脈の走り方</td>
+<td>同じ側の葉縁まで最短経路でたどり、太さが急に落ちた所で切る</td>
+<td>ほぼ同じ太さで続く脈は同じ次数</td>
+</tr>
+<tr class="even">
+<td>3次脈の除外</td>
+<td>たどった経路の大半がより太い2次脈と重なる候補は、1次と2次をつなぐ3次脈として外す</td>
+<td>3次脈は1次・2次脈どうしをつなぐ</td>
+</tr>
+</tbody>
+</table>
+<p>距離の設定は mm で持ち、校正値で画素に直すので、解像度が変わっても同じ規則が使えます。3200 dpi のコナラ標本では、1次脈と約30本の2次脈が取れ、基部付近の脈は手で直す必要がありました。結果は不確定（4）の画素にだけ書き込み、クリック位置・設定・本数を <code>order_labels.auto_order</code> としてメタデータに残します。</p>
+<p>PlantPose（Liu et al., 2026）のような学習ベースの骨格推定は木構造を出力し、ループや次数、細い脈の太さを扱わないため、ここでは使っていません。</p>
+</section>
+<section id="export-の実行" class="level2">
+<h2 class="anchored" data-anchor-id="export-の実行">Export の実行</h2>
+<p><code>Export Measurements</code> ボタンは書き出しを別スレッドで実行し、その間も napari を操作できます（<code>widgets/measurement.py</code>）。</p>
+<ol type="1">
+<li><code>prepare_export()</code> がメインスレッドでレイヤーと入力欄を読み、ラベル・mask・元画像のコピーを <code>ExportJob</code> にまとめる。</li>
+<li><code>run_export_job()</code> が別スレッドで骨格化、長さの計測、ファイル書き出しを行う。napari のレイヤーや Qt には触れない。</li>
+<li>終わったら通知を出し、ボタンを元に戻す。</li>
+</ol>
+<p>3200 dpi の葉全体（約 3,900 × 8,400 px）では計測と骨格の表で約 30 秒かかります。葉身全体が mask になっていた場合は骨格化に3分以上かかっていました。直径は <code>distance_transform_edt</code> で求めます（<code>medial_axis</code> と同じ「背景までの距離」で、より速い）。</p>
+</section>
+<section id="再現性のためのメタデータ" class="level2">
+<h2 class="anchored" data-anchor-id="再現性のためのメタデータ">再現性のためのメタデータ</h2>
+<p>Export のたびに <code>&lt;時刻&gt;_&lt;画像名&gt;_metadata.yaml</code> を書き出し、同じ Export のファイルには同じ接頭辞を付けます。設定ファイルは「既定値」にすぎず、実際にはスライダーで閾値を動かしたり、mask を手で直したりするため、各工程で<strong>実際に使った値</strong>をレイヤーの metadata に記録しておき、それをまとめて書き出します。</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>source_image</code></td>
+<td>元画像のパス、SHA-256、shape</td>
+</tr>
+<tr class="even">
+<td><code>calibration</code></td>
+<td>mm/px、校正方法、入力値と単位</td>
+</tr>
+<tr class="odd">
+<td><code>leaf_area</code></td>
+<td>入力値、単位、mm² 換算値</td>
+</tr>
+<tr class="even">
+<td><code>order_labels.processing</code></td>
+<td>ROI 範囲、Gaussian sigma、Otsu 値、最終閾値と invert、Clean Mask の全実行（各回の値と、その前に手修正があったか）</td>
+</tr>
+<tr class="odd">
+<td><code>mask_edited_by_hand_after_last_step</code></td>
+<td>最後の自動処理の後に mask を手で直したか（内容のハッシュで判定）</td>
+</tr>
+<tr class="even">
+<td><code>label_pixel_counts</code> ほか</td>
+<td>次数ごとの画素数、未分類・次数なしの画素数</td>
+</tr>
+<tr class="odd">
+<td><code>vein_paths</code></td>
+<td>次数ごとのパス本数</td>
+</tr>
+<tr class="even">
+<td><code>settings</code></td>
+<td>使っていた設定ファイルと、その時点の既定値</td>
+</tr>
+<tr class="odd">
+<td><code>software</code></td>
+<td>Python と主要パッケージのバージョン</td>
+</tr>
+</tbody>
+</table>
+<p>手で直した mask はパラメータからは再現できないため、<code>*_vein_mask.npy</code> として mask 自体も保存します。</p>
+</section>
+<section id="設定ファイル" class="level2">
+<h2 class="anchored" data-anchor-id="設定ファイル">設定ファイル</h2>
+<p>各入力欄の既定値は、widget を開いたときに YAML の設定ファイルから読み込みます（<code>settings.py</code>）。リポジトリには推奨値を書いた <code>leaf_vein_workflow.example.yaml</code> が入っています。</p>
+<ul>
+<li>リポジトリのフォルダで napari を起動し、<code>leaf_vein_workflow.yaml</code> がなければ、example をコピーして作ります。値を変えたいときはこの <code>leaf_vein_workflow.yaml</code> を編集します。</li>
+<li><code>leaf_vein_workflow.yaml</code> は git の管理外なので、自分の値がコミットされたり、更新とぶつかったりしません。</li>
+<li>推奨値に戻したいときは、example を <code>leaf_vein_workflow.yaml</code> に上書きコピーします（<code>Reset to Defaults</code> でも同じ）。</li>
+<li>別のフォルダから起動したときは、ユーザーごとの <code>config.yaml</code> を使います。</li>
+</ul>
+<p>使っているファイルの場所は <code>Settings</code> セクションに表示されます。</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>キー</th>
+<th>推奨値</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>calibration.method</code> / <code>value</code></td>
+<td><code>dpi</code> / 1200</td>
+<td>校正方法と値。2次脈の太さを測れる解像度を推奨値にしている</td>
+</tr>
+<tr class="even">
+<td><code>scale_bar.length_mm</code></td>
+<td>10</td>
+<td>Apply Scale 後に描く表示用バーの長さ</td>
+</tr>
+<tr class="odd">
+<td><code>mask.gaussian_sigma</code> / <code>invert_threshold</code></td>
+<td>1.0 / false</td>
+<td>平滑化と閾値の向き（向きは Apply Otsu が自動で上書き）</td>
+</tr>
+<tr class="even">
+<td><code>mask.exclude_background</code></td>
+<td>true</td>
+<td>ROI に葉の周りの背景が含まれる前提で、2段階の Otsu を使う</td>
+</tr>
+<tr class="odd">
+<td><code>cleanup.*</code></td>
+<td>100 / 50 / 1 / 0 px</td>
+<td>葉脈片の除去、穴埋め、closing、opening</td>
+</tr>
+<tr class="even">
+<td><code>measurement.leaf_area_unit</code> / <code>output_dir</code></td>
+<td><code>mm2</code> / <code>output</code></td>
+<td>葉面積の単位と出力先（相対パスは起動フォルダ基準）</td>
+</tr>
+</tbody>
+</table>
+<p>ファイルに書いたキーだけが推奨値を上書きします。書いていないキーや不正な値は推奨値に戻り、不正な値には警告を出します。<code>Open Settings File</code> はファイルがなければ推奨値入りのコメント付きファイルを作って開き、<code>Reload</code> で編集を反映し、<code>Reset to Defaults</code> で推奨値のファイルに戻します（元のファイルは <code>*.bak</code> に残す）。</p>
+</section>
+<section id="計測と-vla" class="level2">
+<h2 class="anchored" data-anchor-id="計測と-vla">計測と VLA</h2>
+<section id="パス計測1次2次" class="level3">
+<h3 class="anchored" data-anchor-id="パス計測1次2次">パス計測（1次・2次）</h3>
+<p>参考プロトコル（Sack &amp; Scoffoni 2013）では、1次脈と 2次脈は葉全体の画像で segmented line としてなぞり、長さを合計して葉面積で割ります。<code>vein_paths.py</code> はこの方法に対応します（今は dock に表示していません）。<code>Draw Vein Paths</code> を押すと元画像に <code>&lt;画像名&gt; vein paths</code> の Shapes レイヤーができ、path 描画モードになります。クリックで頂点を置き、ダブルクリックで1本を確定します。</p>
+<p>各パスは <code>order</code> feature（1 または 2）を持ち、新しいパスには dock で選んだ次数が付きます。既存のパスを選択して次数を切り替えると付け替わり、色（1次 = 赤橙、2次 = 青）も更新されます。長さは頂点間の距離の合計で、校正値は元画像から引き継ぎます。<code>Export Measurements</code> で <code>*_path_measurements.csv</code>（次数ごとの本数・長さ・VLA）と、全頂点を記録した <code>*_path_vertices.csv</code> を書き出します。3次脈は葉全体ではなく矩形の標本領域で測る方法なので、パス計測の対象にしていません。</p>
+</section>
+<section id="次数ラベル計測" class="level3">
+<h3 class="anchored" data-anchor-id="次数ラベル計測">次数ラベル計測</h3>
+<p><code>widgets/measurement.py</code> が <code>order.py</code> の <code>measure_order_labels</code> を呼び、label 1・2・3 をそれぞれ別に骨格化して skan の branch 長を合計します。合算行（<code>primary_secondary</code> = 1+2、<code>major</code> = 1+2+3）は、単一次数の長さの和です。合併領域を骨格化し直すと次数の境界で骨格が短くなり、major が primary より短くなることがあるためです。major を 1–3 次とする定義は Sack &amp; Scoffoni (2013) に従っています。</p>
+<p>葉面積は画像からではなく、GUI に入力した値を使います（標本化前のスキャンで測った値を想定）。cm² で入力した場合は 100 倍して mm² に換算します。VLA は <code>length_mm / leaf_area_mm2</code> で、<code>apply_leaf_area</code> により長さを保ったまま葉面積だけ差し替えられます。CSV には <code>leaf_area_source</code> 列で葉面積の出どころ（<code>input</code> または <code>leaf_mask</code>）を残します。label 4 のまま残ったピクセルはどの次数にも入らず、結果欄に件数を警告として出します。</p>
+</section>
 </section>
 <section id="エラーや警告になる例" class="level2">
 <h2 class="anchored" data-anchor-id="エラーや警告になる例">エラーや警告になる例</h2>
@@ -649,6 +931,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </thead>
 <tbody>
+<tr class="odd">
+<td>校正値が0以下、NaN、inf</td>
+<td>実単位へ安全に換算できない</td>
+</tr>
+<tr class="even">
+<td>スケールバー線がない、または2本以上ある</td>
+<td>どの線長を使うか決められない</td>
+</tr>
 <tr class="odd">
 <td>ROI レイヤー以外を選択している</td>
 <td>どの ROI を使うか分からない</td>
@@ -694,6 +984,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="テストで確認していること" class="level2">
 <h2 class="anchored" data-anchor-id="テストで確認していること">テストで確認していること</h2>
+<p><code>tests/test_calibration.py</code> では、DPI・µm/px・mm/px・手動スケールバーからの換算、無効値の拒否、校正metadataだけを派生レイヤー用にコピーできることを確認しています。</p>
 <p><code>tests/test_crop.py</code> では、napari に依存しない切り抜き計算を確認しています。</p>
 <ul>
 <li>小数座標が <code>floor</code> と <code>ceil</code> で正しく slice になること。</li>
@@ -717,6 +1008,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>2D mask から骨格画像を作れること。</li>
 <li>Labels 形式の整数 mask でも、0 より大きい画素を前景として扱うこと。</li>
 <li>空 mask や 2D 以外の入力がエラーになること。</li>
+<li>校正値を渡すと既存px列を変えずに長さ・直径・局所座標のmm列が追加されること。</li>
 </ul>
 <p><code>tests/test_widget_import.py</code> では、Qt backend がある環境で <code>_widget.py</code> から widget を import できることと、画像追加から order labels までの工程を確認しています。</p>
 <ul>
@@ -726,6 +1018,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>Clean Mask</code> 後も mask が active な paint mode に保たれること。</li>
 <li>order labels が mask 外に描けず、既存の手動ラベルが再作成時に上書きされないこと。</li>
 <li>ROI を切り直すと古い派生レイヤーが削除されること。</li>
+<li>数値入力と手動スケールバーの校正値が派生レイヤーへ継承され、再校正で置き換わること。</li>
 </ul>
 </section>
 <section id="開発時に見る順番" class="level2">
@@ -738,6 +1031,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>widgets/crop_widget.py</code> で 1 つの widget の組み立て、signal 接続、各工程への委譲を見る。</li>
 <li><code>widgets/controls.py</code> で UI 部品と有効・無効の切り替えを見る。</li>
 <li><code>widgets/layers.py</code> で metadata、レイヤー間の対応、active/visible、削除の規則を見る。</li>
+<li><code>widgets/calibration.py</code> と <code>calibration.py</code> で校正UI、metadata、mm/px換算を見る。</li>
 <li><code>widgets/roi.py</code> と <code>crop.py</code> で画像追加、ROI 編集、切り抜き処理を見る。</li>
 <li><code>widgets/mask.py</code> と <code>threshold.py</code> で Gaussian、Otsu、timer、cleanup の流れを見る。</li>
 <li><code>widgets/order_labels.py</code> で order labels の作成と描画制限を見て、必要なら <code>order.py</code> で検証、集計、export 処理を見る。</li>
@@ -831,7 +1125,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -840,8 +1135,69 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -855,6 +1211,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -1017,44 +1374,54 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -1152,6 +1519,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       }
     }
   });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"スクロール可能なコード","output":"スクロール可能な出力"};
   </script>
 </div> <!-- /content -->
 
