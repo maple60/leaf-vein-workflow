@@ -17,7 +17,7 @@ from skimage.io import imsave
 from skimage.morphology import skeletonize
 
 from .calibration import millimetres_per_pixel, validate_positive_finite
-from .skeleton import drop_isolated_pixels
+from .skeleton import drop_isolated_pixels, prune_spurs
 
 
 # Label 3 is tertiary.  Following Sack & Scoffoni (2013), "major" veins are
@@ -299,9 +299,12 @@ def _skeleton_and_length(mask: np.ndarray) -> tuple[np.ndarray, float]:
     if not np.any(skeleton):
         return skeleton, 0.0
 
-    connected = drop_isolated_pixels(skeleton)
+    # 太い脈の縁のでこぼこから出る短い行き止まりの枝（ひげ）は長さに含めない。
+    # 含めると、コナラの主脈で長さが約3割過大になった。
+    connected = prune_spurs(skeleton, mask).astype(np.uint8)
     if not np.any(connected):
         return skeleton, 0.0
+    skeleton = connected
 
     skeleton_graph = Skeleton(connected, spacing=1)
     branch_table = summarize(skeleton_graph, separator="-")

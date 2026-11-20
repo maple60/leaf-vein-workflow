@@ -141,6 +141,9 @@ napari was started from (`Change...` picks another one). The files are a
 measurements CSV with total length and VLA (mm mm⁻²) for 1°, 2°, 3°, 1°+2°, and
 major (1°–3°), the order labels as `.npy`, a QC overlay PNG, and a skeleton
 branch table. Combined rows are the sum of the per-order skeleton lengths.
+Before measuring, dead-end skeleton branches shorter than the vein diameter at
+their junction are removed: they come from bumps on the outline of thick veins
+and made the 1° about 30% too long on a 3200 dpi konara scan.
 Results are not shown in the dock; a notification confirms the export and warns
 about pixels still labelled 4 (uncertain), which are excluded from every order.
 Export runs in the background so napari stays usable; a full 3200 dpi leaf

@@ -196,3 +196,17 @@ def test_qc_overlay_uses_the_same_order_colors_as_napari():
             for other, h in ORDER_LABEL_HEX.items()
         }
         assert min(distances, key=distances.get) == value, (value, target)
+
+
+def test_measured_length_ignores_spurs_on_a_thick_vein():
+    """A 40 px wide vein with bumpy edges measures about its centre-line length."""
+    labels = np.zeros((120, 480), np.uint8)
+    labels[40:80, 40:440] = 1
+    for col in range(70, 420, 30):
+        labels[34:40, col:col + 6] = 1
+        labels[80:86, col + 15:col + 21] = 1
+
+    rows = measure_order_labels(labels, pixel_size_mm=0.01)
+    primary = next(row for row in rows if row["label_name"] == "primary")
+
+    assert primary["length_px"] == pytest.approx(360, rel=0.1)
