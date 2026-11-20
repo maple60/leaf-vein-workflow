@@ -175,3 +175,25 @@ def test_vein_threshold_without_background_uses_the_whole_roi():
     assert estimate.leaf_mask is None
     assert estimate.invert is True
     assert np.isclose(estimate.vein_fraction, np.mean(inside_blade < 0.3))
+
+
+def test_reviewed_leaf_region_controls_second_otsu():
+    from leaf_vein_workflow.threshold import estimate_vein_threshold, estimate_leaf_mask
+
+    image = _leaf_on_paper()
+    _, candidate = estimate_leaf_mask(image)
+    assert candidate is not None
+    reviewed = np.zeros(image.shape, dtype=bool)
+    reviewed[30:90, 30:90] = True
+    estimate = estimate_vein_threshold(image, leaf_mask=reviewed)
+    np.testing.assert_array_equal(estimate.leaf_mask, reviewed)
+    assert estimate.invert
+    assert 0.15 < estimate.threshold < 0.55
+
+
+@pytest.mark.parametrize("leaf", [np.zeros((2, 3), bool), np.ones((3, 2), bool)])
+def test_second_otsu_rejects_empty_or_mismatched_leaf_region(leaf):
+    from leaf_vein_workflow.threshold import estimate_vein_threshold
+
+    with pytest.raises(ValueError, match="Leaf mask"):
+        estimate_vein_threshold(np.arange(6).reshape(2, 3), leaf_mask=leaf)

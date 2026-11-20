@@ -66,6 +66,9 @@ class CropWidget(QWidget):
         self.add_roi_button = self._controls.add_roi_button
         self.apply_gaussian_button = self._controls.apply_gaussian_button
         self.otsu_button = self._controls.otsu_button
+        self.confirm_leaf_button = self._controls.confirm_leaf_button
+        self.leaf_area_source_combo = self._controls.leaf_area_source_combo
+        self.leaf_area_status_label = self._controls.leaf_area_status_label
         self.invert_threshold_checkbox = self._controls.invert_threshold_checkbox
         self.clean_mask_button = self._controls.clean_mask_button
         self.create_order_labels_button = self._controls.create_order_labels_button
@@ -138,6 +141,7 @@ class CropWidget(QWidget):
         self.add_roi_button.clicked.connect(self.add_roi)
         self.apply_gaussian_button.clicked.connect(self.apply_gaussian_filter)
         self.otsu_button.clicked.connect(self.use_otsu_threshold)
+        self.confirm_leaf_button.clicked.connect(self.confirm_leaf)
         self.clean_mask_button.clicked.connect(self.clean_mask)
         self.create_order_labels_button.clicked.connect(self.create_order_labels)
         self.paint_order_combo.currentIndexChanged.connect(
@@ -172,6 +176,9 @@ class CropWidget(QWidget):
         self.viewer.layers.selection.events.active.connect(
             self._calibration_workflow.on_active_layer_changed
         )
+        self.viewer.layers.selection.events.active.connect(
+            self._mask_workflow.refresh_leaf_status
+        )
 
     def draw_scale_bar_line(self) -> None:
         """Create or select the manual scale-bar line for the active image."""
@@ -182,6 +189,7 @@ class CropWidget(QWidget):
         source_image = self._layers.active_source_image()
         before = None if source_image is None else dict(source_image.metadata)
         self._calibration_workflow.apply_scale()
+        self._mask_workflow.refresh_leaf_status()
         if source_image is not None and dict(source_image.metadata) != before:
             self._controls.open_section("roi")
 
@@ -206,6 +214,10 @@ class CropWidget(QWidget):
     def clean_mask(self) -> None:
         """Delegate explicit morphology cleanup to the mask workflow."""
         self._mask_workflow.clean_mask()
+
+    def confirm_leaf(self) -> None:
+        """Confirm the edited leaf region and extract its vein mask."""
+        self._mask_workflow.confirm_leaf()
 
     def create_order_labels(self) -> None:
         """Delegate manual order-label setup to the labeling workflow."""

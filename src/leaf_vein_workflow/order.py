@@ -39,7 +39,7 @@ VALID_LABEL_VALUES = {0, 1, 2, 3, 4}
 ORDER_LABEL_HEX = {
     1: "#ff4b00",  # 1° primary
     2: "#005aff",  # 2° secondary
-    3: "#03af7a",  # 3° tertiary
+    3: "#66e080",  # 3° tertiary: bright green over grayscale scans
     4: "#990099",  # uncertain
 }
 # QC 画像で骨格（長さを測った中心線）を描く色。

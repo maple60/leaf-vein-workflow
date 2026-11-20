@@ -20,6 +20,7 @@ ROLE_ROI_SHAPES = "roi_shapes"
 ROLE_ROI_CROP = "roi_crop"
 ROLE_SMOOTHED_IMAGE = "smoothed_image"
 ROLE_VEIN_MASK = "vein_mask"
+ROLE_LEAF_MASK = "leaf_mask"
 ROLE_ORDER_LABELS = "order_labels"
 ROLE_SCALE_BAR = "scale_bar"
 ROLE_SCALE_INDICATOR = "scale_indicator"
@@ -33,6 +34,7 @@ PROCESSING_KEY = "leaf_vein_workflow_processing"
 
 SMOOTHED_LAYER_NAME = "smoothed_image"
 VEIN_MASK_LAYER_NAME = "vein_mask"
+LEAF_MASK_LAYER_NAME = "leaf_mask"
 ORDER_LABELS_LAYER_NAME = "order_labels"
 ORDER_UNCERTAIN_LABEL = 4
 # vein_mask は 1 = 葉脈（着色）、0 = 背景（透明）。label 1 で塗ると葉脈を足せる。
@@ -80,6 +82,9 @@ class WorkflowLayers:
         self.order_label_selection_connected: set[int] = set()
         # Apply Otsu で求めた葉の範囲（crop layer id ごと）。背景を mask から外す。
         self.leaf_masks: dict[int, np.ndarray] = {}
+        self.crop_to_leaf: dict[int, Labels] = {}
+        self.leaf_to_crop: dict[int, Image] = {}
+        self.pending_leaf_masks: set[int] = set()
         self.mask_clip_connected: set[int] = set()
         self.clipping_order_labels: set[int] = set()
 
@@ -147,6 +152,10 @@ class WorkflowLayers:
                 continue
             self._replace_calibration(crop_layer, metadata)
 
+            leaf_layer = self.crop_to_leaf.get(id(crop_layer))
+            if leaf_layer is not None and self.is_present(leaf_layer):
+                self._replace_calibration(leaf_layer, metadata)
+
             smoothed_layer = self.crop_to_smoothed.get(id(crop_layer))
             if smoothed_layer is not None and self.is_present(smoothed_layer):
                 self._replace_calibration(smoothed_layer, metadata)
@@ -195,6 +204,10 @@ class WorkflowLayers:
     def active_crop_layer(self) -> Image | None:
         """Resolve the selected workflow layer back to its ROI crop."""
         layer = self.viewer.layers.selection.active
+
+        if isinstance(layer, Labels) and layer.metadata.get(ROLE_KEY) == ROLE_LEAF_MASK:
+            crop_layer = self.leaf_to_crop.get(id(layer))
+            return crop_layer if crop_layer is not None and self.is_present(crop_layer) else None
 
         if isinstance(layer, Image) and layer.metadata.get(ROLE_KEY) == ROLE_ROI_CROP:
             return layer
@@ -278,6 +291,9 @@ class WorkflowLayers:
             if order_layer is not None and self.is_present(order_layer):
                 return order_layer
 
+        if self.active_crop_layer() is not None:
+            return None
+
         named = self.by_name(ORDER_LABELS_LAYER_NAME)
         if isinstance(named, Labels):
             return named
@@ -348,6 +364,12 @@ class WorkflowLayers:
         """Remove all derived layers below a crop after the ROI changes."""
         self.mask_updates_enabled.discard(id(crop_layer))
         self.leaf_masks.pop(id(crop_layer), None)
+        self.pending_leaf_masks.discard(id(crop_layer))
+        leaf_layer = self.crop_to_leaf.pop(id(crop_layer), None)
+        if leaf_layer is not None:
+            self.leaf_to_crop.pop(id(leaf_layer), None)
+            if self.is_present(leaf_layer):
+                self.viewer.layers.remove(leaf_layer)
 
         smoothed_layer = self.crop_to_smoothed.pop(id(crop_layer), None)
         if smoothed_layer is not None:
@@ -356,6 +378,23 @@ class WorkflowLayers:
                 self.viewer.layers.remove(smoothed_layer)
 
         self.clear_mask_layer(crop_layer)
+
+    def confirmed_leaf_mask(self, crop_layer: Image) -> np.ndarray:
+        """Return the frozen mask only while the editable leaf is still confirmed."""
+        leaf_layer = self.crop_to_leaf.get(id(crop_layer))
+        leaf = self.leaf_masks.get(id(crop_layer))
+        if (
+            id(crop_layer) in self.pending_leaf_masks
+            or leaf is None
+            or leaf_layer is None
+            or not self.is_present(leaf_layer)
+            or not np.array_equal(np.asarray(leaf_layer.data) > 0, leaf)
+        ):
+            raise ValueError(
+                "Review the leaf mask and click Confirm Leaf before measuring "
+                "or extracting veins."
+            )
+        return leaf
 
     def clear_mask_layer(self, crop_layer: Image) -> None:
         """Remove a crop's mask and its order-label layer."""

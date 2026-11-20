@@ -132,6 +132,10 @@ class WorkflowControls:
     add_roi_button: QPushButton
     apply_gaussian_button: QPushButton
     otsu_button: QPushButton
+    confirm_leaf_button: QPushButton
+    leaf_area_status_label: QLabel
+    confirmed_leaf_area_label: QLabel
+    leaf_area_source_combo: QComboBox
     invert_threshold_checkbox: QCheckBox
     exclude_background_checkbox: QCheckBox
     clean_mask_button: QPushButton
@@ -227,6 +231,10 @@ class WorkflowControls:
         leaf_area_unit_combo = QComboBox()
         leaf_area_unit_combo.addItem("mm²", "mm2")
         leaf_area_unit_combo.addItem("cm²", "cm2")
+        leaf_area_source_combo = QComboBox()
+        leaf_area_source_combo.addItem("Confirmed leaf mask (current ROI)", "leaf_mask")
+        leaf_area_source_combo.addItem("External area (manual input)", "input")
+        leaf_area_source_combo.setCurrentIndex(1)
 
         # 既定の出力先は napari を起動したフォルダ直下の output。
         output_dir_input = QLineEdit(str(Path.cwd() / "output"))
@@ -284,6 +292,10 @@ class WorkflowControls:
             add_roi_button=QPushButton("Add ROI"),
             apply_gaussian_button=QPushButton("Apply Gaussian"),
             otsu_button=QPushButton("Apply Otsu"),
+            confirm_leaf_button=QPushButton("Confirm Leaf && Extract Veins"),
+            leaf_area_status_label=QLabel("Leaf area: not confirmed"),
+            confirmed_leaf_area_label=QLabel("Leaf area: not confirmed"),
+            leaf_area_source_combo=leaf_area_source_combo,
             invert_threshold_checkbox=QCheckBox("Invert (dark pixels are vein)"),
             exclude_background_checkbox=QCheckBox("ROI includes background (paper)"),
             clean_mask_button=QPushButton("Clean Mask"),
@@ -292,7 +304,7 @@ class WorkflowControls:
             mark_seeds_button=QPushButton("Mark Base && Apex"),
             auto_orders_button=QPushButton("Auto-assign 1°/2°"),
             leaf_area_label=QLabel("Leaf area"),
-            leaf_area_input=make_number_input("", "measured before preparation"),
+            leaf_area_input=make_number_input("", "external area (optional)"),
             leaf_area_unit_combo=leaf_area_unit_combo,
             output_dir_input=output_dir_input,
             change_output_dir_button=QPushButton("Change..."),
@@ -329,6 +341,13 @@ class WorkflowControls:
         controls.add_roi_button.setEnabled(False)
         controls.set_gaussian_enabled(False)
         controls.set_threshold_enabled(False)
+        controls.confirm_leaf_button.setEnabled(False)
+        controls.leaf_area_status_label.setWordWrap(True)
+        controls.confirmed_leaf_area_label.setWordWrap(True)
+        controls.leaf_area_source_combo.currentIndexChanged.connect(
+            lambda *_: controls.update_leaf_area_fields()
+        )
+        controls.update_leaf_area_fields()
         controls.set_cleanup_enabled(False)
         controls.set_measurement_enabled(False)
         return controls
@@ -381,16 +400,18 @@ class WorkflowControls:
         mask_layout = QVBoxLayout()
         mask_layout.addWidget(
             _hint(
-                "Colored pixels are vein. Apply Gaussian, then Apply Otsu: it "
-                "picks the side with fewer pixels (the veins) and ignores the "
-                "paper around the leaf. If the leaf blade turns colored instead, "
-                "toggle Invert. Paint or erase on vein_mask to fix spots."
+                "Apply Gaussian, then Apply Otsu to review leaf_mask. Paint or "
+                "erase the blade boundary and remove the petiole and debris. "
+                "Confirm Leaf calculates area and extracts veins inside it. "
+                "For a local ROI, the area is that region, not the whole leaf."
             )
         )
         mask_layout.addLayout(gaussian_layout)
         mask_layout.addWidget(self.apply_gaussian_button)
         mask_layout.addWidget(self.exclude_background_checkbox)
         mask_layout.addWidget(self.otsu_button)
+        mask_layout.addWidget(self.confirm_leaf_button)
+        mask_layout.addWidget(self.leaf_area_status_label)
         mask_layout.addWidget(self.invert_threshold_checkbox)
         mask_layout.addWidget(self.threshold_label)
         mask_layout.addLayout(threshold_layout)
@@ -445,11 +466,13 @@ class WorkflowControls:
         leaf_area_section_layout = QVBoxLayout()
         leaf_area_section_layout.addWidget(
             _hint(
-                "Area of the fresh leaf, measured on the scan taken before "
-                "preparation. VLA = vein length / leaf area for each order. "
-                "Change the value and export again to recompute."
+                "Use the confirmed specimen mask for VLA in the same ROI. "
+                "External area is an explicit override; match it to the region "
+                "and preparation state of the measured veins."
             )
         )
+        leaf_area_section_layout.addWidget(self.leaf_area_source_combo)
+        leaf_area_section_layout.addWidget(self.confirmed_leaf_area_label)
         leaf_area_section_layout.addLayout(leaf_area_layout)
 
         output_dir_layout = QHBoxLayout()
@@ -605,6 +628,18 @@ class WorkflowControls:
         self.paint_order_combo.setEnabled(enabled)
         self.mark_seeds_button.setEnabled(enabled)
         self.auto_orders_button.setEnabled(enabled)
+
+    def set_leaf_area_status(self, message: str) -> None:
+        """Show the same confirmed area at the mask and measurement steps."""
+        self.leaf_area_status_label.setText(message)
+        self.confirmed_leaf_area_label.setText(message)
+
+    def update_leaf_area_fields(self, *args) -> None:
+        """Only show manual area controls when external area is selected."""
+        external = self.leaf_area_source_combo.currentData() == "input"
+        for control in (self.leaf_area_label, self.leaf_area_input, self.leaf_area_unit_combo):
+            control.setVisible(external)
+        self.confirmed_leaf_area_label.setVisible(not external)
 
     def set_measurement_enabled(self, enabled: bool) -> None:
         """Enable measurement once a mask (and so order labels) can exist."""

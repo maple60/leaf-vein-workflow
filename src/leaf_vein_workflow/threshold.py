@@ -64,6 +64,7 @@ def estimate_vein_threshold(
     image: np.ndarray,
     *,
     exclude_background: bool = True,
+    leaf_mask: np.ndarray | None = None,
 ) -> VeinThreshold:
     """Estimate a vein threshold and decide which side of it is vein.
 
@@ -75,18 +76,16 @@ def estimate_vein_threshold(
     """
     grayscale = to_grayscale(image)
     leaf_threshold = None
-    leaf_mask = None
     values = grayscale.ravel()
 
-    if exclude_background:
-        first = _otsu_values(values)
-        bright = grayscale > first
-        background = bright if _border(bright).mean() >= 0.5 else ~bright
-        # 背景らしい領域が無い（ROI が葉身の内側だけ）ときは1段階に戻す。
-        if _looks_like_background(background):
-            leaf_threshold = first
-            leaf_mask = ~background
-            values = grayscale[leaf_mask]
+    if leaf_mask is not None:
+        leaf_mask = np.asarray(leaf_mask, dtype=bool)
+        if leaf_mask.shape != grayscale.shape or not np.any(leaf_mask):
+            raise ValueError("Leaf mask must match the image and contain leaf pixels.")
+    elif exclude_background:
+        leaf_threshold, leaf_mask = estimate_leaf_mask(image)
+    if leaf_mask is not None:
+        values = grayscale[leaf_mask]
 
     threshold = _otsu_values(values)
     dark_fraction = float(np.mean(values <= threshold))
@@ -99,6 +98,18 @@ def estimate_vein_threshold(
         leaf_threshold=leaf_threshold,
         leaf_mask=leaf_mask,
     )
+
+
+def estimate_leaf_mask(image: np.ndarray) -> tuple[float, np.ndarray | None]:
+    """Return a first Otsu split and a leaf candidate, if background is found.
+
+    This is a candidate for manual review, not a confirmed leaf-area mask.
+    """
+    grayscale = to_grayscale(image)
+    threshold = _otsu_values(grayscale.ravel())
+    bright = grayscale > threshold
+    background = bright if _border(bright).mean() >= 0.5 else ~bright
+    return threshold, ~background if _looks_like_background(background) else None
 
 
 def _border(array: np.ndarray) -> np.ndarray:

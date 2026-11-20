@@ -1,7 +1,7 @@
 """Gaussian, threshold, and cleanup stages for the dock workflow.
 
-The mask is created only after the explicit Otsu action.  Slider and checkbox
-signals may update an existing mask, but must not cross that stage boundary.
+Otsu creates a leaf candidate. Vein extraction starts only after leaf
+confirmation; threshold signals must not cross that stage boundary.
 """
 
 from typing import Any
@@ -11,9 +11,12 @@ from napari.layers import Image, Labels
 from napari.utils.colormaps import direct_colormap
 from napari.utils.notifications import show_info
 from qtpy.QtCore import QTimer
+from qtpy.QtWidgets import QMessageBox
 
+from ..calibration import CALIBRATION_MM_PER_PIXEL_KEY
 from ..provenance import array_digest
 from ..threshold import (
+    estimate_leaf_mask,
     estimate_vein_threshold,
     postprocess_mask,
     smooth_image,
@@ -23,6 +26,8 @@ from ..threshold import (
 from .controls import WorkflowControls
 from .layers import (
     ROLE_KEY,
+    ROLE_LEAF_MASK,
+    LEAF_MASK_LAYER_NAME,
     ROLE_SMOOTHED_IMAGE,
     ROLE_VEIN_MASK,
     SMOOTHED_LAYER_NAME,
@@ -55,6 +60,29 @@ class MaskWorkflow:
         self.update_timer.setSingleShot(True)
         self.update_timer.setInterval(150)
 
+    def refresh_leaf_status(self, *args) -> None:
+        """Show the area for the selected ROI using its current calibration."""
+        crop = self.layers.active_crop_layer()
+        layer = self.layers.crop_to_leaf.get(id(crop)) if crop is not None else None
+        self.controls.confirm_leaf_button.setEnabled(
+            layer is not None and self.layers.is_present(layer)
+        )
+        if layer is None or not self.layers.is_present(layer):
+            self.controls.set_leaf_area_status("Leaf area: not confirmed")
+            return
+        try:
+            leaf = self.layers.confirmed_leaf_mask(crop)
+        except ValueError:
+            self.controls.set_leaf_area_status("Leaf area: review and confirm leaf_mask")
+            return
+        count = int(np.count_nonzero(leaf))
+        mm = crop.metadata.get(CALIBRATION_MM_PER_PIXEL_KEY)
+        area = (
+            f"{count * float(mm) ** 2:.6g} mm²"
+            if mm else f"{count} px² (apply scale for mm²)"
+        )
+        self.controls.set_leaf_area_status(f"Confirmed ROI leaf area: {area}")
+
     def apply_gaussian_filter(self) -> None:
         """Smooth the selected crop with the current Gaussian sigma."""
         crop_layer = self.layers.active_crop_layer()
@@ -72,8 +100,10 @@ class MaskWorkflow:
             return
 
         self.layers.mask_updates_enabled.discard(id(crop_layer))
-        self.layers.leaf_masks.pop(id(crop_layer), None)
-        self.layers.clear_mask_layer(crop_layer)
+        self.update_timer.stop()
+        self.layers.clear_mask_products(crop_layer)
+        self.controls.confirm_leaf_button.setEnabled(False)
+        self.controls.set_leaf_area_status("Leaf area: not confirmed")
         self.controls.set_cleanup_enabled(False)
         smoothed_layer = self.create_or_update_smoothed_layer(crop_layer, smoothed)
         record = self.layers.processing(crop_layer)
@@ -86,60 +116,130 @@ class MaskWorkflow:
         self.controls.set_status(
             "Applied Gaussian "
             f"sigma={self.controls.gaussian_sigma_spinbox.value():.3g}. "
-            "Click Apply Otsu, then tune the threshold slider."
+            "Click Apply Otsu, review leaf_mask, then confirm the leaf."
         )
         show_info(f"Applied Gaussian smoothing to {crop_layer.name}.")
 
     def use_otsu_threshold(self) -> None:
-        """Estimate an Otsu threshold and explicitly create the vein mask."""
-        intensity_layer = self.layers.active_intensity_layer()
-        if intensity_layer is None:
-            self.controls.warn("Apply Gaussian smoothing before Otsu thresholding.")
+        """Create an editable first-stage leaf candidate, without extracting veins."""
+        crop = self.layers.active_crop_layer()
+        intensity = self.layers.active_intensity_layer()
+        if crop is None or intensity is None:
+            self.controls.warn("Create an ROI and apply Gaussian before Otsu.")
             return
-
-        exclude_background = self.controls.exclude_background_checkbox.isChecked()
         try:
-            estimate = estimate_vein_threshold(
-                np.asarray(intensity_layer.data),
-                exclude_background=exclude_background,
-            )
+            threshold, candidate = estimate_leaf_mask(np.asarray(intensity.data))
         except ValueError as exc:
             self.controls.warn(str(exc))
             return
-        threshold = estimate.threshold
+        if not self.controls.exclude_background_checkbox.isChecked():
+            candidate = None
+        if candidate is None:
+            candidate = np.ones(np.shape(intensity.data)[:2], dtype=bool)
+            show_info(
+                "No background excluded: review the full ROI as a local leaf "
+                "region. This is not automatically a whole-leaf area."
+            )
 
-        self.set_threshold_range_from_image(np.asarray(intensity_layer.data))
-        record = self.layers.processing(intensity_layer)
-        record["otsu_threshold"] = float(threshold)
+        self.update_timer.stop()
+        self.layers.mask_updates_enabled.discard(id(crop))
+        self.layers.pending_leaf_masks.add(id(crop))
+        leaf_layer = self.layers.crop_to_leaf.get(id(crop))
+        if leaf_layer is not None and self.layers.is_present(leaf_layer):
+            leaf_layer.data = candidate.astype(np.uint8)
+        else:
+            leaf_layer = self.layers.viewer.add_labels(
+                candidate.astype(np.uint8),
+                name=self.layers.unique_name(LEAF_MASK_LAYER_NAME),
+                translate=tuple(crop.translate),
+                opacity=0.35,
+                metadata={
+                    ROLE_KEY: ROLE_LEAF_MASK,
+                    SOURCE_IMAGE_KEY: crop.metadata.get(SOURCE_IMAGE_KEY),
+                    SOURCE_CROP_KEY: crop.name,
+                    **self.layers.inherited_calibration(crop),
+                },
+            )
+            self.layers.crop_to_leaf[id(crop)] = leaf_layer
+            self.layers.leaf_to_crop[id(leaf_layer)] = crop
+        record = self.layers.processing(intensity)
+        record["leaf_background_threshold"] = float(threshold)
+        self.layers.record_processing(leaf_layer, record)
+        leaf_layer.selected_label = 1
+        leaf_layer.visible = True
+        self.layers.move_to_top(leaf_layer)
+        self.layers.activate(leaf_layer)
+        leaf_layer.mode = "paint"
+        self.controls.confirm_leaf_button.setEnabled(True)
+        self.controls.set_cleanup_enabled(False)
+        self.controls.set_leaf_area_status("Leaf area: review and confirm leaf_mask")
+        self.controls.set_status(
+            "Paint or erase leaf_mask (blade only), then click "
+            "Confirm Leaf & Extract Veins."
+        )
+
+    def confirm_leaf(self) -> None:
+        """Freeze the edited leaf, calculate its area, and run the second Otsu."""
+        crop = self.layers.active_crop_layer()
+        if crop is None:
+            self.controls.warn("Select a leaf mask or its ROI before confirming.")
+            return
+        leaf_layer = self.layers.crop_to_leaf.get(id(crop))
+        intensity = self.layers.active_intensity_layer()
+        if leaf_layer is None or not self.layers.is_present(leaf_layer) or intensity is None:
+            self.controls.warn("Click Apply Otsu to create a leaf mask first.")
+            return
+        leaf = np.asarray(leaf_layer.data) > 0
+        try:
+            estimate = estimate_vein_threshold(np.asarray(intensity.data), leaf_mask=leaf)
+        except ValueError as exc:
+            self.controls.warn(str(exc))
+            return
+        existing = self.layers.crop_to_mask.get(id(crop))
+        if existing is not None and self.layers.is_present(existing):
+            answer = QMessageBox.question(
+                None, "Extract veins again?",
+                "This replaces the vein mask and removes its order labels, "
+                "including manual edits. Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+
+        self.update_timer.stop()
+        self.layers.clear_mask_layer(crop)
+        self.layers.leaf_masks[id(crop)] = leaf.copy()
+        self.layers.pending_leaf_masks.discard(id(crop))
+        record = self.layers.processing(leaf_layer)
+        record["leaf_mask"] = {
+            "confirmed": True,
+            "area_px": int(np.count_nonzero(leaf)),
+            "sha256": array_digest(leaf.astype(np.uint8)),
+            "scope": "current_roi",
+        }
+        record["otsu_threshold"] = float(estimate.threshold)
         record["otsu_vein_side"] = estimate.vein_side
-        record["background_excluded"] = estimate.leaf_mask is not None
-        if estimate.leaf_threshold is not None:
-            record["leaf_background_threshold"] = float(estimate.leaf_threshold)
-        self.layers.record_processing(intensity_layer, record)
-
-        crop_layer = self.layers.active_crop_layer()
-        if crop_layer is not None:
-            if estimate.leaf_mask is not None:
-                self.layers.leaf_masks[id(crop_layer)] = estimate.leaf_mask
-            else:
-                self.layers.leaf_masks.pop(id(crop_layer), None)
-
-        # 自動で決めた向きを反映する。ここでは mask 更新を1回にまとめる。
+        record["background_excluded"] = True
+        self.layers.record_processing(intensity, record)
+        self.layers.record_processing(leaf_layer, record)
+        mm = crop.metadata.get(CALIBRATION_MM_PER_PIXEL_KEY)
+        area_px = int(np.count_nonzero(leaf))
+        area = f"{area_px * float(mm) ** 2:.6g} mm²" if mm else f"{area_px} px² (apply scale for mm²)"
+        self.controls.set_leaf_area_status(f"Confirmed ROI leaf area: {area}")
+        self.controls.leaf_area_source_combo.setCurrentIndex(
+            self.controls.leaf_area_source_combo.findData("leaf_mask")
+        )
+        self.set_threshold_range_from_image(np.asarray(intensity.data))
         checkbox = self.controls.invert_threshold_checkbox
         checkbox.blockSignals(True)
-        try:
-            checkbox.setChecked(estimate.invert)
-        finally:
-            checkbox.blockSignals(False)
-        self.set_threshold_value(threshold, update_mask=False)
-        if crop_layer is not None:
-            self.layers.mask_updates_enabled.add(id(crop_layer))
+        checkbox.setChecked(estimate.invert)
+        checkbox.blockSignals(False)
+        self.set_threshold_value(estimate.threshold, update_mask=False)
+        leaf_layer.visible = False
+        self.layers.mask_updates_enabled.add(id(crop))
         self.update_mask_from_controls(force=True)
-
-        if exclude_background and estimate.leaf_mask is None:
-            show_info(
-                "No background found around the leaf, so Otsu used the whole ROI."
-            )
+        show_info(f"Confirmed leaf area: {area}. Veins extracted inside the same region.")
 
     def clean_mask(self) -> None:
         """Clean the current mask after explicit morphology settings."""
@@ -151,6 +251,8 @@ class MaskWorkflow:
             return
 
         try:
+            crop = self.layers.mask_to_crop.get(id(mask_layer))
+            leaf = self.layers.confirmed_leaf_mask(crop)
             cleaned = postprocess_mask(
                 np.asarray(mask_layer.data),
                 small_object_size=self.controls.min_object_size_spinbox.value(),
@@ -158,6 +260,7 @@ class MaskWorkflow:
                 closing_radius=self.controls.closing_radius_spinbox.value(),
                 opening_radius=self.controls.opening_radius_spinbox.value(),
             )
+            cleaned = (cleaned.astype(bool) & leaf).astype(np.uint8)
         except ValueError as exc:
             self.controls.warn(str(exc))
             return
@@ -249,7 +352,12 @@ class MaskWorkflow:
         except ValueError as exc:
             self.controls.warn(str(exc))
             return
-        leaf = self.layers.leaf_masks.get(id(crop_layer))
+        try:
+            leaf = self.layers.confirmed_leaf_mask(crop_layer)
+        except ValueError as exc:
+            self.layers.mask_updates_enabled.discard(id(crop_layer))
+            self.controls.warn(str(exc))
+            return
         if leaf is not None and leaf.shape == vein.shape:
             vein = vein & leaf
         mask = vein.astype(np.uint8)
@@ -287,7 +395,8 @@ class MaskWorkflow:
         existing = self.layers.crop_to_mask.get(id(crop_layer))
         if existing is None or not self.layers.is_present(existing):
             named_layer = self.layers.by_name(VEIN_MASK_LAYER_NAME)
-            if named_layer is not None:
+            owner = self.layers.mask_to_crop.get(id(named_layer))
+            if named_layer is not None and (owner is None or owner is crop_layer):
                 if not isinstance(named_layer, Labels):
                     self.controls.warn(
                         f"{VEIN_MASK_LAYER_NAME} exists but is not a Labels layer."
@@ -317,7 +426,7 @@ class MaskWorkflow:
         else:
             mask_layer = self.layers.viewer.add_labels(
                 mask,
-                name=VEIN_MASK_LAYER_NAME,
+                name=self.layers.unique_name(VEIN_MASK_LAYER_NAME),
                 translate=tuple(crop_layer.translate),
                 opacity=VEIN_MASK_OPACITY,
                 colormap=direct_colormap(VEIN_MASK_COLORS),

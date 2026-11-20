@@ -107,6 +107,12 @@ def _advance_to_smoothed_image(flow):
 def _advance_to_mask(flow):
     crop_layer, smoothed_layer = _advance_to_smoothed_image(flow)
     flow.widget.use_otsu_threshold()
+    # These existing tests exercise vein edits/export, not leaf segmentation.
+    flow.viewer.layers[flow.module.LEAF_MASK_LAYER_NAME].data = np.ones(
+        crop_layer.data.shape[:2], dtype=np.uint8
+    )
+    flow.widget.confirm_leaf()
+    flow.widget.leaf_area_source_combo.setCurrentIndex(flow.widget.leaf_area_source_combo.findData("input"))
     _wait_for_delayed_mask_update(flow)
     mask_layer = flow.viewer.layers[flow.module.VEIN_MASK_LAYER_NAME]
     return crop_layer, smoothed_layer, mask_layer
@@ -959,6 +965,7 @@ def test_auto_assign_orders_end_to_end_keeps_hand_painting(monkeypatch, tmp_path
         widget.gaussian_sigma_spinbox.setValue(0.0)
         widget.apply_gaussian_filter()
         widget.use_otsu_threshold()
+        widget.confirm_leaf()
         _wait_for_delayed_mask_update(SimpleNamespace(app=app))
         widget.create_order_labels()
         order_layer = viewer.layers[widget_module.ORDER_LABELS_LAYER_NAME]

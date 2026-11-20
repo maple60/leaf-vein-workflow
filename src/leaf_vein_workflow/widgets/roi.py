@@ -159,6 +159,8 @@ class RoiWorkflow:
         self.layers.clear_mask_products(crop_layer)
         self.controls.set_gaussian_enabled(True)
         self.controls.set_threshold_enabled(False)
+        self.controls.confirm_leaf_button.setEnabled(False)
+        self.controls.set_leaf_area_status("Leaf area: not confirmed")
         self.controls.set_cleanup_enabled(False)
         self.controls.set_status(
             f"Created ROI crop from {image_layer.name}. "

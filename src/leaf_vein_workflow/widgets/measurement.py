@@ -51,6 +51,7 @@ class MeasurementExport:
     labels: ExportedOrderPaths | None = None
     paths: ExportedPathFiles | None = None
     vein_mask_npy: Path | None = None
+    leaf_mask_npy: Path | None = None
     metadata_yaml: Path | None = None
     # (level, text) notifications to show on the main thread.
     messages: list[tuple[str, str]] = field(default_factory=list)
@@ -66,6 +67,7 @@ class LabelsSnapshot:
     mm_per_pixel: float | None
     image_name: str
     layer_name: str
+    leaf_mask: np.ndarray | None = None
 
 
 @dataclass(slots=True)
@@ -119,6 +121,10 @@ def run_export_job(
             result.vein_mask_npy = job.target / f"{job.prefix}_vein_mask.npy"
             np.save(result.vein_mask_npy, job.labels.vein_mask.astype(np.uint8))
 
+    if job.labels is not None and job.labels.leaf_mask is not None:
+        result.leaf_mask_npy = job.target / f"{job.prefix}_leaf_mask.npy"
+        np.save(result.leaf_mask_npy, job.labels.leaf_mask.astype(np.uint8))
+
     report(0.96, "Writing metadata")
     record = dict(job.metadata)
     source = source_file_info(job.source_path) or {"path": None, "sha256": None}
@@ -138,10 +144,17 @@ def _write_label_results(job: ExportJob, report) -> ExportedOrderPaths:
     report(0.05, "Measuring vein length per order")
     rows = measure_order_labels(
         labels,
+        leaf_mask=(
+            snapshot.leaf_mask
+            if job.metadata["leaf_area"].get("source") == "leaf_mask" else None
+        ),
         pixel_size_mm=snapshot.mm_per_pixel,
         image_name=snapshot.image_name,
         label_layer_name=snapshot.layer_name,
-        leaf_area_mm2=job.leaf_area_mm2,
+        leaf_area_mm2=(
+            job.leaf_area_mm2
+            if job.metadata["leaf_area"].get("source") != "leaf_mask" else None
+        ),
     )
 
     vein = labels > 0
@@ -185,6 +198,8 @@ def _file_names(result: MeasurementExport) -> list[str]:
         ]
     if result.vein_mask_npy is not None:
         files.append(result.vein_mask_npy.name)
+    if result.leaf_mask_npy is not None:
+        files.append(result.leaf_mask_npy.name)
     return files
 
 
@@ -217,7 +232,14 @@ class MeasurementWorkflow:
         return self.layers.active_order_labels_layer()
 
     def leaf_area_mm2(self) -> float | None:
-        """Return the typed leaf area converted to mm², or ``None`` when blank."""
+        """Resolve area from the confirmed current ROI, or explicit external input."""
+        if self.controls.leaf_area_source_combo.currentData() == "leaf_mask":
+            crop = self.layers.active_crop_layer()
+            if crop is None:
+                raise ValueError("Select the ROI for the confirmed leaf area.")
+            leaf = self.layers.confirmed_leaf_mask(crop)
+            mm = crop.metadata.get(CALIBRATION_MM_PER_PIXEL_KEY)
+            return float(np.count_nonzero(leaf)) * float(mm) ** 2 if mm else None
         if not self.controls.leaf_area_input.text().strip():
             return None
         value = parse_number_input(self.controls.leaf_area_input, "Leaf area")
@@ -242,12 +264,14 @@ class MeasurementWorkflow:
             return None
         try:
             snapshot = self._labels_snapshot(order_layer)
+            use_mask = self.controls.leaf_area_source_combo.currentData() == "leaf_mask"
             return measure_order_labels(
                 snapshot.labels,
+                leaf_mask=snapshot.leaf_mask if use_mask else None,
                 pixel_size_mm=snapshot.mm_per_pixel,
                 image_name=snapshot.image_name,
                 label_layer_name=snapshot.layer_name,
-                leaf_area_mm2=self.leaf_area_mm2(),
+                leaf_area_mm2=None if use_mask else self.leaf_area_mm2(),
             )
         except ValueError as exc:
             self.controls.warn(str(exc))
@@ -270,6 +294,12 @@ class MeasurementWorkflow:
             self.vein_paths.active_paths_layer() if self.vein_paths is not None else None
         )
         has_paths = paths_layer is not None and len(paths_layer.data) > 0
+        if has_paths and self.controls.leaf_area_source_combo.currentData() == "leaf_mask":
+            self.controls.warn(
+                "Whole-image paths require an explicit external area; "
+                "the confirmed mask belongs to the current ROI."
+            )
+            return None
         if order_layer is None and not has_paths:
             self.controls.warn("Create order labels before exporting.")
             return None
@@ -419,6 +449,17 @@ class MeasurementWorkflow:
             ORDER_UNCERTAIN_LABEL, 0
         )
 
+        leaf_mask = None
+        crop = self.layers.mask_to_crop.get(id(mask_layer)) if mask_layer is not None else None
+        if crop is not None and id(crop) in self.layers.crop_to_leaf:
+            leaf_mask = self.layers.confirmed_leaf_mask(crop).copy()
+            if leaf_mask.shape != labels.shape:
+                raise ValueError("Leaf mask and order labels must have the same shape.")
+            if np.any((labels > 0) & ~leaf_mask):
+                raise ValueError("Order labels extend outside the confirmed leaf region.")
+        elif self.controls.leaf_area_source_combo.currentData() == "leaf_mask":
+            raise ValueError("Confirm the leaf mask for these order labels first.")
+
         mm_per_pixel = order_layer.metadata.get(CALIBRATION_MM_PER_PIXEL_KEY)
         return LabelsSnapshot(
             labels=labels,
@@ -427,6 +468,7 @@ class MeasurementWorkflow:
             mm_per_pixel=float(mm_per_pixel) if mm_per_pixel else None,
             image_name=self._image_name(order_layer),
             layer_name=order_layer.name,
+            leaf_mask=leaf_mask,
         )
 
     def _metadata_record(
@@ -463,6 +505,18 @@ class MeasurementWorkflow:
                 "mm2": leaf_area,
             },
         }
+
+        if self.controls.leaf_area_source_combo.currentData() == "leaf_mask":
+            crop = self.layers.active_crop_layer()
+            leaf = self.layers.confirmed_leaf_mask(crop)
+            record["leaf_area"] = {
+                "source": "leaf_mask",
+                "state": "specimen",
+                "scope": "current_roi",
+                "mm2": leaf_area,
+                "area_px": int(np.count_nonzero(leaf)),
+                "sha256": array_digest(leaf.astype(np.uint8)),
+            }
 
         if has_labels:
             record["order_labels"] = self.last_label_record

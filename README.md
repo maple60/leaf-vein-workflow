@@ -11,15 +11,16 @@ napari plugin for leaf vein image workflow development.
 - Automatically switch that Shapes layer to rectangle drawing mode.
 - Add or update a cropped ROI Image layer only after clicking `Add ROI`.
 - Create a smoothed Image layer only after clicking `Apply Gaussian`.
-- Create an editable vein mask Labels layer only after clicking `Apply Otsu`.
+- Review and edit `leaf_mask` after `Apply Otsu`; `Confirm Leaf & Extract Veins`
+  measures its area and creates the vein mask inside that region.
 - Clean the current mask with explicit morphology settings before manual edits.
 - Create an editable order labels layer from the confirmed vein mask
   (1 primary, 2 secondary, 3 tertiary, 4 uncertain).
 - Trace 1° and 2° veins as paths on the whole leaf (segmented-line method of
   Sack & Scoffoni 2013) and export their summed length and VLA. This is
   implemented but hidden from the dock for now.
-- Measure skeleton length per vein order and VLA against a leaf area typed in
-  mm² or cm², and export the results.
+- Measure per-order skeleton length and VLA using the confirmed specimen area
+  in the same ROI, or an explicitly selected external area in mm² or cm².
 
 Saving cropped images, multiple ROIs, polygon ROIs, nD stacks, automatic 3°
 classification, and minor-vein (4th order and above) labels are outside the
@@ -52,12 +53,13 @@ The dock shows six numbered steps, one open at a time:
 
 1. **Image & scale**: open the leaf scan and apply the scan resolution.
 2. **ROI**: drag the rectangle over the area to analyze and press `Add ROI`.
-3. **Vein mask**: `Apply Gaussian`, `Apply Otsu`, adjust the threshold, fix
-   spots by hand, and optionally `Clean Mask`.
+3. **Vein mask**: `Apply Gaussian`, `Apply Otsu`, edit the blade in `leaf_mask`,
+   then `Confirm Leaf & Extract Veins`. Adjust the vein threshold, paint/erase,
+   and optionally `Clean Mask`.
 4. **Paint vein orders**: `Create Order Labels`, optionally mark the base and
    apex and auto-assign 1°/2°, then choose an order in `Paint as` and drag over
    veins to finish.
-5. **Leaf area & VLA**: type the fresh-leaf area.
+5. **Leaf area & VLA**: use the confirmed ROI mask, or select an external area.
 6. **Export**: choose the output folder and press `Export Measurements`.
 
 Each step starts with a one-line instruction. Details follow.
@@ -78,15 +80,19 @@ for display only and is updated, not duplicated, when the scale changes.
 
 Draw one rectangle, then click `Add ROI` in the widget to create the ROI crop
 layer. Click `Apply Gaussian` to create `smoothed_image`, then click
-`Apply Otsu` to create `vein_mask`. Colored (yellow) pixels are vein.
-With `ROI includes background (paper)` on (the default), Otsu first separates
-the leaf from the background around it, then finds the vein threshold inside
-the leaf only, so a whole-leaf ROI works and the paper is never part of the
-mask. If no background is found (an ROI inside the blade), it uses the whole
-ROI. Otsu then picks the side with fewer pixels as vein and sets `Invert (dark
-pixels are vein)` to match. The status line shows the share colored as vein
-and warns when it is more than veins usually cover. After that explicit Otsu
-step, `Invert` and `Mask threshold` update the current mask.
+`Apply Otsu` to create an editable `leaf_mask`. With background exclusion on,
+the first Otsu split proposes the leaf region. Paint or erase to correct its
+boundary, remove the petiole and debris, and decide how to handle real holes.
+If no background is found (or exclusion is off), the full ROI is proposed and
+must still be reviewed; its area is not automatically the whole-leaf area.
+
+Click `Confirm Leaf & Extract Veins` to freeze that region, calculate its area
+(px² × mm/px squared), and run a second Otsu inside it. Colored (yellow) pixels
+in `vein_mask` are vein. The minority intensity class sets `Invert` automatically;
+`Invert` and `Mask threshold` then update that vein mask. The confirmed leaf
+mask is hidden to make vein editing easier; select and show it to edit again.
+After leaf edits, reconfirm before thresholding or export. Re-extraction asks
+before replacing the vein mask and removing its order labels and manual edits.
 
 If needed, set the morphology controls and click `Clean Mask`. Correct the mask
 manually in paint mode, then click `Create Order Labels` to begin manual
@@ -133,9 +139,13 @@ pixel values for reproducible morphology behavior; when the image is calibrated,
 their labels also show object/hole areas in mm² and closing/opening radii in µm
 or mm.
 
-In `5. Leaf area & VLA`, type the leaf area (for example measured from a
-scan taken before specimen preparation) and choose mm² or cm²; it is converted
-to mm² internally. In `6. Export`, click `Export Measurements` to measure the current labels and
+In `5. Leaf area & VLA`, confirmation selects `Confirmed leaf mask (current ROI)`.
+Vein length and specimen leaf area refer to the same region. Local ROIs give
+local densities. External area remains a separate manual input (mm² or cm²);
+select it explicitly and match it to the measured region and preparation state.
+A pre-preparation area alone does not correct vein-length shrinkage. Without
+scale calibration, mask area remains in px² and physical VLA is left blank.
+In `6. Export`, click `Export Measurements` to measure the current labels and
 write them to the output folder, which defaults to `output/` under the folder
 napari was started from (`Change...` picks another one). The files are a
 measurements CSV with total length and VLA (mm mm⁻²) for 1°, 2°, 3°, 1°+2°, and
@@ -163,12 +173,15 @@ veins are not traced here; measure them in sample boxes with order labels.
 
 Each export writes `<timestamp>_<image>_metadata.yaml` next to the results, and
 every file from one export shares that prefix. It records the source file path
-and SHA-256, calibration, leaf area as typed (value and unit) and in mm², the
+and SHA-256, calibration, leaf area (confirmed mask pixel count, digest,
+ROI scope, and mm²; or manual value and unit), the
 parameters actually applied (ROI bounds, Gaussian sigma, Otsu and final
 threshold, invert, every Clean Mask run), whether the mask was edited by hand
 after the last automatic step, label pixel counts, number of traced paths, the
 settings defaults in effect, and software versions. The vein mask itself is
-saved as `*_vein_mask.npy` so hand edits are preserved.
+saved as `*_vein_mask.npy` so hand edits are preserved. The confirmed leaf
+region is saved as `*_leaf_mask.npy` with the label results. Whole-image path
+exports require an explicit external area rather than an ROI mask denominator.
 
 ### Settings
 
