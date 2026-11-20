@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "leaf-vein-workflow: napari tools for measuring vein length and VLA by vein order"
+abstract: >-
+  A napari plugin for measuring vein length and vein length per area (VLA)
+  by vein order from scans of cleared leaves. It covers scale calibration,
+  ROI selection, two-step Otsu vein masks, semi-automatic assignment of
+  1st-3rd order veins from a base and an apex point, manual correction,
+  and export of per-order lengths and VLA with processing metadata.
+# TODO: 公開前に自分の名前に置き換える（ORCID があればコメントを外す）
+authors:
+  - family-names: "FAMILY_NAME"
+    given-names: "GIVEN_NAME"
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+    # affiliation: "AFFILIATION"
+version: 0.1.0
+license: BSD-3-Clause
+repository-code: "https://github.com/maple60/leaf-vein-workflow"
+keywords:
+  - napari
+  - leaf venation
+  - vein length per area
+  - vein order
+  - image analysis
+  - plant functional traits

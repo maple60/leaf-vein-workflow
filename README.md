@@ -200,3 +200,13 @@ Run tests:
 ```powershell
 uv run pytest
 ```
+
+## Citation
+
+If you use this tool in a publication, please cite it using the metadata in
+[`CITATION.cff`](CITATION.cff) (GitHub shows it under "Cite this repository").
+
+## License
+
+The code is released under the [BSD 3-Clause License](LICENSE). Sample images
+in `data/` are not covered by this license and keep the terms of their sources.
