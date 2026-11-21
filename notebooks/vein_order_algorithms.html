@@ -81,7 +81,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-ce0f0d1e95892c391167071f7e5e54e4.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-fae47caf9e852e6e4b6ee8ceec8e0f71.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -462,7 +462,7 @@ window.Quarto = {
 <section id="コード" class="level3">
 <h3 class="anchored" data-anchor-id="コード">コード</h3>
 <p>画像の場所、ROI、2回のクリックの位置をここで決めます。クリック位置は napari で付けるのと同じ「切り抜いた画像の座標」（行, 列）です。</p>
-<div id="73cf08cd" class="cell">
+<div id="59449b70" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -482,21 +482,19 @@ window.Quarto = {
 <span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    to_grayscale,</span>
 <span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>SCAN <span class="op">=</span> Path(</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="vs">r"C:</span><span class="er">\</span><span class="vs">Users</span><span class="dv">\K</span><span class="vs">onrai</span><span class="dv">\D</span><span class="vs">ropbox</span><span class="dv">\G</span><span class="vs">itHub</span><span class="er">\</span><span class="vs">phd-thesis</span><span class="ch">\a</span><span class="vs">ssets"</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="vs">r"</span><span class="ch">\202</span><span class="vs">60719_konara_tomakomai_244_01_3200dpi_kleaf_011</span><span class="dv">.</span><span class="vs">jpg"</span></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>plt.rcParams[<span class="st">"font.family"</span>] <span class="op">=</span> [<span class="st">"Yu Gothic"</span>, <span class="st">"Meiryo"</span>, <span class="st">"sans-serif"</span>]  <span class="co"># 図の日本語</span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>FIG <span class="op">=</span> Path(<span class="st">"figures/auto_order"</span>)</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>FIG.mkdir(parents<span class="op">=</span><span class="va">True</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>ROI <span class="op">=</span> (<span class="bu">slice</span>(<span class="dv">230</span>, <span class="dv">4088</span>), <span class="bu">slice</span>(<span class="dv">42</span>, <span class="dv">8452</span>))  <span class="co"># napari の ROI と同じ範囲</span></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>MM_PER_PX <span class="op">=</span> <span class="fl">25.4</span> <span class="op">/</span> <span class="dv">3200</span></span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>BASE, APEX <span class="op">=</span> (<span class="dv">1956</span>, <span class="dv">7447</span>), (<span class="dv">1844</span>, <span class="dv">195</span>)  <span class="co"># 葉の基部と1次脈の先端（切り抜き座標）</span></span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>gray <span class="op">=</span> to_grayscale(io.imread(SCAN))</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>crop <span class="op">=</span> gray[ROI]</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>smooth <span class="op">=</span> smooth_image(crop, <span class="fl">1.0</span>)</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"ROI の大きさ:"</span>, crop.shape)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># 手元のスキャン画像の場所に置き換える（この画像はリポジトリに含めていない）</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>SCAN <span class="op">=</span> Path(<span class="st">"path/to/20260719_konara_tomakomai_244_01_3200dpi_kleaf_011.jpg"</span>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>plt.rcParams[<span class="st">"font.family"</span>] <span class="op">=</span> [<span class="st">"Yu Gothic"</span>, <span class="st">"Meiryo"</span>, <span class="st">"sans-serif"</span>]  <span class="co"># 図の日本語</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>FIG <span class="op">=</span> Path(<span class="st">"figures/auto_order"</span>)</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>FIG.mkdir(parents<span class="op">=</span><span class="va">True</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>ROI <span class="op">=</span> (<span class="bu">slice</span>(<span class="dv">230</span>, <span class="dv">4088</span>), <span class="bu">slice</span>(<span class="dv">42</span>, <span class="dv">8452</span>))  <span class="co"># napari の ROI と同じ範囲</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>MM_PER_PX <span class="op">=</span> <span class="fl">25.4</span> <span class="op">/</span> <span class="dv">3200</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>BASE, APEX <span class="op">=</span> (<span class="dv">1956</span>, <span class="dv">7447</span>), (<span class="dv">1844</span>, <span class="dv">195</span>)  <span class="co"># 葉の基部と1次脈の先端（切り抜き座標）</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>gray <span class="op">=</span> to_grayscale(io.imread(SCAN))</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>crop <span class="op">=</span> gray[ROI]</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>smooth <span class="op">=</span> smooth_image(crop, <span class="fl">1.0</span>)</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"ROI の大きさ:"</span>, crop.shape)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 </section>
@@ -529,7 +527,7 @@ M = \{\,p \mid I(p) \le t_2\,\} \cap \text{葉}
 <section id="コード-1" class="level3">
 <h3 class="anchored" data-anchor-id="コード-1">コード</h3>
 <p>1段階と2段階の Otsu を同じ画像で比べます。</p>
-<div id="f33dabb4" class="cell">
+<div id="5b876276" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>t_one <span class="op">=</span> otsu_threshold(smooth)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>one_step_dark <span class="op">=</span> smooth <span class="op">&lt;=</span> t_one</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -613,7 +611,7 @@ d(p) = 2\,\mathrm{EDT}_M(p)
 <section id="コード-2" class="level3">
 <h3 class="anchored" data-anchor-id="コード-2">コード</h3>
 <p>mask の後片付けは、napari の <code>Clean Mask</code> の推奨値（100 px 以下の小片を除去、50 px 以下の穴を埋める）と同じにしています。</p>
-<div id="116ae6ff" class="cell">
+<div id="8585ffdc" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>vein <span class="op">=</span> remove_small_holes(remove_small_objects(vein_raw, <span class="dv">100</span>), <span class="dv">50</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> leaf_vein_workflow.auto_order <span class="im">import</span> _VeinGraph  <span class="co"># 説明のため内部の関数を使う</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> leaf_vein_workflow.skeleton <span class="im">import</span> drop_isolated_pixels</span>
@@ -667,7 +665,7 @@ L_k = s \sum_{\text{枝 } b} \;\sum_{(u,v) \in b} \ell(u,v) \quad [\text{mm}],
 <section id="コード-3" class="level3">
 <h3 class="anchored" data-anchor-id="コード-3">コード</h3>
 <p>斜めの線を引いて、この長さの測り方の誤差を確かめます。</p>
-<div id="8126266f" class="cell">
+<div id="bfc2f6a3" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skimage.draw <span class="im">import</span> line</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skan <span class="im">import</span> Skeleton</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skan.csr <span class="im">import</span> summarize</span>
@@ -712,7 +710,7 @@ L_k = s \sum_{\text{枝 } b} \;\sum_{(u,v) \in b} \ell(u,v) \quad [\text{mm}],
 <h3 class="anchored" data-anchor-id="注意点-2">注意点</h3>
 <ul>
 <li>葉脈は曲がりながら走るので、実際の偏りは角度ごとの偏りの平均になります。種や次数の比較では同じ測り方なので偏りはほぼ打ち消し合いますが、ほかの方法で測った文献値と絶対値を比べるときは注意が必要です。</li>
-<li>骨格には、縁のでこぼこから出る短いひげ（spur）が含まれ、長さを少し過大にします。以前の試算では、10 px 以下のひげが総延長の約 10% でした。ひげの除去はまだ入れていません。</li>
+<li>骨格には、縁のでこぼこから出る短いひげ（spur）が含まれ、長さを少し過大にします。以前の試算では、10 px 以下のひげが総延長の約 10% でした。今は、局所の直径より短い行き止まりの枝を除いてから長さを測っています（4.8 節）。</li>
 </ul>
 </section>
 </section>
@@ -769,7 +767,7 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 </section>
 <section id="コード-4" class="level4">
 <h4 class="anchored" data-anchor-id="コード-4">コード</h4>
-<div id="99986e05" class="cell">
+<div id="cf855832" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> leaf_vein_workflow.auto_order <span class="im">import</span> AutoOrderParams, _PrimaryGeometry, _secondary_origins</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>px <span class="op">=</span> <span class="kw">lambda</span> mm: mm <span class="op">/</span> MM_PER_PX  <span class="co"># noqa: E731</span></span>
@@ -884,7 +882,7 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 <h3 class="anchored" data-anchor-id="実行結果">4.7 実行結果</h3>
 <section id="コード-5" class="level4">
 <h4 class="anchored" data-anchor-id="コード-5">コード</h4>
-<div id="88649ebb" class="cell">
+<div id="38ed2b6b" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>start <span class="op">=</span> time.perf_counter()</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 3次脈の推定は 4.9 節で扱うので、ここでは 1次・2次までにする</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> auto_assign_orders(</span>
@@ -927,19 +925,19 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 <tbody>
 <tr class="odd">
 <td>1次脈</td>
-<td>77.2 mm</td>
+<td>57.9 mm</td>
 </tr>
 <tr class="even">
 <td>2次脈</td>
-<td>386.2 mm</td>
+<td>364.5 mm</td>
 </tr>
 <tr class="odd">
 <td>1次+2次</td>
-<td>463.4 mm</td>
+<td>422.4 mm</td>
 </tr>
 <tr class="even">
 <td>不確定（手で塗る）</td>
-<td>3,857.0 mm</td>
+<td>3,610.5 mm</td>
 </tr>
 </tbody>
 </table>
@@ -959,14 +957,14 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 <li><strong>黒い斑点</strong>：上側中央の黒い斑点の所で、2次脈に塊が付いています。斑点が葉脈より暗く、mask に入っているためです。</li>
 <li><strong>葉の輪郭の穴</strong>：最初の実行では、葉の輪郭に1節の葉の領域をそのまま使ったため、2次脈が 35 本と多く出た一方で、基部側の太い2次脈がいくつか取れませんでした。葉身の中の明るい点が輪郭の「穴」になり、その周りが葉縁の帯とみなされて、追跡が途中で止まったためです。輪郭の穴を埋めてから使うように直し、この図の結果（31 本）になりました。</li>
 </ol>
-<p>1次脈の長さが 77.2 mm と、経路の長さ（59.0 mm）より 3 割ほど長く出ています。原因は次の 4.8 節で調べます。</p>
+<p>1次脈のラベル領域から測った長さ（57.9 mm）は、たどった経路の長さ（59.0 mm）とほぼ一致しました。ラベル領域の骨格からひげを除いてから測っているためです。ひげを除く理由は次の 4.8 節で説明します。</p>
 </section>
 </section>
 <section id="塗った領域から測る長さとたどった経路の長さのずれ" class="level3">
 <h3 class="anchored" data-anchor-id="塗った領域から測る長さとたどった経路の長さのずれ">4.8 塗った領域から測る長さと、たどった経路の長さのずれ</h3>
 <section id="目的-4" class="level4">
 <h4 class="anchored" data-anchor-id="目的-4">目的</h4>
-<p>4.7 節で、1次脈の<strong>ラベル領域</strong>から測った長さ（3節の方法）が、自動でたどった1次脈の<strong>経路</strong>の長さより長く出ました。VLA1 に直接効くので、原因を確かめます。</p>
+<p>ラベル領域の骨格を<strong>そのまま</strong>測ると、1次脈の長さが、自動でたどった<strong>経路</strong>の長さより長く出ていました（ひげを除く処理を入れる前は 77.2 mm）。VLA1 に直接効くので、原因を確かめ、対策を説明します。</p>
 </section>
 <section id="方法-8" class="level4">
 <h4 class="anchored" data-anchor-id="方法-8">方法</h4>
@@ -974,7 +972,7 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 </section>
 <section id="コード-6" class="level4">
 <h4 class="anchored" data-anchor-id="コード-6">コード</h4>
-<div id="f67af447" class="cell">
+<div id="a06ced35" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skan <span class="im">import</span> Skeleton <span class="im">as</span> SkanSkeleton</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skan.csr <span class="im">import</span> summarize <span class="im">as</span> skan_summarize</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1022,13 +1020,58 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 <h4 class="anchored" data-anchor-id="結果の読み方-5">結果の読み方</h4>
 <p>ラベル領域の骨格には、77 本のひげが合わせて 17.6 mm 含まれていました。これを除くと 59.6 mm になり、たどった経路の長さ（59.0 mm）とほぼ一致します。つまり、長さのずれのほぼすべてがひげです。</p>
 <p>ひげが多いのは、1次脈の領域が太い（直径 24〜124 px）うえに、2次脈や3次脈が付いていた所で縁がでこぼこしているためです。骨格化はそのでこぼこの一つ一つに短い枝を出します。</p>
-<p><strong>これは自動振り分けだけの問題ではありません。</strong> 手で塗ったラベルも同じ方法で測るので、太い脈ほど長さが過大になります。今の実装では、VLA1 が約 3 割過大に出ている可能性があります。2次脈の長さも、程度は小さいものの同じ影響を受けていると考えられます。</p>
-<p>対策の候補は2つあります。</p>
+<p><strong>これは自動振り分けだけの問題ではありません。</strong> 手で塗ったラベルも同じ方法で測るので、対策を入れる前は、太い脈ほど長さが過大になっていました。</p>
+</section>
+<section id="対策" class="level4">
+<h4 class="anchored" data-anchor-id="対策">対策</h4>
+<p>長さを測る前に、骨格から<strong>ひげ</strong>を除きます（<code>skeleton.py</code> の <code>prune_spurs</code>）。</p>
 <ul>
-<li>骨格のひげを、局所の直径より短い端の枝として除いてから長さを測る。</li>
-<li>自動振り分けを使った場合は、たどった経路の長さをそのまま使う。</li>
+<li>対象は「端点から分岐点まで」の枝です。</li>
+<li>その枝の長さが、分岐点での脈の直径（<span class="math inline">\(2\,\mathrm{EDT}\)</span>）より短ければ、ひげとみなして除きます。</li>
+<li>ひげは中心線から縁までの枝なので、長さはおよそ半径です。本物の枝は親の脈の幅を越えて続くので、この条件では残ります。</li>
+<li>除いた後に新しくひげが現れることがあるので、2回繰り返します（3回目に除かれる枝はありませんでした）。</li>
 </ul>
-<p>どちらにするかは、手で塗った正解との比較で決めるのがよいと考えています。</p>
+<p>この処理は <code>order.py</code> の長さの計測で、次数ごとの領域に対して行います。手で塗ったラベルにも同じように効きます。</p>
+<p>コナラで、次数ごとの長さは次のように変わりました。</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>次数</th>
+<th>除く前</th>
+<th>除いた後</th>
+<th>変化</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1次脈</td>
+<td>77.2 mm</td>
+<td>57.9 mm</td>
+<td>−25%</td>
+</tr>
+<tr class="even">
+<td>2次脈</td>
+<td>386.2 mm</td>
+<td>364.5 mm</td>
+<td>−6%</td>
+</tr>
+<tr class="odd">
+<td>3次脈</td>
+<td>1,328.9 mm</td>
+<td>1,212.1 mm</td>
+<td>−9%</td>
+</tr>
+<tr class="even">
+<td>major（1〜3次）</td>
+<td>1,792.3 mm</td>
+<td>1,634.5 mm</td>
+<td>−9%</td>
+</tr>
+</tbody>
+</table>
+<p>1次脈は、たどった経路（59.0 mm）より 1.1 mm 短くなりました。脈の自由な端では、最後の分岐点から先の短い区間も「端点から分岐点まで」の枝になるため、1か所あたり直径ぶんまで短くなることがあります。1次脈では基部側の直径が大きい（約 124 px ≈ 1 mm）ので、この差になったと考えられます。</p>
+<p>細い脈ほどひげは短いのですが、本数が多いので、3次脈や細い脈でも 1 割近く変わりました。</p>
+<p>ひげを除く処理で、Export の計測は数十秒長くなります（3200 dpi の葉1枚で、計測が約 10 秒から約 45 秒になり、そのうち約 8 秒は初回だけの numba のコンパイル）。</p>
 </section>
 </section>
 <section id="残りの脈を太さで3次脈と細い脈に分ける" class="level3">
@@ -1036,7 +1079,7 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 <section id="目的-5" class="level4">
 <h4 class="anchored" data-anchor-id="目的-5">目的</h4>
 <p>1次脈・2次脈を決めた後、残りの脈の大部分は手で塗ることになります。 その手間を減らすため、残りの脈のうち3次脈らしいものを先に 3 にしておきます。</p>
-<p>ただし、残りの脈を<strong>すべて</strong> 3 にはしません。 3200 dpi の mask には、3次脈より細い脈（4次以上の細かい網目）も入っています。 4.7 節の結果では、残りの脈 3,857 mm に対して1次+2次は 463 mm で、残りの大半は細い脈です。 すべて 3 にすると、細い脈が VLA3 と VLA_major に入ってしまいます。</p>
+<p>ただし、残りの脈を<strong>すべて</strong> 3 にはしません。 3200 dpi の mask には、3次脈より細い脈（4次以上の細かい網目）も入っています。 4.7 節の結果では、残りの脈 3,610 mm に対して1次+2次は 422 mm で、残りの大半は細い脈です。 すべて 3 にすると、細い脈が VLA3 と VLA_major に入ってしまいます。</p>
 </section>
 <section id="方法-9" class="level4">
 <h4 class="anchored" data-anchor-id="方法-9">方法</h4>
@@ -1056,7 +1099,7 @@ c \;\le\; g_b \;&lt;\; \operatorname{median}\{\, d(v) \mid v \in \text{2次脈} 
 <section id="コード-7" class="level4">
 <h4 class="anchored" data-anchor-id="コード-7">コード</h4>
 <p>既定の設定（3次脈の推定あり）で振り分け、下の境目を変えると3次脈の長さがどう変わるかも確かめます。</p>
-<div id="6b31e55c" class="cell">
+<div id="56841624" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>result3 <span class="op">=</span> auto_assign_orders(vein, BASE, APEX, leaf_mask<span class="op">=</span>leaf, mm_per_pixel<span class="op">=</span>MM_PER_PX)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>low, high <span class="op">=</span> result3.tertiary_gauge_range_px</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"3次脈とした太さ: </span><span class="sc">{</span>low<span class="sc">:.1f}</span><span class="ss">〜</span><span class="sc">{</span>high<span class="sc">:.1f}</span><span class="ss"> px "</span></span>
@@ -1119,23 +1162,23 @@ c \;\le\; g_b \;&lt;\; \operatorname{median}\{\, d(v) \mid v \in \text{2次脈} 
 <tbody>
 <tr class="odd">
 <td>1次脈</td>
-<td>77.2 mm</td>
+<td>57.9 mm</td>
 </tr>
 <tr class="even">
 <td>2次脈</td>
-<td>386.2 mm</td>
+<td>364.5 mm</td>
 </tr>
 <tr class="odd">
 <td>3次脈</td>
-<td>1,328.9 mm</td>
+<td>1,212.1 mm</td>
 </tr>
 <tr class="even">
 <td>major（1〜3次）</td>
-<td>1,792.3 mm</td>
+<td>1,634.5 mm</td>
 </tr>
 <tr class="odd">
 <td>不確定</td>
-<td>2,628.8 mm</td>
+<td>2,391.3 mm</td>
 </tr>
 </tbody>
 </table>
@@ -1195,7 +1238,7 @@ c \;\le\; g_b \;&lt;\; \operatorname{median}\{\, d(v) \mid v \in \text{2次脈} 
 <h4 class="anchored" data-anchor-id="結果の読み方-6">結果の読み方</h4>
 <p>拡大図では、緑（3次脈）の多くが、隣り合う2次脈の間をはしご状につなぐ脈になっています。 コナラの3次脈は、このように2次脈どうしを横切る型（percurrent）なので、見た目には妥当な分け方です。 それより細かい網目は紫（不確定）に残りました。 葉柄と黒い斑点も、上の境目で外れて紫のままです。 葉の縁に沿った脈も緑になりました。 Ellis は、3次脈の太さを持つ縁の脈を fimbrial vein と呼んでいます。</p>
 <p>太さの分布（上の図）には谷がなく、飛び飛びの値に長さが集まっています（2節で見た EDT の刻みのため）。 自動の境目 6.4 px のすぐ下には、5.7・6.0・6.3 px の区間がまとまってあり、合わせて約 750 mm あります。 境目がこのかたまりの上に来るか下に来るかで、3次脈の長さが約 2,000 mm から約 1,300 mm に変わります。 表で 5.5 px と 6.4 px の間に大きな差があるのはこのためです。</p>
-<p>自動の境目での直接の数え方（1,275 mm）とラベル領域から測った値（1,328.9 mm）が少し違うのは、ラベル領域の長さに 4.8 節のひげが含まれるためと考えられます。</p>
+<p>自動の境目での直接の数え方（1,275 mm）とラベル領域から測った値（1,212.1 mm）が少し違うのは、直接の数え方がひげを含む区間の長さの合計で、ラベル領域の値はひげを除いた長さだからです。</p>
 </section>
 <section id="注意点-3" class="level4">
 <h4 class="anchored" data-anchor-id="注意点-3">注意点</h4>
