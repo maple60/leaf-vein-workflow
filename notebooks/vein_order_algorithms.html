@@ -462,7 +462,7 @@ window.Quarto = {
 <section id="コード" class="level3">
 <h3 class="anchored" data-anchor-id="コード">コード</h3>
 <p>画像の場所、ROI、2回のクリックの位置をここで決めます。クリック位置は napari で付けるのと同じ「切り抜いた画像の座標」（行, 列）です。</p>
-<div id="59449b70" class="cell">
+<div id="25940804" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -527,7 +527,7 @@ M = \{\,p \mid I(p) \le t_2\,\} \cap \text{葉}
 <section id="コード-1" class="level3">
 <h3 class="anchored" data-anchor-id="コード-1">コード</h3>
 <p>1段階と2段階の Otsu を同じ画像で比べます。</p>
-<div id="5b876276" class="cell">
+<div id="48f07df4" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>t_one <span class="op">=</span> otsu_threshold(smooth)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>one_step_dark <span class="op">=</span> smooth <span class="op">&lt;=</span> t_one</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -611,7 +611,7 @@ d(p) = 2\,\mathrm{EDT}_M(p)
 <section id="コード-2" class="level3">
 <h3 class="anchored" data-anchor-id="コード-2">コード</h3>
 <p>mask の後片付けは、napari の <code>Clean Mask</code> の推奨値（100 px 以下の小片を除去、50 px 以下の穴を埋める）と同じにしています。</p>
-<div id="8585ffdc" class="cell">
+<div id="c6c938c5" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>vein <span class="op">=</span> remove_small_holes(remove_small_objects(vein_raw, <span class="dv">100</span>), <span class="dv">50</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> leaf_vein_workflow.auto_order <span class="im">import</span> _VeinGraph  <span class="co"># 説明のため内部の関数を使う</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> leaf_vein_workflow.skeleton <span class="im">import</span> drop_isolated_pixels</span>
@@ -665,7 +665,7 @@ L_k = s \sum_{\text{枝 } b} \;\sum_{(u,v) \in b} \ell(u,v) \quad [\text{mm}],
 <section id="コード-3" class="level3">
 <h3 class="anchored" data-anchor-id="コード-3">コード</h3>
 <p>斜めの線を引いて、この長さの測り方の誤差を確かめます。</p>
-<div id="bfc2f6a3" class="cell">
+<div id="068b3194" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skimage.draw <span class="im">import</span> line</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skan <span class="im">import</span> Skeleton</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skan.csr <span class="im">import</span> summarize</span>
@@ -767,7 +767,7 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 </section>
 <section id="コード-4" class="level4">
 <h4 class="anchored" data-anchor-id="コード-4">コード</h4>
-<div id="cf855832" class="cell">
+<div id="ddd99ddd" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> leaf_vein_workflow.auto_order <span class="im">import</span> AutoOrderParams, _PrimaryGeometry, _secondary_origins</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>px <span class="op">=</span> <span class="kw">lambda</span> mm: mm <span class="op">/</span> MM_PER_PX  <span class="co"># noqa: E731</span></span>
@@ -882,7 +882,7 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 <h3 class="anchored" data-anchor-id="実行結果">4.7 実行結果</h3>
 <section id="コード-5" class="level4">
 <h4 class="anchored" data-anchor-id="コード-5">コード</h4>
-<div id="38ed2b6b" class="cell">
+<div id="b09d1491" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>start <span class="op">=</span> time.perf_counter()</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 3次脈の推定は 4.9 節で扱うので、ここでは 1次・2次までにする</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> auto_assign_orders(</span>
@@ -972,7 +972,7 @@ g_i \;\ge\; \max\!\Bigl(g_{\min},\; 0.7 \max_{j \in N(i)} g_j\Bigr)
 </section>
 <section id="コード-6" class="level4">
 <h4 class="anchored" data-anchor-id="コード-6">コード</h4>
-<div id="a06ced35" class="cell">
+<div id="a2c9f8a3" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skan <span class="im">import</span> Skeleton <span class="im">as</span> SkanSkeleton</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> skan.csr <span class="im">import</span> summarize <span class="im">as</span> skan_summarize</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1099,7 +1099,7 @@ c \;\le\; g_b \;&lt;\; \operatorname{median}\{\, d(v) \mid v \in \text{2次脈} 
 <section id="コード-7" class="level4">
 <h4 class="anchored" data-anchor-id="コード-7">コード</h4>
 <p>既定の設定（3次脈の推定あり）で振り分け、下の境目を変えると3次脈の長さがどう変わるかも確かめます。</p>
-<div id="56841624" class="cell">
+<div id="2a4e7a6b" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>result3 <span class="op">=</span> auto_assign_orders(vein, BASE, APEX, leaf_mask<span class="op">=</span>leaf, mm_per_pixel<span class="op">=</span>MM_PER_PX)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>low, high <span class="op">=</span> result3.tertiary_gauge_range_px</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"3次脈とした太さ: </span><span class="sc">{</span>low<span class="sc">:.1f}</span><span class="ss">〜</span><span class="sc">{</span>high<span class="sc">:.1f}</span><span class="ss"> px "</span></span>

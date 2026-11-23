@@ -120,6 +120,18 @@
     ]
   },
   {
+    "objectID": "notebooks/prometheus_leaf_vein_protocol.html#出典ライセンス",
+    "href": "notebooks/prometheus_leaf_vein_protocol.html#出典ライセンス",
+    "title": "参考プロトコル: 葉脈形質の定量",
+    "section": "出典・ライセンス",
+    "text": "出典・ライセンス\n原著者: Christine Scoffoni, Lawren Sack。原資料: Quantifying leaf vein traits — PROMETHEUS。\n原サイトの著作権・ライセンスに関する説明が指定するライセンスは、Creative Commons Attribution-ShareAlike 2.5 Australia（CC BY-SA 2.5 AU）です。\nこのノートは原資料の要点を日本語で要約・翻案し、本プロジェクトとの関係や説明を加えたものです。このノートも CC BY-SA 2.5 AU で提供します。コードに適用するBSD-3-Clauseとは別のライセンスです。原著者による本プロジェクトの推奨を意味しません。",
+    "crumbs": [
+      "Home",
+      "Reports",
+      "参考プロトコル: 葉脈形質の定量"
+    ]
+  },
+  {
     "objectID": "notebooks/prometheus_leaf_vein_protocol.html#目的",
     "href": "notebooks/prometheus_leaf_vein_protocol.html#目的",
     "title": "参考プロトコル: 葉脈形質の定量",
@@ -328,7 +340,7 @@
     "href": "notebooks/skeletonization.html#画像の読み込み",
     "title": "葉脈の抽出",
     "section": "画像の読み込み",
-    "text": "画像の読み込み\n解析に使用する画像を読み込みます。\n\n# 画像読み込み\nfile_path = \"data/BEL-T44-BS_img.png\"\nimg = imread(file_path)\n\nprint(type(img))\nprint(img.shape)\nprint(img.dtype)\n\n画像を確認してみます。\n\nfig, ax = plt.subplots()\nif img.ndim == 2:\n    ax.imshow(img, cmap=\"gray\")\nelse:\n    ax.imshow(img)\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
+    "text": "画像の読み込み\n解析に使用する画像を読み込みます。サンプル画像は同梱していないため、利用可能な手元の画像のパスに置き換えてください。\n\n# 画像読み込み\nfile_path = \"path/to/your_leaf_image.png\"\nimg = imread(file_path)\n\nprint(type(img))\nprint(img.shape)\nprint(img.dtype)\n\n画像を確認してみます。\n\nfig, ax = plt.subplots()\nif img.ndim == 2:\n    ax.imshow(img, cmap=\"gray\")\nelse:\n    ax.imshow(img)\nfig.tight_layout()\nplt.show()\nplt.close(fig)",
     "crumbs": [
       "Home",
       "Manual",

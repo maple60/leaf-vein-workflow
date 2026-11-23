@@ -336,7 +336,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="ライブラリのインポート" class="level2">
 <h2 class="anchored" data-anchor-id="ライブラリのインポート">ライブラリのインポート</h2>
-<div id="84241ef4" class="cell">
+<div id="4259ad8a" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -362,10 +362,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="画像の読み込み" class="level2">
 <h2 class="anchored" data-anchor-id="画像の読み込み">画像の読み込み</h2>
-<p>解析に使用する画像を読み込みます。</p>
-<div id="5b7964bd" class="cell">
+<p>解析に使用する画像を読み込みます。サンプル画像は同梱していないため、利用可能な手元の画像のパスに置き換えてください。</p>
+<div id="a8e2b0a7" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 画像読み込み</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>file_path <span class="op">=</span> <span class="st">"data/BEL-T44-BS_img.png"</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>file_path <span class="op">=</span> <span class="st">"path/to/your_leaf_image.png"</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>img <span class="op">=</span> imread(file_path)</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">type</span>(img))</span>
@@ -373,7 +373,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(img.dtype)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>画像を確認してみます。</p>
-<div id="b35f2b97" class="cell">
+<div id="5c0d53cf" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots()</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> img.ndim <span class="op">==</span> <span class="dv">2</span>:</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    ax.imshow(img, cmap<span class="op">=</span><span class="st">"gray"</span>)</span>
@@ -387,7 +387,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="グレースケール化" class="level2">
 <h2 class="anchored" data-anchor-id="グレースケール化">グレースケール化</h2>
 <p>もし RGB/RGBA 画像の場合は、グレースケール化します。 ここでは GUI 側でも使っている <code>to_grayscale()</code> を使います。 RGBA 画像では alpha channel は無視します。</p>
-<div id="9bfd6cc0" class="cell">
+<div id="a9eac1af" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>gray <span class="op">=</span> to_grayscale(img)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 値域をざっくり 0-1 にそろえる</span></span>
@@ -398,7 +398,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="切り取り" class="level2">
 <h2 class="anchored" data-anchor-id="切り取り">切り取り</h2>
 <p>ROIを指定して、画像を切り取ります。 ここでは例として、(ymin, xmin, ymax, xmax) = (2000, 2000, 5000, 5000) の範囲を切り取ります。</p>
-<div id="00f75987" class="cell">
+<div id="8d7b2c20" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>bbox <span class="op">=</span> (<span class="dv">2000</span>, <span class="dv">2000</span>, <span class="dv">5000</span>, <span class="dv">5000</span>) <span class="co"># (ymin, xmin, ymax, xmax)</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots()</span>
@@ -414,7 +414,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="ガウシアンフィルタによる平滑化" class="level2">
 <h2 class="anchored" data-anchor-id="ガウシアンフィルタによる平滑化">ガウシアンフィルタによる平滑化</h2>
 <p>ガウシアンフィルタで平滑化します。 sigma は 1 に設定します。</p>
-<div id="492165ab" class="cell">
+<div id="7ae465fe" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>img_smooth <span class="op">=</span> gaussian(img_crop, sigma<span class="op">=</span><span class="dv">1</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 横並びで表示</span></span>
@@ -433,7 +433,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="二値化" class="level2">
 <h2 class="anchored" data-anchor-id="二値化">二値化</h2>
 <p>解析前の二値化を行います。 ここでは Otsu の方法で閾値を決定します。 napariでの二値化では、調整できるようにします。 現在の画像では葉脈が背景より暗いため、<code>img_smooth &lt; threshold</code> を前景として扱います。 GUI ではこの条件が <code>Invert threshold</code> を有効にした状態に相当します。</p>
-<div id="fd0bfba3" class="cell">
+<div id="dc9d77e9" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>threshold <span class="op">=</span> threshold_otsu(img_smooth)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>img_binary <span class="op">=</span> img_smooth <span class="op">&lt;</span> threshold</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -456,7 +456,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="後処理" class="level2">
 <h2 class="anchored" data-anchor-id="後処理">後処理</h2>
 <p>小さい穴やゴミを除去します。</p>
-<div id="1d4b8f59" class="cell">
+<div id="8864b59c" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 小さいゴミ除去</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>max_size <span class="op">=</span> <span class="dv">100</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>vein_mask <span class="op">=</span> remove_small_objects(img_binary, max_size<span class="op">=</span>max_size)</span>
@@ -474,7 +474,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>plt.close(fig)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>葉脈内部の穴埋めや境界の整形を行います。</p>
-<div id="7faa204b" class="cell">
+<div id="91ecc00a" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 太い葉脈内部の穴埋め</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>vein_mask <span class="op">=</span> remove_small_holes(vein_mask, max_size<span class="op">=</span><span class="dv">500</span>)</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 境界を少し整える</span></span>
@@ -497,7 +497,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="skeletonize" class="level2">
 <h2 class="anchored" data-anchor-id="skeletonize">Skeletonize</h2>
 <p>後処理済みの <code>vein_mask</code> から skeleton を作ります。 この skeleton が、GUI で mask layer から作る skeleton layer に対応します。</p>
-<div id="eb48cda6" class="cell">
+<div id="1c474181" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>skeleton <span class="op">=</span> skeletonize(vein_mask)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mask foreground pixels: </span><span class="sc">{</span>np<span class="sc">.</span>count_nonzero(vein_mask)<span class="sc">}</span><span class="ss">"</span>)</span>
@@ -516,7 +516,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>plt.close(fig)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>前の画像に重ねてみます。 表示用に skeleton を太らせて、赤色で重ねます。</p>
-<div id="914a822b" class="cell">
+<div id="fb5f4a58" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots()</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>ax.imshow(vein_mask, cmap<span class="op">=</span><span class="st">"gray"</span>)</span>
@@ -539,7 +539,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="脈の太さの推定">脈の太さの推定</h2>
 <p>mask の distance transform から、各 foreground pixel が背景からどれだけ離れているかを求めます。 skeleton 上の距離を 2 倍すると、局所的な直径の近似値として使えます。</p>
 <p>この値は threshold や mask 後処理に依存するため、major/minor を自動分類する決定値ではなく、手動確認前のヒントとして扱います。</p>
-<div id="6619bdd8" class="cell">
+<div id="443e6043" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>medial_skeleton, radius_px <span class="op">=</span> medial_axis(vein_mask, return_distance<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>diameter_px <span class="op">=</span> radius_px <span class="op">*</span> <span class="dv">2</span></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>diameter_on_skeleton <span class="op">=</span> np.where(skeleton, diameter_px, np.nan)</span>
@@ -559,7 +559,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>plt.close(fig)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>先ほどと同様に、太らせて重ねてみます。</p>
-<div id="f0c1d00f" class="cell">
+<div id="5434a920" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots()</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>ax.imshow(vein_mask, cmap<span class="op">=</span><span class="st">"gray"</span>)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -590,7 +590,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="branch-node-の抽出" class="level2">
 <h2 class="anchored" data-anchor-id="branch-node-の抽出">branch / node の抽出</h2>
 <p><code>skan</code> を使って skeleton を branch 単位の表に変換します。 <code>branch-type</code> は、0 が tip-tip、1 が tip-junction、2 が junction-junction、3 が cycle です。</p>
-<div id="6c892f51" class="cell">
+<div id="0a001ed3" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>skeleton_graph <span class="op">=</span> Skeleton(skeleton, spacing<span class="op">=</span><span class="dv">1</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>branch_table <span class="op">=</span> summarize(skeleton_graph, separator<span class="op">=</span><span class="st">"-"</span>).copy()</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>branch_table[<span class="st">"branch-id"</span>] <span class="op">=</span> np.arange(<span class="bu">len</span>(branch_table))</span>
@@ -647,7 +647,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb14-54"><a href="#cb14-54" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>node は skeleton graph の degree で確認します。 degree 1 は endpoint、degree 2 は通常の線分上の pixel、degree 3 以上は branchpoint として扱います。</p>
-<div id="b4e2ca75" class="cell">
+<div id="e8782b3d" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>node_table <span class="op">=</span> pd.DataFrame(</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    {</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"node-id"</span>: np.arange(<span class="bu">len</span>(skeleton_graph.degrees)),</span>
@@ -671,7 +671,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="spur-pruning-の候補確認" class="level2">
 <h2 class="anchored" data-anchor-id="spur-pruning-の候補確認">spur pruning の候補確認</h2>
 <p>ここでは pruning 自体は行わず、短い terminal branch を候補として表で確認します。 <code>spur_length_px</code> は GUI では調整可能な値にする想定です。</p>
-<div id="e7e58a64" class="cell">
+<div id="3d4cc40a" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>spur_candidates <span class="op">=</span> branch_table[branch_table[<span class="st">"spur-candidate"</span>]].sort_values(</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"branch-distance"</span></span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>)</span>
@@ -693,7 +693,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>    .to_string(index<span class="op">=</span><span class="va">False</span>)</span>
 <span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="be6db939" class="cell">
+<div id="167105cd" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># spur candidates を branch-id ベースで取り出す</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>spur_candidates <span class="op">=</span> branch_table[branch_table[<span class="st">"spur-candidate"</span>]].copy()</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -742,7 +742,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="major-minor-分離前の太さヒント" class="level2">
 <h2 class="anchored" data-anchor-id="major-minor-分離前の太さヒント">major / minor 分離前の太さヒント</h2>
 <p>major / minor の自動分類はまだ行いません。 ただし、太さが大きい branch は major vein 候補として確認する価値があります。 この表は、napari で手動 order labels を作るときの確認用ヒントとして使います。</p>
-<div id="af4d1422" class="cell">
+<div id="8612c7e3" class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>wide_branch_candidates <span class="op">=</span> branch_table.sort_values(</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"mean-diameter-px"</span>, <span class="st">"branch-distance"</span>],</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    ascending<span class="op">=</span>[<span class="va">False</span>, <span class="va">False</span>],</span>
