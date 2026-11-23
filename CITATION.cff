@@ -8,12 +8,9 @@ abstract: >-
   ROI selection, two-step Otsu vein masks, semi-automatic assignment of
   1st-3rd order veins from a base and an apex point, manual correction,
   and export of per-order lengths and VLA with processing metadata.
-# TODO: 公開前に自分の名前に置き換える（ORCID があればコメントを外す）
 authors:
-  - family-names: "FAMILY_NAME"
-    given-names: "GIVEN_NAME"
-    # orcid: "https://orcid.org/0000-0000-0000-0000"
-    # affiliation: "AFFILIATION"
+  - family-names: "Konrai"
+    given-names: "Kaede"
 version: 0.1.0
 license: BSD-3-Clause
 repository-code: "https://github.com/maple60/leaf-vein-workflow"

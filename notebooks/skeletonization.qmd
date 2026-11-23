@@ -30,11 +30,11 @@ from leaf_vein_workflow.threshold import to_grayscale
 
 ## 画像の読み込み
 
-解析に使用する画像を読み込みます。
+解析に使用する画像を読み込みます。サンプル画像は同梱していないため、利用可能な手元の画像のパスに置き換えてください。
 
 ```{python}
 # 画像読み込み
-file_path = "data/BEL-T44-BS_img.png"
+file_path = "path/to/your_leaf_image.png"
 img = imread(file_path)
 
 print(type(img))

@@ -9,6 +9,11 @@ __pycache__/
 *.pyc
 *.egg-info/
 /output/
+/data/*.png
+/data/*.jpg
+/data/*.jpeg
+/data/*.tif
+/data/*.tiff
 /leaf_vein_workflow.yaml
 /leaf_vein_workflow.yaml.bak
 

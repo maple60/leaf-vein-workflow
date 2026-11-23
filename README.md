@@ -208,5 +208,11 @@ If you use this tool in a publication, please cite it using the metadata in
 
 ## License
 
-The code is released under the [BSD 3-Clause License](LICENSE). Sample images
-in `data/` are not covered by this license and keep the terms of their sources.
+The code is released under the [BSD 3-Clause License](LICENSE).
+The adapted [PROMETHEUS protocol note](notebooks/prometheus_leaf_vein_protocol.qmd)
+is licensed separately under [CC BY-SA 2.5 AU](https://creativecommons.org/licenses/by-sa/2.5/au/);
+see the note for its source, authors, and changes.
+
+Sample images are not included in the current source tree. For the examples,
+provide your own images or obtain images under their original providers' terms.
+Historical commits have not been rewritten and may still contain earlier images.
