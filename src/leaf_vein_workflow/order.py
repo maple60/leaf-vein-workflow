@@ -18,6 +18,7 @@ from skimage.morphology import skeletonize
 
 from .calibration import millimetres_per_pixel, validate_positive_finite
 from .skeleton import drop_isolated_pixels
+from .auto_order import primary_path_skeleton
 
 
 # Label 3 is tertiary.  Following Sack & Scoffoni (2013), "major" veins are
@@ -129,12 +130,17 @@ def measure_order_labels(
     image_name: str = "",
     label_layer_name: str = "vein_order_labels",
     leaf_area_mm2: float | None = None,
+    primary_endpoints_rc: tuple[tuple[float, float], tuple[float, float]] | None = None,
+    measured_skeleton: np.ndarray | None = None,
 ) -> list[dict[str, Any]]:
     """Measure skeleton length and VLA for each order-label class.
 
     Leaf area comes either from ``leaf_mask`` or from an externally measured
     ``leaf_area_mm2`` (for example a scan taken before specimen preparation).
     An explicit ``leaf_area_mm2`` takes precedence for the mm-based VLA.
+    Primary length uses one width-preferring path between marked or inferred
+    endpoints; other orders retain all branches. If supplied, the zero-filled
+    ``measured_skeleton`` array receives the skeleton pixels used for QC.
     """
     labels = _as_2d_array(order_labels, "order_labels")
     if pixel_size_mm is not None:
@@ -152,7 +158,13 @@ def measure_order_labels(
     single_lengths: dict[int, tuple[float, int]] = {}
     for _, _, values in ORDER_DEFINITIONS:
         if len(values) == 1:
-            skeleton, length_px = _skeleton_and_length(labels == values[0])
+            mask = labels == values[0]
+            skeleton, length_px = (
+                primary_path_skeleton(mask, primary_endpoints_rc)
+                if values[0] == 1 else _skeleton_and_length(mask)
+            )
+            if measured_skeleton is not None:
+                measured_skeleton[skeleton > 0] = 1
             single_lengths[values[0]] = (
                 float(length_px),
                 int(np.count_nonzero(skeleton)),

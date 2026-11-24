@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 390" role="img" aria-labelledby="title desc">
+<title id="title">1次脈の配置の比較</title><desc id="desc">羽状では1次脈が1本。放射状では一点から複数が広がり、acrodromousでは弓状に先端方向へ収束する。青色が1次脈。</desc>
+<style>text{font-family:'Yu Gothic',Meiryo,sans-serif;font-size:19px;fill:#243841;text-anchor:middle}.en{font-size:17px}.one{stroke:#176496;stroke-width:6}.two{stroke:#bc5b17;stroke-width:3}path{fill:none;stroke-linejoin:round;stroke-linecap:round}.outline{stroke:#9aabb0;stroke-width:2;fill:white}</style>
+<rect width="960" height="390" rx="16" fill="#f6f9fa"/>
+<g transform="translate(0 0)"><text x="160" y="35">羽状：1次脈が1本</text><text x="160" y="62" class="en">Pinnate</text><path class="outline" d="M160 325C35 260 40 165 160 90C280 165 285 260 160 325Z"/><path class="one" d="M160 345V94"/><path class="two" d="M160 280L76 225 M160 280L244 225 M160 220L90 165 M160 220L230 165 M160 160L125 120 M160 160L195 120"/></g>
+<g transform="translate(320 0)"><text x="160" y="35">一点から放射</text><text x="160" y="62" class="en">Actinodromous</text><path class="outline" d="M160 325C55 310 20 205 160 90C300 205 265 310 160 325Z"/><path class="one" d="M160 345V94 M160 325Q105 240 75 200 M160 325Q215 240 245 200"/></g>
+<g transform="translate(640 0)"><text x="160" y="35">弓状に先端へ収束</text><text x="160" y="62" class="en">Acrodromous</text><path class="outline" d="M160 325C35 260 40 165 160 90C280 165 285 260 160 325Z"/><path class="one" d="M160 345V94 M160 325C82 255 85 160 155 98 M160 325C238 255 235 160 165 98"/></g>
+<text x="480" y="377" class="en">青＝1次脈。橙＝2次脈（左図のみ）。細脈は省略した模式図。</text>
+</svg>

@@ -151,6 +151,15 @@ napari was started from (`Change...` picks another one). The files are a
 measurements CSV with total length and VLA (mm mm⁻²) for 1°, 2°, 3°, 1°+2°, and
 major (1°–3°), the order labels as `.npy`, a QC overlay PNG, and a skeleton
 branch table. Combined rows are the sum of the per-order skeleton lengths.
+For 1° only, length follows one path with step cost length / diameter²,
+excluding side branches (skeleton spurs). The base/apex recorded by automatic
+order assignment are used when available. Otherwise, endpoints are estimated
+by two length × diameter² weighted-distance sweeps in the strongest connected
+component. This assumes one primary vein; review the white measured centerline
+in the QC image, especially for broken masks or leaves with several primaries.
+Disconnected marked endpoints stop export rather than summing fragments.
+The original labels and branch table remain unpruned for inspection; their
+branch-length sum therefore need not equal the measured primary length.
 Results are not shown in the dock; a notification confirms the export and warns
 about pixels still labelled 4 (uncertain), which are excluded from every order.
 Export runs in the background so napari stays usable; a full 3200 dpi leaf

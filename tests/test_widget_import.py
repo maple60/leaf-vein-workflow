@@ -652,6 +652,34 @@ def test_export_measurements_converts_leaf_area_units_and_uses_output_dir(
     assert flow.widget.status_label.text() == status_before
 
 
+def test_export_qc_shows_only_measured_primary_path(tmp_path):
+    from skimage.io import imread
+    from leaf_vein_workflow.widgets.measurement import (
+        ExportJob, LabelsSnapshot, run_export_job,
+    )
+
+    labels = np.zeros((85, 85), dtype=np.uint8)
+    labels[8:73, 15:22] = 1
+    labels[35, 22:75] = 1
+    snapshot = LabelsSnapshot(
+        labels=labels, vein_mask=labels > 0, base_image=None,
+        mm_per_pixel=0.1, image_name="leaf", layer_name="orders",
+        primary_endpoints_rc=((8, 18), (72, 18)),
+    )
+    job = ExportJob(
+        target=tmp_path, prefix="leaf", leaf_area_mm2=10.0,
+        labels=snapshot, paths=None,
+        metadata={"image_name": "leaf", "leaf_area": {"source": "input"}},
+        source_path=None,
+    )
+    result = run_export_job(job)
+    overlay = imread(result.labels.qc_overlay_png)
+    white = np.all(overlay == 255, axis=-1)
+    assert white[:, 15:22].any()
+    assert not white[:, 23:].any()
+    np.testing.assert_array_equal(np.load(result.labels.order_labels_npy), labels)
+
+
 def test_measure_veins_warns_without_order_labels(widget_flow):
     flow = widget_flow
     _advance_to_mask(flow)

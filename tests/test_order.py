@@ -10,6 +10,59 @@ from leaf_vein_workflow.order import (
     measure_order_labels,
     validate_order_labels,
 )
+from leaf_vein_workflow.auto_order import primary_path_skeleton
+
+
+@pytest.mark.parametrize("marked", [False, True])
+def test_primary_length_keeps_thick_trunk_and_excludes_long_thin_spur(marked):
+    labels = np.zeros((85, 85), dtype=np.uint8)
+    labels[8:73, 15:22] = 1
+    labels[35, 22:75] = 1  # Thin side branch, nearly as long as the trunk.
+    labels[78, 5:15] = 2
+    measured = np.zeros_like(labels)
+    endpoints = ((8, 18), (72, 18)) if marked else None
+    rows = {row["label_name"]: row for row in measure_order_labels(
+        labels, primary_endpoints_rc=endpoints, measured_skeleton=measured,
+        pixel_size_mm=0.1, leaf_area_mm2=10.0,
+    )}
+    assert 55 < rows["primary"]["length_px"] < 70
+    assert not measured[:, 23:].any()
+    assert rows["primary"]["length_mm"] == pytest.approx(rows["primary"]["length_px"] * 0.1)
+    assert rows["primary"]["vla_mm_per_mm2"] == pytest.approx(rows["primary"]["length_mm"] / 10)
+    assert rows["secondary"]["length_px"] == 9
+    assert rows["primary_secondary"]["length_px"] == pytest.approx(
+        rows["primary"]["length_px"] + 9
+    )
+    assert np.count_nonzero(labels[35, 22:75]) == 53
+
+
+def test_primary_fallback_selects_thick_component_over_long_thin_fragment():
+    mask = np.zeros((100, 100), dtype=bool)
+    mask[10:70, 10:17] = True
+    mask[90, 5:95] = True
+    skeleton, length = primary_path_skeleton(mask)
+    assert not skeleton[90].any()
+    assert 50 < length < 65
+
+
+def test_primary_marked_endpoints_reject_disconnected_fragments():
+    mask = np.zeros((30, 30), dtype=bool)
+    mask[3:12, 5] = True
+    mask[18:27, 5] = True
+    with pytest.raises(ValueError, match="disconnected"):
+        primary_path_skeleton(mask, ((3, 5), (26, 5)))
+
+
+def test_primary_path_prefers_thicker_route_between_marked_endpoints():
+    mask = np.zeros((65, 80), dtype=bool)
+    mask[8:15, 8:70] = True
+    mask[8:52, 8:15] = True
+    mask[8:52, 63:70] = True
+    mask[51, 11:67] = True  # Shorter but much thinner route around a loop.
+    skeleton, length = primary_path_skeleton(mask, ((48, 11), (48, 66)))
+    assert skeleton[11, 35]
+    assert not skeleton[51, 35]
+    assert length > 100
 
 
 def test_create_empty_order_labels_matches_mask_shape():

@@ -37,7 +37,7 @@ from typing import Any, Callable
 import numpy as np
 from scipy import ndimage
 from scipy.sparse import csr_matrix
-from scipy.sparse.csgraph import dijkstra
+from scipy.sparse.csgraph import connected_components, dijkstra
 from skan import Skeleton
 from skimage.morphology import skeletonize
 
@@ -177,6 +177,55 @@ def auto_assign_orders(
         params={**asdict(params), "mm_per_pixel_used": mmpp},
         tertiary_gauge_range_px=tertiary_range,
     )
+
+
+def primary_path_skeleton(
+    mask: np.ndarray,
+    endpoints_rc: tuple[tuple[float, float], tuple[float, float]] | None = None,
+) -> tuple[np.ndarray, float]:
+    """Measure one width-preferring primary path, without terminal side branches.
+
+    Marked base/apex are snapped to the nearest primary skeleton pixels. Without
+    marks, two weighted-distance sweeps estimate the trunk endpoints, favouring
+    long, thick branches. This fallback assumes a single primary vein.
+    """
+    vein = np.asarray(mask, dtype=bool)
+    skeleton = drop_isolated_pixels(skeletonize(vein).astype(np.uint8))
+    result = np.zeros(vein.shape, dtype=np.uint8)
+    if not np.any(skeleton):
+        return result, 0.0
+    graph = _VeinGraph(skeleton, 2.0 * ndimage.distance_transform_edt(vein))
+    if endpoints_rc is not None:
+        nodes = []
+        for row, col in endpoints_rc:
+            nodes.append(int(np.argmin((graph.rows - row)**2 + (graph.cols - col)**2)))
+        start, end = nodes
+        if start == end:
+            raise ValueError("Primary base and apex snap to the same skeleton pixel.")
+    else:
+        # Select the component with the greatest length × diameter² support.
+        # Two sweeps are exact on a tree; cyclic masks need QC of this estimate.
+        mean_d = 0.5 * (graph.diameter[graph.edge_row] + graph.diameter[graph.edge_col])
+        support = graph.edge_len * mean_d**2
+        extent = csr_matrix(
+            (support, (graph.edge_row, graph.edge_col)), shape=(graph.n, graph.n)
+        )
+        _, components = connected_components(extent)
+        scores = np.bincount(components[graph.edge_row], weights=support)
+        component = components == int(np.argmax(scores))
+        seed = int(np.argmax(np.where(component, graph.diameter, -1.0)))
+        tips = np.flatnonzero(component & (np.diff(extent.indptr) == 1))
+        if tips.size < 2:
+            raise ValueError("Primary mask has no two endpoints; check its labels or mark base/apex.")
+        distances = dijkstra(extent, indices=seed)
+        start = int(tips[np.argmax(distances[tips])])
+        distances = dijkstra(extent, indices=start)
+        end = int(tips[np.argmax(distances[tips])])
+    path = graph.cheapest_path(start, end)
+    if path is None:
+        raise ValueError("Primary base and apex are disconnected; repair the primary mask.")
+    result[graph.rows[path], graph.cols[path]] = 1
+    return result, graph.length(path)
 
 
 class _VeinGraph:

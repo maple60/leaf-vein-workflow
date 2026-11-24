@@ -68,6 +68,7 @@ class LabelsSnapshot:
     image_name: str
     layer_name: str
     leaf_mask: np.ndarray | None = None
+    primary_endpoints_rc: tuple[tuple[float, float], tuple[float, float]] | None = None
 
 
 @dataclass(slots=True)
@@ -142,6 +143,7 @@ def _write_label_results(job: ExportJob, report) -> ExportedOrderPaths:
     snapshot = job.labels
     labels = snapshot.labels
     report(0.05, "Measuring vein length per order")
+    measured_skeleton = np.zeros(labels.shape, dtype=np.uint8)
     rows = measure_order_labels(
         labels,
         leaf_mask=(
@@ -151,6 +153,8 @@ def _write_label_results(job: ExportJob, report) -> ExportedOrderPaths:
         pixel_size_mm=snapshot.mm_per_pixel,
         image_name=snapshot.image_name,
         label_layer_name=snapshot.layer_name,
+        primary_endpoints_rc=snapshot.primary_endpoints_rc,
+        measured_skeleton=measured_skeleton,
         leaf_area_mm2=(
             job.leaf_area_mm2
             if job.metadata["leaf_area"].get("source") != "leaf_mask" else None
@@ -166,13 +170,11 @@ def _write_label_results(job: ExportJob, report) -> ExportedOrderPaths:
             mm_per_pixel=snapshot.mm_per_pixel,
         )
         branch_table = helpers.branch_table
-        skeleton = helpers.skeleton
     else:
         branch_table = pd.DataFrame()
-        skeleton = np.zeros(labels.shape, dtype=np.uint8)
 
     report(0.8, "Drawing the QC image")
-    overlay = make_qc_overlay(snapshot.base_image, vein, skeleton, labels)
+    overlay = make_qc_overlay(snapshot.base_image, vein, measured_skeleton, labels)
     report(0.86, "Writing files")
     return export_order_results(
         job.target,
@@ -272,6 +274,7 @@ class MeasurementWorkflow:
                 image_name=snapshot.image_name,
                 label_layer_name=snapshot.layer_name,
                 leaf_area_mm2=None if use_mask else self.leaf_area_mm2(),
+                primary_endpoints_rc=snapshot.primary_endpoints_rc,
             )
         except ValueError as exc:
             self.controls.warn(str(exc))
@@ -437,6 +440,9 @@ class MeasurementWorkflow:
             "uncertain_px": int(validation.label_pixel_counts.get(ORDER_UNCERTAIN_LABEL, 0)),
             "unlabeled_vein_px": int(validation.unlabeled_vein_pixels),
             "combined_rows": "sum of per-order skeleton lengths",
+            "primary_length": "one path; step cost = length / diameter^2; side branches excluded",
+            "primary_endpoint_fallback": "two length*diameter^2 distance sweeps in strongest component",
+            "branch_table": "unpruned full label mask; not the measured primary path",
             # 自動振り分けを使ったときは、その設定と結果を残す。
             "auto_order": self.layers.processing(order_layer).get("auto_order"),
         }
@@ -461,6 +467,10 @@ class MeasurementWorkflow:
             raise ValueError("Confirm the leaf mask for these order labels first.")
 
         mm_per_pixel = order_layer.metadata.get(CALIBRATION_MM_PER_PIXEL_KEY)
+        auto_order = self.layers.processing(order_layer).get("auto_order") or {}
+        endpoints = None
+        if "base_rc" in auto_order and "apex_rc" in auto_order:
+            endpoints = (tuple(auto_order["base_rc"]), tuple(auto_order["apex_rc"]))
         return LabelsSnapshot(
             labels=labels,
             vein_mask=mask_data,
@@ -469,6 +479,7 @@ class MeasurementWorkflow:
             image_name=self._image_name(order_layer),
             layer_name=order_layer.name,
             leaf_mask=leaf_mask,
+            primary_endpoints_rc=endpoints,
         )
 
     def _metadata_record(

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" role="img" aria-labelledby="title desc">
+<title id="title">葉脈の次数と最小の網目</title>
+<desc id="desc">青の1次脈、橙の2次脈、緑の3次脈を示す全体図と、高次脈に囲まれたareoleと自由終末細脈の拡大図。</desc>
+<style>text{font-family:'Yu Gothic',Meiryo,sans-serif;fill:#243841;font-size:19px}.small{font-size:16px}.heading{font-size:23px;font-weight:bold}path,line,polygon{fill:none;stroke-linecap:round;stroke-linejoin:round}.one{stroke:#176496;stroke-width:8}.two{stroke:#bc5b17;stroke-width:5}.three{stroke:#328570;stroke-width:2.5}.fine{stroke:#657780;stroke-width:3}.lead{stroke:#677981;stroke-width:1.5}</style>
+<rect width="960" height="480" rx="16" fill="#f6f9fa"/>
+<text x="28" y="38" class="heading">骨格から、間を埋める脈へ</text>
+<path d="M180 420 C20 350 10 190 180 70 C350 190 340 350 180 420Z" fill="#fff" stroke="#9aabb0" stroke-width="2"/>
+<path class="one" d="M180 445V76"/>
+<path class="two" d="M180 350Q115 315 66 270 M180 350Q245 315 294 270 M180 260Q130 230 80 190 M180 260Q230 230 280 190 M180 170L135 115 M180 170L225 115"/>
+<path class="three" d="M100 300L114 217 M135 325L143 238 M157 337L161 249 M260 300L246 217 M225 325L217 238 M203 337L199 249 M119 221L145 130 M151 242L164 150 M241 221L215 130 M209 242L196 150"/>
+<text x="345" y="118" fill="#176496">1次脈：主な軸</text><path class="lead" d="M335 125H230L180 142"/>
+<text x="345" y="215">2次脈：側方の骨格</text><path class="lead" d="M335 222H296L248 215"/>
+<text x="345" y="310">3次脈：骨格間を結ぶ</text><path class="lead" d="M335 317H265L220 290"/>
+<text x="552" y="38" class="heading">細脈の網目を拡大</text>
+<rect x="552" y="65" width="380" height="335" rx="10" fill="white" stroke="#d8e2e5"/>
+<path class="fine" d="M585 115L690 95L800 125L900 100 M585 115L605 250L575 360 M690 95L705 235L685 365 M800 125L805 270L815 365 M900 100L905 250L915 365 M605 250L705 235L805 270L905 250 M575 360L685 365L815 365L915 365"/>
+<polygon points="690,95 800,125 805,270 705,235" style="fill:#dceee7"/>
+<path class="fine" d="M690 95L800 125L805 270L705 235Z"/>
+<path d="M750 110L752 177L778 204 M752 177L731 201" stroke="#92396c" stroke-width="3"/>
+<text x="578" y="428">色付きの区画＝areole</text>
+<text x="578" y="454" class="small">紫＝内部で終わる細脈（FEV）</text>
+<text x="28" y="470" class="small">模式図：線の色と太さは階層を示す。右図の枠内は高次脈の局所像。</text>
+</svg>
