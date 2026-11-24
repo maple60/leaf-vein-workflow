@@ -1,49 +1,11 @@
 ---
 title: "leaf-vein-workflow"
+toc: false
+format:
+  html:
+    include-in-header:
+      text: |
+        <meta http-equiv="refresh" content="0; url=notebooks/workflow_overview.html">
 ---
 
-`leaf-vein-workflow` は、葉脈画像の ROI 切り出し、二値 mask 作成、骨格化、手動分類のための napari plugin です。
-
-このサイトは、実装の保守と利用手順の確認に使うためのドキュメントです。
-
-## Manual
-
-- [Leaf Vein Workflow の挙動と関数の流れ](notebooks/workflow_overview.qmd)
-- [葉脈標本のスキャンプロトコル（GT-X980）](notebooks/scanning_protocol.qmd)
-- [葉脈の見分け方：次数と脈系の観察ガイド](notebooks/leaf_venation_guide.qmd)
-- [napari プラグイン作成の要点](notebooks/napari_plugin_development.qmd)
-- [葉脈の抽出](notebooks/skeletonization.qmd)
-- [サンプルデータセット](notebooks/data_source.qmd)
-
-## Reports
-
-- [Zotero文献から見る葉脈研究](notebooks/zotero_leaf_vein_literature.qmd)
-- [参考プロトコル: 葉脈形質の定量](notebooks/prometheus_leaf_vein_protocol.qmd)
-- [生態学研究における葉脈形質の測定方法とツール比較](notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd)
-- [葉脈形質の測定法と既存ツールの比較報告](notebooks/葉脈形質の測定法と既存ツールの比較報告.qmd)
-
-## Development
-
-ローカル環境の準備:
-
-```powershell
-uv sync
-```
-
-napari の起動:
-
-```powershell
-uv run napari
-```
-
-テスト:
-
-```powershell
-uv run pytest
-```
-
-ドキュメントの確認:
-
-```powershell
-quarto preview --no-execute
-```
+[Leaf Vein Workflow の挙動と関数の流れ](notebooks/workflow_overview.qmd)

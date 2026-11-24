@@ -4,16 +4,6 @@ project:
   render:
     - index.qmd
     - notebooks/workflow_overview.qmd
-    - notebooks/scanning_protocol.qmd
-    - notebooks/leaf_venation_guide.qmd
-    - notebooks/napari_plugin_development.qmd
-    - notebooks/skeletonization.qmd
-    - notebooks/vein_order_algorithms.qmd
-    - notebooks/data_source.qmd
-    - notebooks/zotero_leaf_vein_literature.qmd
-    - notebooks/prometheus_leaf_vein_protocol.qmd
-    - notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd
-    - notebooks/葉脈形質の測定法と既存ツールの比較報告.qmd
   resources:
     - .nojekyll
 
@@ -22,52 +12,8 @@ website:
   repo-url: https://github.com/maple60/leaf-vein-workflow
   navbar:
     left:
-      - href: index.qmd
-        text: Home
-      - text: Manual
-        menu:
-          - href: notebooks/workflow_overview.qmd
-            text: Workflow overview
-          - href: notebooks/scanning_protocol.qmd
-            text: 葉脈標本のスキャン
-          - href: notebooks/leaf_venation_guide.qmd
-            text: 葉脈の見分け方
-          - href: notebooks/napari_plugin_development.qmd
-            text: napari プラグイン作成
-          - href: notebooks/skeletonization.qmd
-            text: 葉脈の抽出
-          - href: notebooks/vein_order_algorithms.qmd
-            text: 葉脈 mask と次数の自動振り分け
-          - href: notebooks/data_source.qmd
-            text: サンプルデータセット
-      - text: Reports
-        menu:
-          - href: notebooks/zotero_leaf_vein_literature.qmd
-            text: Zotero文献から見る葉脈研究
-          - href: notebooks/prometheus_leaf_vein_protocol.qmd
-            text: "参考プロトコル: 葉脈形質の定量"
-          - href: notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd
-            text: 生態学研究における葉脈形質の測定方法とツール比較
-          - href: notebooks/葉脈形質の測定法と既存ツールの比較報告.qmd
-            text: 葉脈形質の測定法と既存ツールの比較報告
-  sidebar:
-    style: docked
-    contents:
-      - section: Manual
-        contents:
-          - notebooks/workflow_overview.qmd
-          - notebooks/scanning_protocol.qmd
-          - notebooks/leaf_venation_guide.qmd
-          - notebooks/napari_plugin_development.qmd
-          - notebooks/skeletonization.qmd
-          - notebooks/vein_order_algorithms.qmd
-          - notebooks/data_source.qmd
-      - section: Reports
-        contents:
-          - notebooks/zotero_leaf_vein_literature.qmd
-          - notebooks/prometheus_leaf_vein_protocol.qmd
-          - notebooks/生態学研究における葉脈形質の測定方法とツール比較.qmd
-          - notebooks/葉脈形質の測定法と既存ツールの比較報告.qmd
+      - href: notebooks/workflow_overview.qmd
+        text: 操作の流れ
 
 execute:
   eval: false
