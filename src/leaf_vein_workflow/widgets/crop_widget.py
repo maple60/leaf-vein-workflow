@@ -6,11 +6,12 @@ layer operations live in ``roi.py``, ``mask.py``, and ``order_labels.py``.
 
 from napari.qt.threading import create_worker
 from qtpy.QtCore import QTimer
-from qtpy.QtWidgets import QFileDialog, QMessageBox, QWidget
+from qtpy.QtWidgets import QCheckBox, QFileDialog, QMessageBox, QWidget
 
 from ..auto_order import auto_assign_orders
 from ..resume import MissingSourceImage, read_saved_analysis
 from .auto_order import AutoOrderWorkflow
+from .assistant import FolipukaAssistant
 from .calibration import CalibrationWorkflow
 from .controls import WorkflowControls
 from .layers import WorkflowLayers
@@ -117,12 +118,37 @@ class CropWidget(QWidget):
         self._mask_updates_enabled = self._layers.mask_updates_enabled
 
         self.setLayout(self._controls.create_layout())
+        self.folipuka_checkbox = QCheckBox("フォリプカちゃんを表示 / Show Folipuka")
+        self.folipuka_checkbox.setChecked(True)
+        self.layout().insertWidget(1, self.folipuka_checkbox)
+        self.folipuka_assistant = FolipukaAssistant(self)
+        self.destroyed.connect(self.folipuka_assistant.deleteLater)
+        self.folipuka_checkbox.toggled.connect(self._toggle_folipuka)
+        self.folipuka_assistant.dismissed.connect(lambda: self.folipuka_checkbox.setChecked(False))
+        for key, section in self._controls.sections.items():
+            section.toggle_button.toggled.connect(
+                lambda expanded, key=key: self.folipuka_assistant.set_stage(key, expanded)
+            )
         self._connect_signals()
         # 起動時に設定ファイルを読み、各入力欄の既定値に反映する。
         self._settings_workflow.load_and_apply()
 
         for layer in list(self.viewer.layers):
             self._prepare_image_layer(layer)
+
+    def _toggle_folipuka(self, visible):
+        if visible and self.isVisible():
+            self.folipuka_assistant.show_on(self.window())
+        else:
+            self.folipuka_assistant.hide()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._toggle_folipuka(self.folipuka_checkbox.isChecked())
+
+    def hideEvent(self, event):
+        self.folipuka_assistant.hide()
+        super().hideEvent(event)
 
     def _connect_signals(self) -> None:
         """Wire UI and viewer events at one visible composition point."""
