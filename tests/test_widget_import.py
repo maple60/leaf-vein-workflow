@@ -180,13 +180,14 @@ def test_completed_stages_open_the_next_section(widget_flow):
 
     _advance_to_mask(flow)
     flow.app.processEvents()
+    assert is_open("vein_mask") and not is_open("mask")
     flow.widget._controls.open_section("orders")
     flow.widget.create_order_labels()
-    # 塗り分けはこれからなので、手順4は開いたまま。
+    # 塗り分けはこれからなので、手順5は開いたまま。
     assert is_open("orders")
 
 
-def test_dock_shows_the_six_steps_in_order(widget_flow):
+def test_dock_shows_the_seven_steps_in_order(widget_flow):
     from qtpy.QtWidgets import QToolButton
 
     flow = widget_flow
@@ -197,10 +198,11 @@ def test_dock_shows_the_six_steps_in_order(widget_flow):
     assert titles == [
         "1. Image & scale",
         "2. ROI",
-        "3. Vein mask",
-        "4. Paint vein orders",
-        "5. Leaf area & VLA",
-        "6. Export",
+        "3. Leaf mask",
+        "4. Vein mask",
+        "5. Paint vein orders",
+        "6. Leaf area & VLA",
+        "7. Export",
         "Settings",
     ]
     # パス計測は今は表示しない。
@@ -1207,3 +1209,23 @@ def test_resume_restores_confirmed_leaf_area_without_reapplying_largest_filter(w
     np.testing.assert_array_equal(flow.widget._layers.confirmed_leaf_mask(new_crop), expected)
     assert flow.widget.leaf_area_source_combo.currentData() == 'leaf_mask'
     assert flow.widget.measure_veins() is not None
+
+
+def test_leaf_and_vein_controls_belong_to_separate_stages(widget_flow):
+    flow = widget_flow
+    sections = flow.widget._controls.sections
+    assert sections["mask"].content.isAncestorOf(flow.widget.confirm_leaf_button)
+    for control in (flow.widget.threshold_slider, flow.widget.clean_mask_button):
+        assert sections["vein_mask"].content.isAncestorOf(control)
+        assert not sections["mask"].content.isAncestorOf(control)
+    assert flow.widget.clean_mask_button.text() == "Clean Vein Mask"
+    flow.widget._controls.open_section("vein_mask")
+    assert "Clean Vein Mask" in flow.widget.folipuka_assistant.message.text()
+
+
+def test_failed_leaf_confirmation_does_not_advance(widget_flow):
+    flow = widget_flow
+    flow.widget._controls.open_section("mask")
+    flow.widget.confirm_leaf()
+    assert flow.widget._controls.sections["mask"].is_expanded()
+    assert not flow.widget._controls.sections["vein_mask"].is_expanded()

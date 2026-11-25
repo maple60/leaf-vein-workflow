@@ -55,7 +55,7 @@ The dock shows six numbered steps, one open at a time:
 2. **ROI**: drag the rectangle over the area to analyze and press `Add ROI`.
 3. **Vein mask**: `Apply Gaussian`, `Apply Otsu`, edit the blade in `leaf_mask`,
    then `Confirm Leaf & Extract Veins`. Adjust the vein threshold, paint/erase,
-   and optionally `Clean Mask`.
+   and optionally `Clean Vein Mask`.
 4. **Paint vein orders**: `Create Order Labels`, optionally mark the base and
    apex and auto-assign 1°/2°, then choose an order in `Paint as` and drag over
    veins to finish.
@@ -94,7 +94,11 @@ mask is hidden to make vein editing easier; select and show it to edit again.
 After leaf edits, reconfirm before thresholding or export. Re-extraction asks
 before replacing the vein mask and removing its order labels and manual edits.
 
-If needed, set the morphology controls and click `Clean Mask`. Correct the mask
+The dock separates `3. Leaf mask` (leaf confirmation and vein extraction)
+from `4. Vein mask` (vein threshold, cleanup, and manual correction).
+Successful leaf confirmation opens the vein-mask stage.
+
+If needed, set the morphology controls and click `Clean Vein Mask`. Correct the mask
 manually in paint mode, then click `Create Order Labels` to begin manual
 vein-order annotation inside the confirmed mask. Every vein pixel starts as
 4 (uncertain, purple). Choose 1°, 2°, 3°, or Uncertain in `Paint as` (each
@@ -106,7 +110,7 @@ The leaf-area mask is cyan. `Keep largest leaf component` (on by default)
 retains the largest 8-connected region at proposal and confirmation, removing
 disconnected particles without filling holes. Turn it off for intentionally
 separate leaf pieces. Connected petioles and debris still need hand correction.
-`Clean Mask` opens step 4. Use `Edit Vein Mask` there to return to mask painting:
+`Clean Vein Mask` opens step 5. Use `Edit Vein Mask` there to return to mask painting:
 erased pixels lose their order labels, added pixels become Uncertain, and
 other order annotations are preserved. `Create Order Labels` returns to them.
 Purple label 4 means Uncertain, not a confirmed fourth-order vein.
@@ -151,13 +155,13 @@ pixel values for reproducible morphology behavior; when the image is calibrated,
 their labels also show object/hole areas in mm² and closing/opening radii in µm
 or mm.
 
-In `5. Leaf area & VLA`, confirmation selects `Confirmed leaf mask (current ROI)`.
+In `6. Leaf area & VLA`, confirmation selects `Confirmed leaf mask (current ROI)`.
 Vein length and specimen leaf area refer to the same region. Local ROIs give
 local densities. External area remains a separate manual input (mm² or cm²);
 select it explicitly and match it to the measured region and preparation state.
 A pre-preparation area alone does not correct vein-length shrinkage. Without
 scale calibration, mask area remains in px² and physical VLA is left blank.
-In `6. Export`, click `Export Measurements` to measure the current labels and
+In `7. Export`, click `Export Measurements` to measure the current labels and
 write them to the output folder, which defaults to `output/` under the folder
 napari was started from (`Change...` picks another one). The files are a
 measurements CSV with total length and VLA (mm mm⁻²) for 1°, 2°, 3°, 1°+2°, and
@@ -218,7 +222,7 @@ every file from one export shares that prefix. It records the source file path
 and SHA-256, calibration, leaf area (confirmed mask pixel count, digest,
 ROI scope, and mm²; or manual value and unit), the
 parameters actually applied (ROI bounds, Gaussian sigma, Otsu and final
-threshold, invert, every Clean Mask run), whether the mask was edited by hand
+threshold, invert, every Clean Vein Mask run), whether the mask was edited by hand
 after the last automatic step, label pixel counts, number of traced paths, the
 settings defaults in effect, and software versions. The vein mask itself is
 saved as `*_vein_mask.npy` so hand edits are preserved. The confirmed leaf

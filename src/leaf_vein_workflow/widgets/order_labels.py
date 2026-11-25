@@ -107,7 +107,7 @@ class OrderLabelsWorkflow:
         self.layers.activate(mask)
         mask.selected_label = 1
         mask.mode = "paint"
-        self.controls.open_section("mask")
+        self.controls.open_section("vein_mask")
         self.controls.set_status(
             "Edit vein_mask: 1 adds veins, 0 erases. Existing orders are kept; "
             "added veins become Uncertain. Return with Create Order Labels."

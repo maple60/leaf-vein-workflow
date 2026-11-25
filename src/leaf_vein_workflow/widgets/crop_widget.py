@@ -295,7 +295,8 @@ class CropWidget(QWidget):
 
     def confirm_leaf(self) -> None:
         """Confirm the edited leaf region and extract its vein mask."""
-        self._mask_workflow.confirm_leaf()
+        if self._mask_workflow.confirm_leaf():
+            self._controls.open_section("vein_mask")
 
     def load_export(self, path=None, source_path=None):
         """Resume an exported folder or metadata file without rerunning Otsu."""

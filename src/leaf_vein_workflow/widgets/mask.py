@@ -182,7 +182,7 @@ class MaskWorkflow:
             "Confirm Leaf & Extract Veins."
         )
 
-    def confirm_leaf(self) -> None:
+    def confirm_leaf(self) -> bool | None:
         """Freeze the edited leaf, calculate its area, and run the second Otsu."""
         crop = self.layers.active_crop_layer()
         if crop is None:
@@ -250,6 +250,7 @@ class MaskWorkflow:
         self.layers.mask_updates_enabled.add(id(crop))
         self.update_mask_from_controls(force=True)
         show_info(f"Confirmed leaf area: {area}. Veins extracted inside the same region.")
+        return True
 
     def clean_mask(self) -> bool:
         """Clean the current mask after explicit morphology settings."""

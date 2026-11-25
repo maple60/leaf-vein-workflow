@@ -312,7 +312,7 @@ class WorkflowControls:
             invert_threshold_checkbox=QCheckBox("Invert (dark pixels are vein)"),
             exclude_background_checkbox=QCheckBox("ROI includes background (paper)"),
             largest_leaf_checkbox=QCheckBox("Keep largest leaf component"),
-            clean_mask_button=QPushButton("Clean Mask"),
+            clean_mask_button=QPushButton("Clean Vein Mask"),
             create_order_labels_button=QPushButton("Create Order Labels"),
             edit_mask_button=QPushButton("Edit Vein Mask"),
             next_leaf_button=QPushButton("Next Leaf / Reset Analysis"),
@@ -437,10 +437,16 @@ class WorkflowControls:
         mask_layout.addWidget(self.largest_leaf_checkbox)
         mask_layout.addWidget(self.confirm_leaf_button)
         mask_layout.addWidget(self.leaf_area_status_label)
-        mask_layout.addWidget(self.invert_threshold_checkbox)
-        mask_layout.addWidget(self.threshold_label)
-        mask_layout.addLayout(threshold_layout)
-        mask_layout.addWidget(_subheading("Clean up (optional)"))
+        vein_mask_layout = QVBoxLayout()
+        vein_mask_layout.addWidget(_hint(
+            "Review the extracted vein_mask. Adjust the vein threshold if needed, "
+            "then optionally clean small objects and holes. Paint or erase on "
+            "vein_mask for manual corrections before assigning vein orders."
+        ))
+        vein_mask_layout.addWidget(self.invert_threshold_checkbox)
+        vein_mask_layout.addWidget(self.threshold_label)
+        vein_mask_layout.addLayout(threshold_layout)
+        vein_mask_layout.addWidget(_subheading("Clean up (optional)"))
         for label, spinbox in (
             (self.min_object_size_label, self.min_object_size_spinbox),
             (self.max_hole_size_label, self.max_hole_size_spinbox),
@@ -453,8 +459,8 @@ class WorkflowControls:
             row = QHBoxLayout()
             row.addWidget(label, 1)
             row.addWidget(spinbox)
-            mask_layout.addLayout(row)
-        mask_layout.addWidget(self.clean_mask_button)
+            vein_mask_layout.addLayout(row)
+        vein_mask_layout.addWidget(self.clean_mask_button)
 
         paint_order_layout = QHBoxLayout()
         paint_order_layout.addWidget(QLabel("Paint as"))
@@ -534,10 +540,11 @@ class WorkflowControls:
         stage_layouts = (
             ("image", "1. Image & scale", image_layout),
             ("roi", "2. ROI", roi_layout),
-            ("mask", "3. Vein mask", mask_layout),
-            ("orders", "4. Paint vein orders", orders_layout),
-            ("leaf_area", "5. Leaf area & VLA", leaf_area_section_layout),
-            ("export", "6. Export", export_layout),
+            ("mask", "3. Leaf mask", mask_layout),
+            ("vein_mask", "4. Vein mask", vein_mask_layout),
+            ("orders", "5. Paint vein orders", orders_layout),
+            ("leaf_area", "6. Leaf area & VLA", leaf_area_section_layout),
+            ("export", "7. Export", export_layout),
             ("settings", "Settings", settings_layout),
         )
         for key, title, stage_layout in stage_layouts:
