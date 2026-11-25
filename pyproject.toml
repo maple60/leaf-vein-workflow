@@ -44,7 +44,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-leaf_vein_workflow = ["napari.yaml"]
+leaf_vein_workflow = ["napari.yaml", "assets/*.png"]
 
 [tool.pytest.ini_options]
 addopts = ["-p", "no:napari"]
