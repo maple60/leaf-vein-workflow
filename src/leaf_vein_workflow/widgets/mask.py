@@ -19,12 +19,12 @@ from ..threshold import (
     estimate_leaf_mask,
     estimate_vein_threshold,
     largest_leaf_component,
-    postprocess_mask,
     smooth_image,
     threshold_image,
     to_grayscale,
 )
 from .controls import WorkflowControls
+from .mask_cleanup import clean_vein_mask
 from .layers import (
     ROLE_KEY,
     ROLE_LEAF_MASK,
@@ -252,66 +252,9 @@ class MaskWorkflow:
         show_info(f"Confirmed leaf area: {area}. Veins extracted inside the same region.")
         return True
 
-    def clean_mask(self) -> bool:
-        """Clean the current mask after explicit morphology settings."""
-        mask_layer = self.layers.active_mask_layer()
-        if mask_layer is None:
-            self.controls.warn(
-                f"Create or select {VEIN_MASK_LAYER_NAME} before cleaning."
-            )
-            return
-
-        try:
-            crop = self.layers.mask_to_crop.get(id(mask_layer))
-            leaf = self.layers.confirmed_leaf_mask(crop)
-            cleaned = postprocess_mask(
-                np.asarray(mask_layer.data),
-                small_object_size=self.controls.min_object_size_spinbox.value(),
-                max_hole_size=self.controls.max_hole_size_spinbox.value(),
-                closing_radius=self.controls.closing_radius_spinbox.value(),
-                opening_radius=self.controls.opening_radius_spinbox.value(),
-            )
-            cleaned = (cleaned.astype(bool) & leaf).astype(np.uint8)
-        except ValueError as exc:
-            self.controls.warn(str(exc))
-            return
-
-        record = self.layers.processing(mask_layer)
-        edited_before = (
-            record.get("auto_mask_sha256") is not None
-            and array_digest(np.asarray(mask_layer.data))
-            != record.get("auto_mask_sha256")
-        )
-        record.setdefault("cleanup", []).append(
-            {
-                "small_object_px": int(self.controls.min_object_size_spinbox.value()),
-                "max_hole_px": int(self.controls.max_hole_size_spinbox.value()),
-                "closing_radius_px": int(self.controls.closing_radius_spinbox.value()),
-                "opening_radius_px": int(self.controls.opening_radius_spinbox.value()),
-                "mask_edited_by_hand_before": bool(edited_before),
-            }
-        )
-        record["auto_mask_sha256"] = array_digest(cleaned)
-        mask_layer.data = cleaned
-        self.layers.record_processing(mask_layer, record)
-        crop_layer = self.layers.mask_to_crop.get(id(mask_layer))
-        if crop_layer is not None:
-            # 手修正後のmaskを閾値UIの遅延更新で上書きしない。
-            self.layers.mask_updates_enabled.discard(id(crop_layer))
-
-        self.layers.move_to_top(mask_layer)
-        self.layers.activate(mask_layer)
-        try:
-            mask_layer.mode = "paint"
-        except ValueError:
-            pass
-
-        self.controls.set_status(
-            f"Cleaned {VEIN_MASK_LAYER_NAME}. Paint on this Labels layer to make "
-            "manual corrections."
-        )
-        show_info(f"Cleaned {VEIN_MASK_LAYER_NAME}.")
-        return True
+    def clean_mask(self) -> bool | None:
+        """Delegate vein-mask cleanup to its separate processing stage."""
+        return clean_vein_mask(self.layers, self.controls)
 
     def create_or_update_smoothed_layer(
         self,
