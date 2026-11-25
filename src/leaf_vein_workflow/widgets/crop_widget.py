@@ -6,9 +6,10 @@ layer operations live in ``roi.py``, ``mask.py``, and ``order_labels.py``.
 
 from napari.qt.threading import create_worker
 from qtpy.QtCore import QTimer
-from qtpy.QtWidgets import QFileDialog, QWidget
+from qtpy.QtWidgets import QFileDialog, QMessageBox, QWidget
 
 from ..auto_order import auto_assign_orders
+from ..resume import MissingSourceImage, read_saved_analysis
 from .auto_order import AutoOrderWorkflow
 from .calibration import CalibrationWorkflow
 from .controls import WorkflowControls
@@ -18,6 +19,7 @@ from .measurement import MeasurementWorkflow, run_export_job, show_export_messag
 from .order_labels import OrderLabelsWorkflow
 from .progress import ProgressReporter
 from .roi import RoiWorkflow
+from .resume import restore_analysis
 from .settings import SettingsWorkflow
 from .vein_paths import VeinPathsWorkflow
 
@@ -44,6 +46,7 @@ class CropWidget(QWidget):
         self._vein_paths_workflow = VeinPathsWorkflow(self._layers, self._controls)
         self._auto_order_workflow = AutoOrderWorkflow(self._layers, self._controls)
         self._auto_order_worker = None
+        self._export_worker = None
         self._settings_workflow = SettingsWorkflow(self._controls, settings_path)
         self._measurement_workflow = MeasurementWorkflow(
             self._layers,
@@ -72,6 +75,9 @@ class CropWidget(QWidget):
         self.invert_threshold_checkbox = self._controls.invert_threshold_checkbox
         self.clean_mask_button = self._controls.clean_mask_button
         self.create_order_labels_button = self._controls.create_order_labels_button
+        self.edit_mask_button = self._controls.edit_mask_button
+        self.next_leaf_button = self._controls.next_leaf_button
+        self.resume_button = self._controls.resume_button
         self.paint_order_combo = self._controls.paint_order_combo
         self.mark_seeds_button = self._controls.mark_seeds_button
         self.auto_orders_button = self._controls.auto_orders_button
@@ -144,6 +150,9 @@ class CropWidget(QWidget):
         self.confirm_leaf_button.clicked.connect(self.confirm_leaf)
         self.clean_mask_button.clicked.connect(self.clean_mask)
         self.create_order_labels_button.clicked.connect(self.create_order_labels)
+        self.edit_mask_button.clicked.connect(self._order_labels_workflow.edit_vein_mask)
+        self.next_leaf_button.clicked.connect(self.reset_analysis)
+        self.resume_button.clicked.connect(lambda *_: self.load_export())
         self.paint_order_combo.currentIndexChanged.connect(
             self._order_labels_workflow.on_paint_order_changed
         )
@@ -213,11 +222,87 @@ class CropWidget(QWidget):
 
     def clean_mask(self) -> None:
         """Delegate explicit morphology cleanup to the mask workflow."""
-        self._mask_workflow.clean_mask()
+        if self._mask_workflow.clean_mask():
+            self._controls.open_section("orders")
+
+    def reset_analysis(self) -> None:
+        """Start the next leaf after explicit confirmation of unsaved edits."""
+        if self._auto_order_worker is not None or self._export_worker is not None:
+            self._controls.warn("Wait for auto-assignment or export before resetting.")
+            return
+        source = self._layers.active_source_image()
+        active = self.viewer.layers.selection.active
+        if source is None and active is not None:
+            source = self._layers.by_name(active.metadata.get("source_image"))
+        if source is None:
+            self._controls.open_section("image")
+            return
+        answer = QMessageBox.question(
+            self, "Start next leaf?",
+            "Remove this image and its workflow layers from the viewer? "
+            "Export any edits you need first. Original files and exported results "
+            "are kept on disk.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self._mask_update_timer.stop()
+        self._layers.reset_source(source)
+        self.leaf_area_input.clear()
+        self._controls.set_leaf_area_status("Leaf area: not confirmed")
+        self._controls.leaf_area_source_combo.setCurrentIndex(
+            self._controls.leaf_area_source_combo.findData("input")
+        )
+        self._controls.confirm_leaf_button.setEnabled(False)
+        self._controls.set_gaussian_enabled(False)
+        self._controls.set_threshold_enabled(False)
+        self._controls.set_cleanup_enabled(False)
+        self._controls.set_measurement_enabled(False)
+        self._controls.set_calibration_enabled(bool(self._layers.roi_to_image))
+        self._controls.set_calibration_status("Scale: select an image to calibrate")
+        self._controls.set_cleanup_unit_labels(None)
+        self.add_roi_button.setEnabled(bool(self._layers.roi_to_image))
+        self._controls.hide_progress()
+        self._controls.open_section("image")
+        self._controls.set_status("Ready for the next leaf. Open its scan with File > Open.")
 
     def confirm_leaf(self) -> None:
         """Confirm the edited leaf region and extract its vein mask."""
         self._mask_workflow.confirm_leaf()
+
+    def load_export(self, path=None, source_path=None):
+        """Resume an exported folder or metadata file without rerunning Otsu."""
+        from pathlib import Path
+        import yaml
+
+        if self._auto_order_worker is not None or self._export_worker is not None:
+            self._controls.warn("Wait for the current operation before loading an export.")
+            return None
+        interactive = path is None
+        if interactive:
+            path = QFileDialog.getExistingDirectory(self, "Choose export folder", str(self._measurement_workflow.output_dir()))
+            if not path:
+                return None
+            if len(list(Path(path).glob("*_metadata.yaml"))) > 1:
+                path, _ = QFileDialog.getOpenFileName(self, "Choose the saved analysis", path, "Export metadata (*_metadata.yaml)")
+                if not path:
+                    return None
+        try:
+            try:
+                saved = read_saved_analysis(path, source_path)
+            except MissingSourceImage:
+                if not interactive:
+                    raise
+                source_path, _ = QFileDialog.getOpenFileName(self, "Locate the original leaf scan")
+                if not source_path:
+                    return None
+                saved = read_saved_analysis(path, source_path)
+            self._mask_update_timer.stop()
+            return restore_analysis(self, saved)
+        except (OSError, ValueError, TypeError, KeyError, yaml.YAMLError) as exc:
+            self._controls.warn(f"Cannot resume export: {exc}")
+            return None
 
     def create_order_labels(self) -> None:
         """Delegate manual order-label setup to the labeling workflow."""
@@ -247,6 +332,9 @@ class CropWidget(QWidget):
         writing run in a worker thread so napari stays responsive; the worker
         is returned.  Otherwise the export runs here and its result is returned.
         """
+        if self._auto_order_worker is not None or self._export_worker is not None:
+            self._controls.warn("Wait for the current operation to finish.")
+            return None
         if output_dir:
             self._measurement_workflow.set_output_dir(output_dir)
         if not background:
@@ -271,7 +359,8 @@ class CropWidget(QWidget):
 
     def _on_export_finished(self, result) -> None:
         show_export_messages(result)
-        self._controls.set_status(f"Exported to {self._measurement_workflow.output_dir()}")
+        folder = result.metadata_yaml.parent if result.metadata_yaml else self._measurement_workflow.output_dir()
+        self._controls.set_status(f"Exported to {folder}")
 
     def _on_export_failed(self, error) -> None:
         self._controls.warn(f"Export failed: {error}")
@@ -287,6 +376,9 @@ class CropWidget(QWidget):
         thread and the worker is returned; otherwise the number of changed
         pixels is returned.
         """
+        if self._auto_order_worker is not None or self._export_worker is not None:
+            self._controls.warn("Wait for the current operation to finish.")
+            return None
         job = self._auto_order_workflow.prepare()
         if job is None:
             return None
@@ -303,7 +395,7 @@ class CropWidget(QWidget):
         self._controls.set_status(
             "Auto-assigning 1°/2° in the background (about a minute for a full leaf)."
         )
-        reporter = self._new_progress_reporter()
+        reporter = self._new_progress_reporter("orders")
         worker = create_worker(auto_assign_orders, **job.kwargs(), progress=reporter)
         worker.returned.connect(lambda result: self._auto_order_workflow.apply(job, result))
         worker.errored.connect(lambda error: self._controls.warn(f"Auto-assign failed: {error}"))
@@ -312,9 +404,10 @@ class CropWidget(QWidget):
         worker.start()
         return worker
 
-    def _new_progress_reporter(self) -> ProgressReporter:
+    def _new_progress_reporter(self, section="export") -> ProgressReporter:
         """Progress callback for a worker; Qt delivers it on the main thread."""
         reporter = ProgressReporter(self)
+        self._controls.place_progress(section)
         # controls は slots の dataclass で弱参照できないので、widget のメソッドを挟む
         reporter.progressed.connect(self._show_progress)
         self._controls.show_progress(0.0, "Starting")
@@ -325,7 +418,7 @@ class CropWidget(QWidget):
 
     def _reset_auto_order_button(self) -> None:
         self._controls.hide_progress()
-        self.auto_orders_button.setText("Auto-assign 1°/2°")
+        self.auto_orders_button.setText("Auto-assign 1°/2° + 3° guess")
         self.auto_orders_button.setEnabled(True)
         self._auto_order_worker = None
 

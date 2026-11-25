@@ -379,6 +379,35 @@ class WorkflowLayers:
 
         self.clear_mask_layer(crop_layer)
 
+    def reset_source(self, source: Image) -> None:
+        """Remove this source and its workflow layers from the viewer only."""
+        owned = [layer for layer in self.viewer.layers if layer is source or (
+            layer.metadata.get(ROLE_KEY) is not None
+            and layer.metadata.get(SOURCE_IMAGE_KEY) == source.name
+        )]
+        removed_ids = {id(layer) for layer in owned}
+        for mapping in (
+            self.roi_to_image, self.roi_to_crop, self.scale_bar_to_image,
+            self.image_to_scale_bar, self.image_to_scale_indicator,
+            self.image_to_vein_paths, self.vein_paths_to_image,
+            self.crop_to_smoothed, self.smoothed_to_crop,
+            self.crop_to_mask, self.mask_to_crop, self.mask_to_order_labels,
+            self.order_labels_to_mask, self.order_label_data_setitems,
+            self.leaf_masks, self.crop_to_leaf, self.leaf_to_crop,
+        ):
+            for key, value in list(mapping.items()):
+                if key in removed_ids or id(value) in removed_ids:
+                    del mapping[key]
+        for connected in (
+            self.order_label_clip_connected, self.order_label_selection_connected,
+            self.pending_leaf_masks, self.mask_clip_connected,
+            self.clipping_order_labels, self.mask_updates_enabled,
+        ):
+            connected.difference_update(removed_ids)
+        for layer in reversed(owned):
+            if self.is_present(layer):
+                self.viewer.layers.remove(layer)
+
     def confirmed_leaf_mask(self, crop_layer: Image) -> np.ndarray:
         """Return the frozen mask only while the editable leaf is still confirmed."""
         leaf_layer = self.crop_to_leaf.get(id(crop_layer))

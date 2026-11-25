@@ -83,6 +83,7 @@ class AutoOrderWorkflow:
                 },
             )
             seeds.events.data.connect(lambda event, layer=seeds: self.keep_two(layer))
+        seeds.visible = True
         self.layers.move_to_top(seeds)
         self.layers.activate(seeds)
         seeds.mode = "add"
@@ -187,6 +188,9 @@ class AutoOrderWorkflow:
             **result.summary(),
         }
         self.layers.record_processing(order_layer, record)
+        seeds = self.seeds_layer(order_layer)
+        if seeds is not None:
+            seeds.visible = False
         tertiary = (
             "remaining veins of 3° gauge as 3°, thinner ones Uncertain. "
             if result.tertiary_gauge_range_px is not None

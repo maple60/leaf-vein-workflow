@@ -86,10 +86,13 @@ class CollapsibleSection(QWidget):
         )
 
         self.content = QWidget()
+        content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         self.content.setLayout(content_layout)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         layout.addWidget(self.toggle_button)
         layout.addWidget(self.content)
 
@@ -118,6 +121,7 @@ class WorkflowControls:
 
     status_label: QLabel
     progress_bar: QProgressBar
+    progress_label: QLabel
     calibration_status_label: QLabel
     calibration_method_label: QLabel
     calibration_method_combo: QComboBox
@@ -138,8 +142,12 @@ class WorkflowControls:
     leaf_area_source_combo: QComboBox
     invert_threshold_checkbox: QCheckBox
     exclude_background_checkbox: QCheckBox
+    largest_leaf_checkbox: QCheckBox
     clean_mask_button: QPushButton
     create_order_labels_button: QPushButton
+    edit_mask_button: QPushButton
+    next_leaf_button: QPushButton
+    resume_button: QPushButton
     paint_order_combo: QComboBox
     mark_seeds_button: QPushButton
     auto_orders_button: QPushButton
@@ -185,6 +193,10 @@ class WorkflowControls:
         progress_bar.setRange(0, 1000)
         progress_bar.setTextVisible(True)
         progress_bar.setVisible(False)
+        progress_label = QLabel()
+        progress_label.setWordWrap(True)
+        progress_label.setMinimumWidth(0)
+        progress_label.setVisible(False)
 
         calibration_status_label = QLabel("Scale: not calibrated (pixel units)")
         calibration_status_label.setWordWrap(True)
@@ -224,7 +236,7 @@ class WorkflowControls:
             ("1° primary", 1),
             ("2° secondary", 2),
             ("3° tertiary", 3),
-            ("Uncertain", 4),
+            ("Uncertain (not 4°)", 4),
         ):
             paint_order_combo.addItem(_color_icon(ORDER_LABEL_COLORS[value]), text, value)
 
@@ -278,6 +290,7 @@ class WorkflowControls:
         controls = cls(
             status_label=status_label,
             progress_bar=progress_bar,
+            progress_label=progress_label,
             calibration_status_label=calibration_status_label,
             calibration_method_label=QLabel("Scale calibration method"),
             calibration_method_combo=calibration_method_combo,
@@ -298,11 +311,15 @@ class WorkflowControls:
             leaf_area_source_combo=leaf_area_source_combo,
             invert_threshold_checkbox=QCheckBox("Invert (dark pixels are vein)"),
             exclude_background_checkbox=QCheckBox("ROI includes background (paper)"),
+            largest_leaf_checkbox=QCheckBox("Keep largest leaf component"),
             clean_mask_button=QPushButton("Clean Mask"),
             create_order_labels_button=QPushButton("Create Order Labels"),
+            edit_mask_button=QPushButton("Edit Vein Mask"),
+            next_leaf_button=QPushButton("Next Leaf / Reset Analysis"),
+            resume_button=QPushButton("Load Export / Resume"),
             paint_order_combo=paint_order_combo,
             mark_seeds_button=QPushButton("Mark Base && Apex"),
-            auto_orders_button=QPushButton("Auto-assign 1°/2°"),
+            auto_orders_button=QPushButton("Auto-assign 1°/2° + 3° guess"),
             leaf_area_label=QLabel("Leaf area"),
             leaf_area_input=make_number_input("", "external area (optional)"),
             leaf_area_unit_combo=leaf_area_unit_combo,
@@ -331,6 +348,12 @@ class WorkflowControls:
             "Off: pixels brighter than the threshold become vein (1). "
             "On: pixels darker than the threshold become vein. "
             "Apply Otsu sets this automatically."
+        )
+        controls.largest_leaf_checkbox.setChecked(True)
+        controls.largest_leaf_checkbox.setToolTip(
+            "Before confirmation, keep only the largest connected leaf region. "
+            "Turn off for intentionally separated blade pieces. Petioles or debris "
+            "connected to the blade still need manual erasing."
         )
         controls.exclude_background_checkbox.setToolTip(
             "On: Apply Otsu first separates the leaf from the background around "
@@ -380,6 +403,7 @@ class WorkflowControls:
         image_layout.addWidget(self.draw_scale_bar_button)
         image_layout.addWidget(self.apply_scale_button)
         image_layout.addWidget(self.calibration_status_label)
+        image_layout.addWidget(self.resume_button)
 
         roi_layout = QVBoxLayout()
         roi_layout.addWidget(
@@ -410,6 +434,7 @@ class WorkflowControls:
         mask_layout.addWidget(self.apply_gaussian_button)
         mask_layout.addWidget(self.exclude_background_checkbox)
         mask_layout.addWidget(self.otsu_button)
+        mask_layout.addWidget(self.largest_leaf_checkbox)
         mask_layout.addWidget(self.confirm_leaf_button)
         mask_layout.addWidget(self.leaf_area_status_label)
         mask_layout.addWidget(self.invert_threshold_checkbox)
@@ -445,8 +470,9 @@ class WorkflowControls:
             )
         )
         orders_layout.addWidget(self.create_order_labels_button)
+        orders_layout.addWidget(self.edit_mask_button)
         orders_layout.addLayout(paint_order_layout)
-        orders_layout.addWidget(_subheading("Auto 1°/2° (optional)"))
+        orders_layout.addWidget(_subheading("Auto 1°/2° + 3° guess (optional)"))
         orders_layout.addWidget(
             _hint(
                 "Mark the leaf base and the apex of the 1°, then auto-assign. "
@@ -483,12 +509,15 @@ class WorkflowControls:
         export_layout = QVBoxLayout()
         export_layout.addWidget(
             _hint(
-                "Writes vein length and VLA per order (CSV), the label image, "
-                "a QC image, and a metadata file for reproducibility."
+                "Writes per-order length/VLA, branch diameter (mean/median/max), "
+                "labels, QC, and metadata into a new folder for each export."
             )
         )
         export_layout.addLayout(output_dir_layout)
         export_layout.addWidget(self.export_button)
+        export_layout.addWidget(self.progress_bar)
+        export_layout.addWidget(self.progress_label)
+        export_layout.addWidget(self.next_leaf_button)
 
         settings_buttons_layout = QHBoxLayout()
         settings_buttons_layout.addWidget(self.reload_settings_button)
@@ -534,11 +563,21 @@ class WorkflowControls:
         scroll_area.setWidget(scroll_content)
 
         layout = QVBoxLayout()
-        layout.addWidget(scroll_area)
-        # 時間のかかる処理（自動振り分け・Export）の進み具合。実行中だけ表示する。
-        layout.addWidget(self.progress_bar)
         layout.addWidget(self.status_label)
+        layout.addWidget(scroll_area)
         return layout
+
+    def place_progress(self, section: str) -> None:
+        """Place the shared progress bar immediately below the running action."""
+        for widget in (self.progress_bar, self.progress_label):
+            parent = widget.parentWidget()
+            if parent is not None and parent.layout() is not None:
+                parent.layout().removeWidget(widget)
+        layout = self.sections[section].content.layout()
+        button = self.auto_orders_button if section == "orders" else self.export_button
+        layout.insertWidget(layout.indexOf(button) + 1, self.progress_bar)
+        layout.insertWidget(layout.indexOf(button) + 2, self.progress_label)
+        self.open_section(section)
 
     def _on_section_toggled(self, key: str, expanded: bool) -> None:
         """Keep one stage open at a time so the dock rarely needs scrolling."""
@@ -624,6 +663,7 @@ class WorkflowControls:
         self.opening_radius_label.setEnabled(enabled)
         self.opening_radius_spinbox.setEnabled(enabled)
         self.clean_mask_button.setEnabled(enabled)
+        self.edit_mask_button.setEnabled(enabled)
         self.create_order_labels_button.setEnabled(enabled)
         self.paint_order_combo.setEnabled(enabled)
         self.mark_seeds_button.setEnabled(enabled)
@@ -697,12 +737,17 @@ class WorkflowControls:
     def show_progress(self, fraction: float, message: str) -> None:
         """Show how far a long step has got, with what it is doing now."""
         self.progress_bar.setVisible(True)
-        self.progress_bar.setValue(int(round(max(0.0, min(1.0, fraction)) * 1000)))
-        self.progress_bar.setFormat(f"{message}  {fraction:.0%}")
+        fraction = max(0.0, min(1.0, fraction))
+        self.progress_bar.setValue(int(round(fraction * 1000)))
+        self.progress_bar.setFormat(f"{fraction:.0%}")
+        self.progress_label.setText(message)
+        self.progress_label.setVisible(True)
 
     def hide_progress(self) -> None:
         self.progress_bar.setVisible(False)
         self.progress_bar.setValue(0)
+        self.progress_label.setVisible(False)
+        self.progress_label.clear()
 
     def set_status(self, message: str) -> None:
         """Show workflow guidance without raising a notification."""
@@ -719,7 +764,8 @@ def _hint(text: str) -> QLabel:
     """Return a short, wrapped instruction shown at the top of a step."""
     label = QLabel(text)
     label.setWordWrap(True)
-    label.setStyleSheet("color: palette(mid);")
+    label.setAlignment(Qt.AlignmentFlag.AlignTop)
+    label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
     return label
 
 

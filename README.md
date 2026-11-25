@@ -102,9 +102,21 @@ item shows its label color) and drag over veins; pixels outside the mask are
 never painted. Picking a label in napari's own layer controls updates
 `Paint as` too.
 
-**Auto-assign 1°/2° (optional).** Click `Mark Base & Apex`, click the leaf base
+The leaf-area mask is cyan. `Keep largest leaf component` (on by default)
+retains the largest 8-connected region at proposal and confirmation, removing
+disconnected particles without filling holes. Turn it off for intentionally
+separate leaf pieces. Connected petioles and debris still need hand correction.
+`Clean Mask` opens step 4. Use `Edit Vein Mask` there to return to mask painting:
+erased pixels lose their order labels, added pixels become Uncertain, and
+other order annotations are preserved. `Create Order Labels` returns to them.
+Purple label 4 means Uncertain, not a confirmed fourth-order vein.
+The auto-assignment button is labelled `Auto-assign 1°/2° + 3° guess`; tertiary
+assignment is a width-based proposal for review. Progress appears directly
+below the action being run, and workflow messages appear at the top of the dock.
+
+**Auto-assign 1°/2° + 3° guess (optional).** Click `Mark Base & Apex`, click the leaf base
 (where the 1° enters the blade) and then the apex, and press `Auto-assign
-1°/2°`. After the second click the dock switches back to painting on
+1°/2° + 3° guess`. After the second click the dock switches back to painting on
 `order_labels` (set `auto_order.activate_labels_after_marking: false` to stay on
 the points). It runs in the background with a progress bar (about a minute for
 a full leaf at 3200 dpi) and only changes pixels that are still Uncertain, so
@@ -151,6 +163,13 @@ napari was started from (`Change...` picks another one). The files are a
 measurements CSV with total length and VLA (mm mm⁻²) for 1°, 2°, 3°, 1°+2°, and
 major (1°–3°), the order labels as `.npy`, a QC overlay PNG, and a skeleton
 branch table. Combined rows are the sum of the per-order skeleton lengths.
+Each export creates its own `timestamp_image-name/` subfolder. Repeated exports
+in the same second get a numbered suffix rather than replacing existing files.
+Branch diameter is in `mean-diameter-mm`, `median-diameter-mm`, and
+`max-diameter-mm` (or `-px` without calibration); these describe graph segments,
+not per-order averages. `Next Leaf / Reset Analysis` removes the current image
+and its workflow layers from the viewer after confirmation. Export first if
+needed; original files and saved results remain on disk.
 For 1° only, length follows one path with step cost length / diameter²,
 excluding side branches (skeleton spurs). The base/apex recorded by automatic
 order assignment are used when available. Otherwise, endpoints are estimated
@@ -177,6 +196,20 @@ paths and change the order to relabel them. `Export Measurements` then also
 writes `*_path_measurements.csv` (paths per order, length in px and mm, VLA for
 1°, 2°, and 1°+2°) and `*_path_vertices.csv` (every traced vertex). Tertiary
 veins are not traced here; measure them in sample boxes with order labels.
+
+### Resume saved annotations
+
+To continue an unfinished annotation, use `Load Export / Resume` in step 1 and
+select its export folder. For older flat output folders with several exports,
+select the matching `*_metadata.yaml` when prompted. Keep the three NPY files
+(`*_leaf_mask.npy`, `*_vein_mask.npy`, `*_vein_order_labels.npy`) and metadata
+together, and retain the original scan: the export does not contain that image.
+If the scan was moved, locate it when prompted. Its recorded checksum and ROI
+dimensions are checked before restoring the layers. Masks, annotations, scale,
+leaf-area source, and saved base/apex are restored without rerunning Otsu or
+automatic assignment. Existing sessions remain separate. Continue painting in
+step 4 and export again to a new folder. NPY files alone cannot restore scale,
+ROI placement, or the underlying scan; path-only exports are not supported.
 
 ### Reproducibility metadata
 

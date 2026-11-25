@@ -18,6 +18,7 @@ from ..provenance import array_digest
 from ..threshold import (
     estimate_leaf_mask,
     estimate_vein_threshold,
+    largest_leaf_component,
     postprocess_mask,
     smooth_image,
     threshold_image,
@@ -144,6 +145,8 @@ class MaskWorkflow:
         self.update_timer.stop()
         self.layers.mask_updates_enabled.discard(id(crop))
         self.layers.pending_leaf_masks.add(id(crop))
+        if self.controls.largest_leaf_checkbox.isChecked():
+            candidate = largest_leaf_component(candidate)
         leaf_layer = self.layers.crop_to_leaf.get(id(crop))
         if leaf_layer is not None and self.layers.is_present(leaf_layer):
             leaf_layer.data = candidate.astype(np.uint8)
@@ -153,6 +156,7 @@ class MaskWorkflow:
                 name=self.layers.unique_name(LEAF_MASK_LAYER_NAME),
                 translate=tuple(crop.translate),
                 opacity=0.35,
+                colormap=direct_colormap({0: "transparent", 1: "#00e5ff", None: "#00e5ff"}),
                 metadata={
                     ROLE_KEY: ROLE_LEAF_MASK,
                     SOURCE_IMAGE_KEY: crop.metadata.get(SOURCE_IMAGE_KEY),
@@ -190,6 +194,9 @@ class MaskWorkflow:
             self.controls.warn("Click Apply Otsu to create a leaf mask first.")
             return
         leaf = np.asarray(leaf_layer.data) > 0
+        original_area = int(np.count_nonzero(leaf))
+        if self.controls.largest_leaf_checkbox.isChecked():
+            leaf = largest_leaf_component(leaf)
         try:
             estimate = estimate_vein_threshold(np.asarray(intensity.data), leaf_mask=leaf)
         except ValueError as exc:
@@ -209,6 +216,7 @@ class MaskWorkflow:
 
         self.update_timer.stop()
         self.layers.clear_mask_layer(crop)
+        leaf_layer.data = leaf.astype(np.uint8)
         self.layers.leaf_masks[id(crop)] = leaf.copy()
         self.layers.pending_leaf_masks.discard(id(crop))
         record = self.layers.processing(leaf_layer)
@@ -217,6 +225,8 @@ class MaskWorkflow:
             "area_px": int(np.count_nonzero(leaf)),
             "sha256": array_digest(leaf.astype(np.uint8)),
             "scope": "current_roi",
+            "largest_component_only": self.controls.largest_leaf_checkbox.isChecked(),
+            "removed_disconnected_px": original_area - int(np.count_nonzero(leaf)),
         }
         record["otsu_threshold"] = float(estimate.threshold)
         record["otsu_vein_side"] = estimate.vein_side
@@ -241,7 +251,7 @@ class MaskWorkflow:
         self.update_mask_from_controls(force=True)
         show_info(f"Confirmed leaf area: {area}. Veins extracted inside the same region.")
 
-    def clean_mask(self) -> None:
+    def clean_mask(self) -> bool:
         """Clean the current mask after explicit morphology settings."""
         mask_layer = self.layers.active_mask_layer()
         if mask_layer is None:
@@ -300,6 +310,7 @@ class MaskWorkflow:
             "manual corrections."
         )
         show_info(f"Cleaned {VEIN_MASK_LAYER_NAME}.")
+        return True
 
     def create_or_update_smoothed_layer(
         self,

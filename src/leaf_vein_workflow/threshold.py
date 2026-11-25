@@ -100,6 +100,16 @@ def estimate_vein_threshold(
     )
 
 
+def largest_leaf_component(mask: np.ndarray) -> np.ndarray:
+    """Keep the largest 8-connected foreground region without filling holes."""
+    labels, count = ndimage.label(np.asarray(mask, dtype=bool), structure=np.ones((3, 3)))
+    if count == 0:
+        return np.zeros(labels.shape, dtype=bool)
+    sizes = np.bincount(labels.ravel())
+    sizes[0] = 0
+    return labels == int(sizes.argmax())
+
+
 def estimate_leaf_mask(image: np.ndarray) -> tuple[float, np.ndarray | None]:
     """Return a first Otsu split and a leaf candidate, if background is found.
 

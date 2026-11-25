@@ -44,6 +44,25 @@ def test_otsu_waits_for_manual_leaf_confirmation(widget_flow):
     assert id(crop) not in flow.widget._layers.leaf_masks
 
 
+def test_confirmation_keeps_only_largest_leaf_component(widget_flow):
+    flow = widget_flow
+    crop, leaf = _review_leaf(flow)
+    leaf.data = np.array([[1, 0, 1], [1, 0, 0]], dtype=np.uint8)
+    flow.widget.confirm_leaf()
+    expected = np.array([[1, 0, 0], [1, 0, 0]], dtype=bool)
+    np.testing.assert_array_equal(flow.widget._layers.confirmed_leaf_mask(crop), expected)
+    assert flow.widget._measurement_workflow.leaf_area_mm2() == pytest.approx(0.02)
+
+
+def test_largest_component_filter_can_be_disabled(widget_flow):
+    flow = widget_flow
+    crop, leaf = _review_leaf(flow)
+    leaf.data = np.array([[1, 0, 1], [1, 0, 0]], dtype=np.uint8)
+    flow.widget._controls.largest_leaf_checkbox.setChecked(False)
+    flow.widget.confirm_leaf()
+    assert flow.widget._layers.confirmed_leaf_mask(crop).sum() == 3
+
+
 def test_confirm_uses_edited_region_for_area_and_veins_and_export(widget_flow, tmp_path):
     from leaf_vein_workflow.provenance import array_digest
     import yaml

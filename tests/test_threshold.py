@@ -197,3 +197,16 @@ def test_second_otsu_rejects_empty_or_mismatched_leaf_region(leaf):
 
     with pytest.raises(ValueError, match="Leaf mask"):
         estimate_vein_threshold(np.arange(6).reshape(2, 3), leaf_mask=leaf)
+def test_largest_leaf_component_preserves_holes_and_diagonal_connections():
+    from leaf_vein_workflow.threshold import largest_leaf_component
+    mask = np.zeros((10, 10), dtype=bool)
+    mask[1:4, 1:4] = True
+    mask[2, 2] = False
+    mask[4, 4] = True
+    mask[8, 8] = True
+    kept = largest_leaf_component(mask)
+    assert kept.sum() == 9
+    assert kept[4, 4]
+    assert not kept[2, 2]
+    assert not kept[8, 8]
+    assert not largest_leaf_component(np.zeros((2, 2))).any()

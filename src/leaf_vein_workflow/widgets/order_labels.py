@@ -60,10 +60,7 @@ class OrderLabelsWorkflow:
             # 手描きの次数ラベルを閾値UIの遅延更新で壊さない。
             self.layers.mask_updates_enabled.discard(id(crop_layer))
 
-        mask_layer.visible = False
-        self.layers.move_to_top(order_layer)
-        self.layers.activate(order_layer)
-        self.start_painting(order_layer)
+        self.show_for_painting(order_layer)
 
         self.controls.set_status(
             f"Created {ORDER_LABELS_LAYER_NAME}. Choose an order in 'Paint as' "
@@ -71,9 +68,50 @@ class OrderLabelsWorkflow:
         )
         show_info(f"Created {ORDER_LABELS_LAYER_NAME}.")
 
+    def show_for_painting(self, order_layer: Labels) -> None:
+        """Use the same editing view for new annotations and resumed exports."""
+        mask = self.layers.order_labels_to_mask.get(id(order_layer))
+        if mask is not None and self.layers.is_present(mask):
+            mask.visible = False
+            crop = self.layers.mask_to_crop.get(id(mask))
+            if crop is not None:
+                leaf = self.layers.crop_to_leaf.get(id(crop))
+                smoothed = self.layers.crop_to_smoothed.get(id(crop))
+                if leaf is not None and self.layers.is_present(leaf):
+                    leaf.visible = False
+                if smoothed is not None and self.layers.is_present(smoothed):
+                    smoothed.visible = True
+        order_layer.visible = True
+        self.layers.move_to_top(order_layer)
+        self.layers.activate(order_layer)
+        self.start_painting(order_layer)
+
     def current_paint_order(self) -> int:
         """Return the order label chosen in the dock."""
         return int(self.controls.paint_order_combo.currentData())
+
+    def edit_vein_mask(self) -> None:
+        """Return to the mask without replacing the existing order annotations."""
+        mask = self.layers.active_mask_layer()
+        if mask is None:
+            self.controls.warn("Create a vein mask before editing it.")
+            return
+        crop = self.layers.mask_to_crop.get(id(mask))
+        if crop is not None:
+            self.layers.mask_updates_enabled.discard(id(crop))
+        order = self.layers.mask_to_order_labels.get(id(mask))
+        if order is not None and self.layers.is_present(order):
+            order.visible = False
+        mask.visible = True
+        self.layers.move_to_top(mask)
+        self.layers.activate(mask)
+        mask.selected_label = 1
+        mask.mode = "paint"
+        self.controls.open_section("mask")
+        self.controls.set_status(
+            "Edit vein_mask: 1 adds veins, 0 erases. Existing orders are kept; "
+            "added veins become Uncertain. Return with Create Order Labels."
+        )
 
     def start_painting(self, order_layer: Labels) -> None:
         """Paint the chosen order and keep the dock in sync with napari."""
@@ -241,6 +279,9 @@ class OrderLabelsWorkflow:
         mask_id = id(mask_layer)
         if mask_id not in self.layers.mask_clip_connected:
             mask_layer.events.data.connect(
+                lambda event, mask_layer=mask_layer: self.clip_for_mask(mask_layer)
+            )
+            mask_layer.events.labels_update.connect(
                 lambda event, mask_layer=mask_layer: self.clip_for_mask(mask_layer)
             )
             self.layers.mask_clip_connected.add(mask_id)

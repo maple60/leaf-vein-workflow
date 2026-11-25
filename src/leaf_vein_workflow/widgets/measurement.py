@@ -319,6 +319,13 @@ class MeasurementWorkflow:
         )
         # 1回の Export で書く全ファイルに同じ接頭辞を付け、対応を取りやすくする。
         prefix = _safe_prefix(image_name)
+        # Exportごとに専用フォルダを使い、同じ秒の再出力でも上書きしない。
+        folder = target / prefix
+        suffix = 2
+        while folder.exists():
+            folder = target / f"{prefix}_{suffix}"
+            suffix += 1
+        target = folder
         messages: list[tuple[str, str]] = []
 
         paths_snapshot = None
