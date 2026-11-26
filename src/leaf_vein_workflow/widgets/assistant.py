@@ -97,20 +97,19 @@ class FolipukaAssistant(QWidget):
             "QFrame#folipuka_bubble QToolButton {color: #555; background: transparent;"
             "border: none;}"
         )
-        bubble_layout = QVBoxLayout(self.bubble)
+        bubble_layout = QHBoxLayout(self.bubble)
         bubble_layout.setContentsMargins(10, 8, 10, 8 + SpeechBubble.TAIL_HEIGHT)
-        header = QHBoxLayout()
-        header.addWidget(QLabel("フォリプカちゃん"))
-        close = QToolButton()
-        close.setText("×")
-        close.setToolTip("ガイドを非表示 / Hide guide")
-        close.clicked.connect(self.dismissed.emit)
-        header.addWidget(close)
-        bubble_layout.addLayout(header)
+        self.close_button = QToolButton()
+        self.close_button.setText("×")
+        self.close_button.setFixedSize(16, 16)
+        self.close_button.setToolTip("ガイドを非表示 / Hide guide")
+        self.close_button.clicked.connect(self.dismissed.emit)
         self.message = QLabel(STAGE_TIPS["image"])
         self.message.setWordWrap(True)
+        self.message.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.message.setTextFormat(Qt.TextFormat.PlainText)
-        bubble_layout.addWidget(self.message)
+        bubble_layout.addWidget(self.message, 1)
+        bubble_layout.addWidget(self.close_button, alignment=Qt.AlignmentFlag.AlignTop)
 
         self.mascot = QLabel(self)
         self.mascot.setObjectName("folipuka_mascot")
@@ -143,7 +142,7 @@ class FolipukaAssistant(QWidget):
             self._host = host
             self._positioned = False
         host.installEventFilter(self)
-        self.adjustSize()
+        self._fit_text()
         if not self._positioned:
             self.move(host.width() - self.width() - 20,
                       host.height() - self.height() - 30)
@@ -155,8 +154,26 @@ class FolipukaAssistant(QWidget):
     def set_stage(self, stage, expanded=True):
         if expanded:
             self.message.setText(STAGE_TIPS[stage])
-            self.adjustSize()
+            self._fit_text()
             self._clamp_position()
+
+    def _fit_text(self):
+        """Measure wrapped text at its actual width before sizing the bubble."""
+        self.ensurePolished()
+        layout = self.bubble.layout()
+        margins = layout.contentsMargins()
+        text_width = (
+            self.width() - margins.left() - margins.right()
+            - self.close_button.width() - layout.spacing()
+        )
+        self.message.setFixedWidth(text_width)
+        self.message.setFixedHeight(self.message.heightForWidth(text_width))
+        layout.invalidate()
+        self.bubble.setFixedHeight(layout.sizeHint().height())
+        self.setFixedHeight(self.bubble.height() + self.mascot.height())
+        self.layout().activate()
+        layout.activate()
+        self._update_mask()
 
     def _clamp_position(self):
         host = self.parentWidget()

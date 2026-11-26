@@ -66,3 +66,19 @@ def test_stage_dismiss_and_reparent(guide_window):
     finally:
         other.close()
         other.deleteLater()
+
+
+@pytest.mark.parametrize("font_size", [9, 14])
+def test_wrapped_tips_fit_after_stage_changes(guide_window, font_size):
+    app, host, guide = guide_window
+    host.resize(1000, 1000)
+    font = guide.message.font()
+    font.setPointSize(font_size)
+    guide.message.setFont(font)
+    for stage in ("image", "orders", "roi", "mask", "orders"):
+        guide.set_stage(stage)
+        app.processEvents()
+        assert guide.message.height() >= guide.message.heightForWidth(guide.message.width())
+        body_bottom = guide.bubble.height() - guide.bubble.TAIL_HEIGHT
+        assert guide.message.geometry().bottom() < body_bottom
+        assert host.rect().contains(guide.geometry())
