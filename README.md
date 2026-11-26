@@ -49,18 +49,19 @@ Then open the widget from:
 Plugins > Leaf Vein Workflow > Leaf Vein Workflow
 ```
 
-The dock shows six numbered steps, one open at a time:
+The dock shows seven numbered steps, one open at a time:
 
 1. **Image & scale**: open the leaf scan and apply the scan resolution.
 2. **ROI**: drag the rectangle over the area to analyze and press `Add ROI`.
-3. **Vein mask**: `Apply Gaussian`, `Apply Otsu`, edit the blade in `leaf_mask`,
-   then `Confirm Leaf & Extract Veins`. Adjust the vein threshold, paint/erase,
-   and optionally `Clean Vein Mask`.
-4. **Paint vein orders**: `Create Order Labels`, optionally mark the base and
+3. **Leaf mask**: `Apply Gaussian`, `Apply Otsu`, edit the blade in `leaf_mask`,
+   then `Confirm Leaf & Extract Veins`.
+4. **Vein mask**: adjust the vein threshold, paint/erase, and optionally
+   `Clean Vein Mask`.
+5. **Paint vein orders**: `Create Order Labels`, optionally mark the base and
    apex and auto-assign 1°/2°, then choose an order in `Paint as` and drag over
    veins to finish.
-5. **Leaf area & VLA**: use the confirmed ROI mask, or select an external area.
-6. **Export**: choose the output folder and press `Export Measurements`.
+6. **Leaf area & VLA**: use the confirmed ROI mask, or select an external area.
+7. **Export**: choose the output folder and press `Export Measurements`.
 
 Each step starts with a one-line instruction. Details follow.
 

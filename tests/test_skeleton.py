@@ -145,3 +145,53 @@ def test_metric_calibration_rejects_non_finite_pixel_size():
 
     with pytest.raises(ValueError, match="finite"):
         make_branch_table(skeleton, diameter, mm_per_pixel=np.nan)
+
+
+def _bumpy_thick_vein():
+    """A 40 px wide horizontal vein, 400 px long, with small bumps on its edges."""
+    mask = np.zeros((120, 480), bool)
+    mask[40:80, 40:440] = True
+    for col in range(70, 420, 30):
+        mask[34:40, col:col + 6] = True  # 上の縁のでこぼこ
+        mask[80:86, col + 15:col + 21] = True  # 下の縁のでこぼこ
+    return mask
+
+
+def _length(skeleton):
+    from skan import Skeleton
+    from skan.csr import summarize
+
+    return summarize(Skeleton(skeleton.astype(np.uint8)), separator="-")["branch-distance"].sum()
+
+
+def test_prune_spurs_removes_bumps_on_a_thick_vein():
+    from skimage.morphology import skeletonize
+
+    from leaf_vein_workflow.skeleton import prune_spurs
+
+    mask = _bumpy_thick_vein()
+    skeleton = skeletonize(mask)
+    pruned = prune_spurs(skeleton, mask)
+
+    # 骨格の中心線はおよそ 400 - 40 = 360 px（両端は半径ぶん内側で終わる）
+    assert _length(skeleton) > 1.2 * 360
+    assert _length(pruned) == pytest.approx(360, rel=0.1)
+
+
+def test_prune_spurs_keeps_real_branches_and_thin_veins():
+    from skimage.morphology import skeletonize
+
+    from leaf_vein_workflow.skeleton import prune_spurs
+
+    mask = _bumpy_thick_vein()
+    mask[80:200, 238:244] = False
+    mask = np.pad(mask, ((0, 100), (0, 0)))
+    mask[80:200, 238:244] = True  # 太い脈から出る長さ 120 px の本物の枝（幅 6 px）
+    skeleton = skeletonize(mask)
+    pruned = prune_spurs(skeleton, mask)
+    assert pruned[150:190, 230:250].any()
+
+    thin = np.zeros((50, 300), bool)
+    thin[24:27, 10:290] = True
+    thin_skeleton = skeletonize(thin)
+    assert _length(prune_spurs(thin_skeleton, thin)) == pytest.approx(_length(thin_skeleton), rel=0.02)

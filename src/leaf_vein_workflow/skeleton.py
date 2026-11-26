@@ -237,6 +237,52 @@ def drop_isolated_pixels(skeleton: np.ndarray) -> np.ndarray:
     return skeleton_bool & (neighbours > 0)
 
 
+def prune_spurs(
+    skeleton: np.ndarray,
+    mask: np.ndarray,
+    length_factor: float = 1.0,
+    max_rounds: int = 2,
+) -> np.ndarray:
+    """Remove short dead-end branches ("spurs") that come from a bumpy outline.
+
+    Skeletonizing a thick vein gives a short side branch for every bump on its
+    edge, for example where a thinner vein joins.  Such a spur runs from the
+    centre line to the edge, so it is about one radius long, while a real
+    branch continues well beyond the parent vein.  A tip-to-junction branch is
+    removed when its length is below ``length_factor`` times the vein diameter
+    (twice the distance to the background) at its junction.
+
+    The terminal stretch of a vein beyond its last junction is also a
+    tip-to-junction branch, so up to one diameter can be lost at each free end.
+    """
+    pruned = drop_isolated_pixels(skeleton)
+    vein = np.asarray(mask, dtype=bool)
+    diameter = 2.0 * distance_transform_edt(vein)
+    for _ in range(max_rounds):
+        if not pruned.any():
+            break
+        graph = Skeleton(pruned.astype(np.uint8), spacing=1)
+        table = summarize(graph, separator="-")
+        degrees = np.asarray(graph.degrees)
+        coords = np.asarray(graph.coordinates).astype(np.int64)
+        # 端点から分岐点までの枝だけを、まとめて判定する
+        tip_junction = table["branch-type"].to_numpy() == 1
+        src = table["node-id-src"].to_numpy()
+        dst = table["node-id-dst"].to_numpy()
+        junction = np.where(degrees[src] > 1, src, dst)
+        limit = length_factor * diameter[coords[junction, 0], coords[junction, 1]]
+        spurs = np.flatnonzero(tip_junction & (table["branch-distance"].to_numpy() < limit))
+        for index in spurs:
+            path = np.asarray(graph.path(int(index)))
+            tip_side = path[path != junction[index]]
+            pruned[coords[tip_side, 0], coords[tip_side, 1]] = False
+        removed = spurs.size > 0
+        pruned = drop_isolated_pixels(pruned)
+        if not removed:
+            break
+    return pruned
+
+
 def _make_skeleton_graph(skeleton: np.ndarray) -> Skeleton | None:
     connected = drop_isolated_pixels(skeleton)
     if not np.any(connected):

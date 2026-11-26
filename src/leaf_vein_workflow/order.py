@@ -17,8 +17,8 @@ from skimage.io import imsave
 from skimage.morphology import skeletonize
 
 from .calibration import millimetres_per_pixel, validate_positive_finite
-from .skeleton import drop_isolated_pixels
 from .auto_order import primary_path_skeleton
+from .skeleton import drop_isolated_pixels
 
 
 # Label 3 is tertiary.  Following Sack & Scoffoni (2013), "major" veins are

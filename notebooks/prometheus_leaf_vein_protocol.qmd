@@ -16,6 +16,14 @@ format:
 
 参照日: 2026-07-08
 
+## 出典・ライセンス
+
+原著者: Christine Scoffoni, Lawren Sack。原資料: [Quantifying leaf vein traits — PROMETHEUS](https://prometheusprotocols.net/structure/anatomy-and-microscopy/anatomical-image-analysis/quantifying-leaf-vein-traits/)。
+
+原サイトの[著作権・ライセンスに関する説明](https://prometheusprotocols.net/faq/copyright-and-intellectual-property-faqs/)が指定するライセンスは、[Creative Commons Attribution-ShareAlike 2.5 Australia（CC BY-SA 2.5 AU）](https://creativecommons.org/licenses/by-sa/2.5/au/)です。
+
+このノートは原資料の要点を日本語で要約・翻案し、本プロジェクトとの関係や説明を加えたものです。このノートも **CC BY-SA 2.5 AU** で提供します。コードに適用するBSD-3-Clauseとは別のライセンスです。原著者による本プロジェクトの推奨を意味しません。
+
 ## 目的
 
 このプロトコルの目的は、葉脈構造を機能形質として比較できるように、葉脈密度、葉脈径、自由終端葉脈数などを、葉全体または顕微鏡視野ごとに定量することです。
