@@ -59,7 +59,11 @@ class MeasurementExport:
 
 @dataclass(slots=True)
 class LabelsSnapshot:
-    """Copies of everything needed to measure one order-label layer."""
+    """Independent arrays and provenance for one measurement.
+
+    メタデータと警告用の件数も、対応する配列と一緒に渡す。別の測定を挟んでも
+    出力内容が入れ替わらないよう、Workflow の「直前の状態」に依存させない。
+    """
 
     labels: np.ndarray
     vein_mask: np.ndarray | None
@@ -69,6 +73,9 @@ class LabelsSnapshot:
     layer_name: str
     leaf_mask: np.ndarray | None = None
     primary_endpoints_rc: tuple[tuple[float, float], tuple[float, float]] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    uncertain_pixels: int = 0
+    unlabeled_vein_pixels: int = 0
 
 
 @dataclass(slots=True)
@@ -225,9 +232,20 @@ class MeasurementWorkflow:
         self.vein_paths = vein_paths
         # 設定ファイルの情報をメタデータに残すため、widget 側から差し込む。
         self.settings = None
-        self.last_label_record: dict[str, Any] = {}
-        self.uncertain_pixels = 0
-        self.unlabeled_vein_pixels = 0
+        # 既存コードから診断値を読むための記録。出力本体には使わない。
+        self._last_snapshot: LabelsSnapshot | None = None
+
+    @property
+    def last_label_record(self) -> dict[str, Any]:
+        return self._last_snapshot.metadata if self._last_snapshot is not None else {}
+
+    @property
+    def uncertain_pixels(self) -> int:
+        return self._last_snapshot.uncertain_pixels if self._last_snapshot is not None else 0
+
+    @property
+    def unlabeled_vein_pixels(self) -> int:
+        return self._last_snapshot.unlabeled_vein_pixels if self._last_snapshot is not None else 0
 
     def active_order_labels_layer(self) -> Labels | None:
         """Resolve the selected workflow layer to its order-label layer."""
@@ -266,6 +284,7 @@ class MeasurementWorkflow:
             return None
         try:
             snapshot = self._labels_snapshot(order_layer)
+            self._last_snapshot = snapshot
             use_mask = self.controls.leaf_area_source_combo.currentData() == "leaf_mask"
             return measure_order_labels(
                 snapshot.labels,
@@ -340,6 +359,7 @@ class MeasurementWorkflow:
         if order_layer is not None:
             try:
                 labels_snapshot = self._labels_snapshot(order_layer)
+                self._last_snapshot = labels_snapshot
             except ValueError as exc:
                 self.controls.warn(str(exc))
                 if paths_snapshot is None:
@@ -356,7 +376,7 @@ class MeasurementWorkflow:
             image_name,
             reference_layer,
             source_layer,
-            labels_snapshot is not None,
+            labels_snapshot,
             paths_layer if paths_snapshot is not None else None,
             leaf_area,
         )
@@ -373,16 +393,16 @@ class MeasurementWorkflow:
 
     def _label_warnings(self, snapshot: LabelsSnapshot) -> list[tuple[str, str]]:
         messages: list[tuple[str, str]] = []
-        if self.unlabeled_vein_pixels:
+        if snapshot.unlabeled_vein_pixels:
             messages.append((
                 "warning",
-                f"{self.unlabeled_vein_pixels} vein_mask px have no order label "
+                f"{snapshot.unlabeled_vein_pixels} vein_mask px have no order label "
                 "(0) and were excluded. Paint them or remove them from the mask.",
             ))
-        if self.uncertain_pixels:
+        if snapshot.uncertain_pixels:
             messages.append((
                 "warning",
-                f"{self.uncertain_pixels} px are still labelled uncertain (4) "
+                f"{snapshot.uncertain_pixels} px are still labelled uncertain (4) "
                 "and were excluded from every order.",
             ))
         if snapshot.mm_per_pixel is None:
@@ -413,7 +433,11 @@ class MeasurementWorkflow:
         )
 
     def _labels_snapshot(self, order_layer: Labels) -> LabelsSnapshot:
-        """Validate labels against the mask and copy what export needs."""
+        """Validate and copy arrays, diagnostics, and provenance together.
+
+        この関数は編集用配列や「直前の測定」の記録を変更しない。読み取った内容を
+        一つの snapshot にまとめ、計測・警告・YAML が同じ状態を参照するようにする。
+        """
         labels = np.array(order_layer.data, copy=True)
         if labels.ndim != 2:
             raise ValueError("Measurement requires 2D order labels.")
@@ -428,7 +452,6 @@ class MeasurementWorkflow:
                 mask_data = np.array(candidate, copy=True)
                 vein_mask = mask_data > 0
         validation = validate_order_labels(labels, vein_mask)
-        self.unlabeled_vein_pixels = validation.unlabeled_vein_pixels
 
         mask_record: dict[str, Any] = {}
         if mask_data is not None:
@@ -437,7 +460,7 @@ class MeasurementWorkflow:
             mask_record["mask_edited_by_hand_after_last_step"] = (
                 auto_digest is not None and array_digest(mask_data) != auto_digest
             )
-        self.last_label_record = {
+        label_record = {
             "layer_name": order_layer.name,
             "processing": mask_record or None,
             "label_pixel_counts": {
@@ -458,9 +481,6 @@ class MeasurementWorkflow:
                 "Order labels contain unsupported values: "
                 f"{validation.invalid_label_values}. Use 1-4 only."
             )
-        self.uncertain_pixels = validation.label_pixel_counts.get(
-            ORDER_UNCERTAIN_LABEL, 0
-        )
 
         leaf_mask = None
         crop = self.layers.mask_to_crop.get(id(mask_layer)) if mask_layer is not None else None
@@ -487,6 +507,9 @@ class MeasurementWorkflow:
             layer_name=order_layer.name,
             leaf_mask=leaf_mask,
             primary_endpoints_rc=endpoints,
+            metadata=label_record,
+            uncertain_pixels=validation.label_pixel_counts.get(ORDER_UNCERTAIN_LABEL, 0),
+            unlabeled_vein_pixels=validation.unlabeled_vein_pixels,
         )
 
     def _metadata_record(
@@ -494,10 +517,15 @@ class MeasurementWorkflow:
         image_name: str,
         reference_layer,
         source_layer,
-        has_labels: bool,
+        labels_snapshot: LabelsSnapshot | None,
         paths_layer,
         leaf_area: float | None,
     ) -> dict[str, Any]:
+        """Build this job's metadata from its snapshot and current controls.
+
+        labels_snapshot は prepare_export が今回取得したものを明示的に渡す。
+        互換性用プロパティ last_label_record は、出力内容の入力にしない。
+        """
         source_layer_info: dict[str, Any] = {}
         if source_layer is not None:
             source_layer_info = {
@@ -536,8 +564,8 @@ class MeasurementWorkflow:
                 "sha256": array_digest(leaf.astype(np.uint8)),
             }
 
-        if has_labels:
-            record["order_labels"] = self.last_label_record
+        if labels_snapshot is not None:
+            record["order_labels"] = labels_snapshot.metadata
 
         if paths_layer is not None:
             _, orders = self.vein_paths.collect(paths_layer)

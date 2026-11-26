@@ -20,13 +20,18 @@ from .measurement import MeasurementWorkflow, run_export_job, show_export_messag
 from .order_labels import OrderLabelsWorkflow
 from .progress import ProgressReporter
 from .roi import RoiWorkflow
-from .resume import restore_analysis
+from .resume import ResumeWorkflow
 from .settings import SettingsWorkflow
 from .vein_paths import VeinPathsWorkflow
 
 
 class CropWidget(QWidget):
-    """Single dock widget for ROI, mask refinement, and order labeling."""
+    """Compose the workflows and connect user actions to them.
+
+    ここは操作の入口。計算はパッケージ直下の関数、レイヤーの変更は各工程の
+    Workflow へ委譲する。ボタンから処理を探すときは _connect_signals を読む。
+    CropWidget という名前と公開属性は、以前の利用コードとの互換性のために残す。
+    """
 
     def __init__(self, napari_viewer, settings_path=None):
         super().__init__()
@@ -46,6 +51,11 @@ class CropWidget(QWidget):
         )
         self._vein_paths_workflow = VeinPathsWorkflow(self._layers, self._controls)
         self._auto_order_workflow = AutoOrderWorkflow(self._layers, self._controls)
+        self._resume_workflow = ResumeWorkflow(
+            layers=self._layers, controls=self._controls,
+            roi=self._roi_workflow, mask=self._mask_workflow,
+            orders=self._order_labels_workflow, auto_order=self._auto_order_workflow,
+        )
         self._auto_order_worker = None
         self._export_worker = None
         self._settings_workflow = SettingsWorkflow(self._controls, settings_path)
@@ -152,6 +162,7 @@ class CropWidget(QWidget):
 
     def _connect_signals(self) -> None:
         """Wire UI and viewer events at one visible composition point."""
+        # 操作ボタンの接続。クリックによる処理開始は、ここにまとめて見えるようにする。
         self.calibration_method_combo.currentIndexChanged.connect(
             self._calibration_workflow.on_method_changed
         )
@@ -190,6 +201,8 @@ class CropWidget(QWidget):
         self.export_button.clicked.connect(
             lambda *_: self.export_measurements(background=True)
         )
+        # 編集中の入力値はタイマーでまとめて反映する。マスクが手修正段階に入った
+        # 後は MaskWorkflow 側の gate が自動再計算を止め、描いた内容を保護する。
         self.invert_threshold_checkbox.toggled.connect(self._schedule_mask_update)
         self.threshold_spinbox.valueChanged.connect(
             self._on_threshold_spinbox_changed
@@ -207,6 +220,7 @@ class CropWidget(QWidget):
                 self._calibration_workflow.refresh_cleanup_unit_labels
             )
         self._mask_update_timer.timeout.connect(self._update_mask_from_controls)
+        # 選択レイヤーが変わったときだけ、校正値や葉面積の表示を対応するROIへ切り替える。
         self.viewer.layers.events.inserted.connect(self._on_layer_inserted)
         self.viewer.layers.selection.events.active.connect(
             self._calibration_workflow.on_active_layer_changed
@@ -326,7 +340,7 @@ class CropWidget(QWidget):
                     return None
                 saved = read_saved_analysis(path, source_path)
             self._mask_update_timer.stop()
-            return restore_analysis(self, saved)
+            return self._resume_workflow.restore(saved)
         except (OSError, ValueError, TypeError, KeyError, yaml.YAMLError) as exc:
             self._controls.warn(f"Cannot resume export: {exc}")
             return None

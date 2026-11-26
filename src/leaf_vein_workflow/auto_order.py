@@ -27,6 +27,12 @@ rules follow the Manual of Leaf Architecture (Ellis et al., 2009):
    set.  Veins near both ends of the 1° (petiole, apex) stay uncertain.
 
 The module does not depend on napari, so it can run in a worker thread.
+
+コード中の単位と添字:
+- パラメータの距離は mm、計算中の画像上の距離・直径は px。
+- rc は画像の (row, column)、node_ids は骨格グラフのノード番号。
+- primary_position_index は主脈をたどる配列上の位置であり、累積距離ではない。
+  名前の整理で判定式やしきい値の意味を変えないよう、区別を明示する。
 """
 
 from __future__ import annotations
@@ -115,17 +121,17 @@ def auto_assign_orders(
         raise ValueError("Auto order needs a 2D vein mask with vein pixels.")
     mmpp = float(mm_per_pixel) if mm_per_pixel else DEFAULT_MM_PER_PIXEL
 
-    def px(mm: float) -> float:
+    def mm_to_px(mm: float) -> float:
         return mm / mmpp
 
     report(0.02, "Skeletonizing the vein mask")
     skeleton = drop_isolated_pixels(skeletonize(vein).astype(np.uint8)).astype(bool)
-    diameter = 2.0 * ndimage.distance_transform_edt(vein)
+    diameter_px = 2.0 * ndimage.distance_transform_edt(vein)
     report(0.15, "Building the vein graph")
-    graph = _VeinGraph(skeleton, diameter)
+    graph = _VeinGraph(skeleton, diameter_px)
 
-    base = graph.snap(base_rc, px(params.snap_radius_mm))
-    apex = graph.snap(apex_rc, px(params.snap_radius_mm))
+    base = graph.snap(base_rc, mm_to_px(params.snap_radius_mm))
+    apex = graph.snap(apex_rc, mm_to_px(params.snap_radius_mm))
     report(0.25, "Tracing the 1°")
     primary = graph.cheapest_path(base, apex)
     if primary is None:
@@ -133,7 +139,7 @@ def auto_assign_orders(
 
     report(0.3, "Finding 2° origins")
     geometry = _PrimaryGeometry(graph, primary, skeleton.shape)
-    origins = _secondary_origins(graph, geometry, params, px)
+    origins = _secondary_origins(graph, geometry, params, mm_to_px)
 
     if leaf_mask is not None and np.shape(leaf_mask) == vein.shape:
         # 葉身の中の明るい点（穴）も葉縁とみなされないよう、穴を埋める。
@@ -147,7 +153,7 @@ def auto_assign_orders(
         report(0.35 + 0.45 * done / max(total, 1), f"Tracing 2° candidates ({done}/{total})")
 
     traced = _trace_secondaries(
-        graph, geometry, origins, margin_dist, params, px, trace_progress
+        graph, geometry, origins, margin_dist, params, mm_to_px, trace_progress
     )
     report(0.82, "Dropping candidates that merge into a thicker 2°")
     accepted, rejected = _drop_tertiaries(graph, traced, params)
@@ -158,16 +164,16 @@ def auto_assign_orders(
     report(0.87, "Splitting the remaining veins by gauge")
     if params.assign_tertiary and accepted:
         tertiary_range = _assign_tertiary(
-            graph, geometry, primary, accepted, skeleton_labels, params, px
+            graph, geometry, primary, accepted, skeleton_labels, params, mm_to_px
         )
     report(0.93, "Painting the labels")
     labels = _spread_to_mask(skeleton_labels, vein)
     # 太い脈の中にある小さな骨格の枝に引っ張られないよう、たどった経路から
     # その場所の半径までを、その次数の本体として塗る（1° を最後に塗って優先）。
     secondary_nodes = np.concatenate(accepted) if accepted else np.empty(0, np.int64)
-    for value, nodes in ((SECONDARY, secondary_nodes), (PRIMARY, primary)):
-        if nodes.size:
-            labels[_vein_body(graph, nodes, vein)] = value
+    for value, node_ids in ((SECONDARY, secondary_nodes), (PRIMARY, primary)):
+        if node_ids.size:
+            labels[_vein_body(graph, node_ids, vein)] = value
     report(1.0, "Done")
     return AutoOrderResult(
         labels=labels,
@@ -196,16 +202,16 @@ def primary_path_skeleton(
         return result, 0.0
     graph = _VeinGraph(skeleton, 2.0 * ndimage.distance_transform_edt(vein))
     if endpoints_rc is not None:
-        nodes = []
+        node_ids = []
         for row, col in endpoints_rc:
-            nodes.append(int(np.argmin((graph.rows - row)**2 + (graph.cols - col)**2)))
-        start, end = nodes
+            node_ids.append(int(np.argmin((graph.rows - row)**2 + (graph.cols - col)**2)))
+        start, end = node_ids
         if start == end:
             raise ValueError("Primary base and apex snap to the same skeleton pixel.")
     else:
         # Select the component with the greatest length × diameter² support.
         # Two sweeps are exact on a tree; cyclic masks need QC of this estimate.
-        mean_d = 0.5 * (graph.diameter[graph.edge_row] + graph.diameter[graph.edge_col])
+        mean_d = 0.5 * (graph.diameter_px[graph.edge_row] + graph.diameter_px[graph.edge_col])
         support = graph.edge_len * mean_d**2
         extent = csr_matrix(
             (support, (graph.edge_row, graph.edge_col)), shape=(graph.n, graph.n)
@@ -213,7 +219,7 @@ def primary_path_skeleton(
         _, components = connected_components(extent)
         scores = np.bincount(components[graph.edge_row], weights=support)
         component = components == int(np.argmax(scores))
-        seed = int(np.argmax(np.where(component, graph.diameter, -1.0)))
+        seed = int(np.argmax(np.where(component, graph.diameter_px, -1.0)))
         tips = np.flatnonzero(component & (np.diff(extent.indptr) == 1))
         if tips.size < 2:
             raise ValueError("Primary mask has no two endpoints; check its labels or mark base/apex.")
@@ -231,12 +237,12 @@ def primary_path_skeleton(
 class _VeinGraph:
     """Skeleton pixels as graph nodes, with diameters for path costs."""
 
-    def __init__(self, skeleton: np.ndarray, diameter: np.ndarray):
+    def __init__(self, skeleton: np.ndarray, diameter_px: np.ndarray):
         sk = Skeleton(skeleton.astype(np.uint8), spacing=1)
         coords = np.asarray(sk.coordinates).astype(np.int64)
         self.rows, self.cols = coords[:, 0], coords[:, 1]
         self.n = len(coords)
-        self.diameter = diameter[self.rows, self.cols].astype(float)
+        self.diameter_px = diameter_px[self.rows, self.cols].astype(float)
         self.index = np.full(skeleton.shape, -1, np.int64)
         self.index[self.rows, self.cols] = np.arange(self.n)
         # 分岐点・端点で区切った区間（3次脈の太さを区間ごとに測るのに使う）
@@ -249,7 +255,7 @@ class _VeinGraph:
         """Width-preferring step costs, only between allowed nodes."""
         keep = allowed[self.edge_row] & allowed[self.edge_col]
         r, c = self.edge_row[keep], self.edge_col[keep]
-        mean_d = np.maximum(0.5 * (self.diameter[r] + self.diameter[c]), 1.0)
+        mean_d = np.maximum(0.5 * (self.diameter_px[r] + self.diameter_px[c]), 1.0)
         return csr_matrix((self.edge_len[keep] / mean_d**2, (r, c)), shape=(self.n, self.n))
 
     def snap(self, point: tuple[float, float], radius: float) -> int:
@@ -264,7 +270,7 @@ class _VeinGraph:
         near = np.flatnonzero(dist2 <= radius**2)
         if near.size == 0:
             return int(np.argmin(dist2))
-        thick = near[self.diameter[near] >= 0.5 * self.diameter[near].max()]
+        thick = near[self.diameter_px[near] >= 0.5 * self.diameter_px[near].max()]
         return int(thick[np.argmin(dist2[thick])])
 
     def cheapest_path(self, start: int, end: int, cost: csr_matrix | None = None):
@@ -284,7 +290,12 @@ class _VeinGraph:
 
 
 class _PrimaryGeometry:
-    """Distance from the primary's edge and which side of it a pixel lies on."""
+    """Locate graph nodes relative to the primary vein.
+
+    node_primary_index は主脈の配列添字、node_offset_px は主脈の縁からの距離、
+    node_side は主脈の向きに対する左右の符号。配列添字と画素距離は別物で、
+    ここでは既存の判定を保つため、添字を累積距離へ置き換えない。
+    """
 
     def __init__(self, graph: _VeinGraph, primary: np.ndarray, shape: tuple[int, int]):
         self.primary = primary
@@ -296,37 +307,46 @@ class _PrimaryGeometry:
 
         # 主脈の局所半径（分岐点の太りを中央値でならす）と、進む向き。
         size = max(3, min(101, len(primary) // 3 * 2 + 1))
-        self.primary_diameter = ndimage.median_filter(
-            graph.diameter[primary], size=size, mode="nearest"
+        self.primary_diameter_px = ndimage.median_filter(
+            graph.diameter_px[primary], size=size, mode="nearest"
         )
-        position = np.full(shape, -1, np.int32)
-        position[pr, pc] = np.arange(len(primary))
+        primary_position_index = np.full(shape, -1, np.int32)
+        primary_position_index[pr, pc] = np.arange(len(primary))
         step = max(1, min(20, len(primary) // 4))
         ahead = np.clip(np.arange(len(primary)) + step, 0, len(primary) - 1)
         behind = np.clip(np.arange(len(primary)) - step, 0, len(primary) - 1)
         tangent = np.stack([pr[ahead] - pr[behind], pc[ahead] - pc[behind]], axis=1).astype(float)
 
         nr, nc = indices[0][graph.rows, graph.cols], indices[1][graph.rows, graph.cols]
-        self.node_position = position[nr, nc]
-        radius = self.primary_diameter[self.node_position] / 2
-        self.node_offset = dist[graph.rows, graph.cols] - radius
+        self.node_primary_index = primary_position_index[nr, nc]
+        radius = self.primary_diameter_px[self.node_primary_index] / 2
+        self.node_offset_px = dist[graph.rows, graph.cols] - radius
         to_node = np.stack([graph.rows - nr, graph.cols - nc], axis=1).astype(float)
-        t = tangent[self.node_position]
+        t = tangent[self.node_primary_index]
         self.node_side = np.sign(t[:, 0] * to_node[:, 1] - t[:, 1] * to_node[:, 0])
 
 
 @dataclass(slots=True)
 class _Origin:
-    nodes: np.ndarray
-    gauge: float
-    position: float
+    """A secondary candidate at its intersection with the primary's outer ring.
+
+    node_ids は画像の座標ではなくグラフのノード番号。diameter_px は直径、
+    primary_position_index は主脈上の添字の中央値なので float になる。
+    """
+    node_ids: np.ndarray
+    diameter_px: float
+    primary_position_index: float
     side: float
     centroid: np.ndarray
 
 
-def _secondary_origins(graph, geometry, params, px) -> list[_Origin]:
-    inner, outer = px(params.ring_inner_mm), px(params.ring_outer_mm)
-    in_ring = (geometry.node_offset > inner) & (geometry.node_offset <= outer)
+def _secondary_origins(
+    graph: _VeinGraph, geometry: _PrimaryGeometry, params: AutoOrderParams,
+    mm_to_px: Callable[[float], float],
+) -> list[_Origin]:
+    """Select origins by local relative diameter, excluding junction swelling."""
+    inner, outer = mm_to_px(params.ring_inner_mm), mm_to_px(params.ring_outer_mm)
+    in_ring = (geometry.node_offset_px > inner) & (geometry.node_offset_px <= outer)
     ring_img = np.zeros(graph.index.shape, bool)
     ring_img[graph.rows[in_ring], graph.cols[in_ring]] = True
     comp, n = ndimage.label(ring_img, structure=np.ones((3, 3)))
@@ -335,45 +355,50 @@ def _secondary_origins(graph, geometry, params, px) -> list[_Origin]:
     node_comp = comp[graph.rows, graph.cols]
 
     # 主脈の両端付近（基部の先の葉柄や先端）から出るものは 2° とみなさない。
-    end_margin_base = 2 * geometry.primary_diameter[0]
-    end_margin_apex = 2 * geometry.primary_diameter[-1]
+    end_margin_base = 2 * geometry.primary_diameter_px[0]
+    end_margin_apex = 2 * geometry.primary_diameter_px[-1]
     n_primary = len(geometry.primary)
     candidates: list[_Origin] = []
     for label in range(1, n + 1):
-        nodes = np.flatnonzero(node_comp == label)
+        node_ids = np.flatnonzero(node_comp == label)
         # 輪を横切る枝だけ（輪の幅の6割以上の長さ）。
-        if nodes.size < 0.6 * (outer - inner):
+        if node_ids.size < 0.6 * (outer - inner):
             continue
-        where = float(np.median(geometry.node_position[nodes]))
+        where = float(np.median(geometry.node_primary_index[node_ids]))
         if where < end_margin_base or where > n_primary - 1 - end_margin_apex:
             continue
         candidates.append(_Origin(
-            nodes=nodes,
-            gauge=float(np.median(graph.diameter[nodes])),
-            position=float(np.median(geometry.node_position[nodes])),
-            side=float(np.sign(np.sum(geometry.node_side[nodes]))),
-            centroid=np.array([graph.rows[nodes].mean(), graph.cols[nodes].mean()]),
+            node_ids=node_ids,
+            diameter_px=float(np.median(graph.diameter_px[node_ids])),
+            primary_position_index=float(np.median(geometry.node_primary_index[node_ids])),
+            side=float(np.sign(np.sum(geometry.node_side[node_ids]))),
+            centroid=np.array([graph.rows[node_ids].mean(), graph.cols[node_ids].mean()]),
         ))
 
-    window = px(params.secondary_window_mm)
-    floor = px(params.secondary_min_gauge_mm)
+    window = mm_to_px(params.secondary_window_mm)
+    floor = mm_to_px(params.secondary_min_gauge_mm)
     chosen = []
     for origin in candidates:
         nearby = [
-            other.gauge for other in candidates
-            if other.side == origin.side and abs(other.position - origin.position) <= window
+            other.diameter_px for other in candidates
+            if other.side == origin.side and abs(other.primary_position_index - origin.primary_position_index) <= window
         ]
-        if origin.gauge >= floor and origin.gauge >= params.secondary_relative_gauge * max(nearby):
+        if origin.diameter_px >= floor and origin.diameter_px >= params.secondary_relative_gauge * max(nearby):
             chosen.append(origin)
 
     # 同じ 2° が輪を2回横切っても、たどる経路が重なるので _drop_tertiaries で落ちる。
     return chosen
 
 
-def _trace_secondaries(graph, geometry, origins, margin_dist, params, px, on_step=None):
+def _trace_secondaries(
+    graph: _VeinGraph, geometry: _PrimaryGeometry, origins: list[_Origin],
+    margin_dist: np.ndarray, params: AutoOrderParams,
+    mm_to_px: Callable[[float], float],
+    on_step: Callable[[int, int], None] | None = None,
+) -> list[tuple[float, np.ndarray]]:
     """Follow each 2° origin to the margin, cut where the gauge drops abruptly."""
-    cost = graph.cost_matrix(geometry.node_offset > 2)  # 主脈の中は通らない
-    in_band = margin_dist < px(params.margin_band_mm)
+    cost = graph.cost_matrix(geometry.node_offset_px > 2)  # 主脈の中は通らない
+    in_band = margin_dist < mm_to_px(params.margin_band_mm)
     near_margin = np.flatnonzero(in_band)
     # 帯の中は長さそのものを距離にする（延長は短い距離に限る）。
     keep = in_band[graph.edge_row] & in_band[graph.edge_col]
@@ -381,12 +406,12 @@ def _trace_secondaries(graph, geometry, origins, margin_dist, params, px, on_ste
         (graph.edge_len[keep], (graph.edge_row[keep], graph.edge_col[keep])),
         shape=(graph.n, graph.n),
     )
-    max_extension = 2 * px(params.margin_band_mm)
+    max_extension = 2 * mm_to_px(params.margin_band_mm)
     traced = []
     for i, origin in enumerate(origins):
         if on_step is not None:
             on_step(i, len(origins))
-        start = int(origin.nodes[np.argmax(geometry.node_offset[origin.nodes])])
+        start = int(origin.node_ids[np.argmax(geometry.node_offset_px[origin.node_ids])])
         targets = near_margin[geometry.node_side[near_margin] == origin.side]
         if targets.size == 0:
             continue
@@ -398,7 +423,7 @@ def _trace_secondaries(graph, geometry, origins, margin_dist, params, px, on_ste
         while seq[-1] != start:
             seq.append(int(pred[seq[-1]]))
         course = np.array(seq[::-1])
-        cut = _gauge_drop(graph, course, origin.gauge, params)
+        cut = _diameter_drop_index(graph, course, origin.diameter_px, params)
         if cut == course.size:
             # 葉縁の帯に入った所で止めず、帯の中で最も外側の点まで延ばす。
             tail = _to_outermost(band_len, margin_dist, course[-1], max_extension)
@@ -406,9 +431,9 @@ def _trace_secondaries(graph, geometry, origins, margin_dist, params, px, on_ste
         else:
             course = course[:cut]
         # 付け根側も主脈の縁まで含める（主脈の内側は 1° のまま）。
-        inner = origin.nodes[geometry.node_offset[origin.nodes] > 0]
-        inner = inner[np.argsort(geometry.node_offset[inner])]
-        traced.append((origin.gauge, np.concatenate([inner, course])))
+        inner = origin.node_ids[geometry.node_offset_px[origin.node_ids] > 0]
+        inner = inner[np.argsort(geometry.node_offset_px[inner])]
+        traced.append((origin.diameter_px, np.concatenate([inner, course])))
     return traced
 
 
@@ -429,41 +454,47 @@ def _to_outermost(band_len, margin_dist, start: int, max_length: float) -> np.nd
     return np.array(seq[::-1][1:], dtype=np.int64)
 
 
-def _gauge_drop(graph, course: np.ndarray, gauge: float, params) -> int:
+def _diameter_drop_index(
+    graph: _VeinGraph, course: np.ndarray, diameter_px: float, params: AutoOrderParams,
+) -> int:
     """Index where the median gauge ahead falls abruptly below the one behind."""
-    window = max(5, int(round(2 * gauge)))
-    d = graph.diameter[course]
-    if d.size < 2 * window + 1:
-        return d.size
+    window = max(5, int(round(2 * diameter_px)))
+    diameters_px = graph.diameter_px[course]
+    if diameters_px.size < 2 * window + 1:
+        return diameters_px.size
     # 区間の中央値を累積で求めるのは重いので、窓ごとの中央値を順に比べる。
-    for i in range(window, d.size - window, max(1, window // 4)):
-        behind = np.median(d[i - window:i])
-        ahead = np.median(d[i:i + window])
+    for i in range(window, diameters_px.size - window, max(1, window // 4)):
+        behind = np.median(diameters_px[i - window:i])
+        ahead = np.median(diameters_px[i:i + window])
         if ahead < params.continue_gauge_ratio * behind:
             return i
-    return d.size
+    return diameters_px.size
 
 
-def _assign_tertiary(graph, geometry, primary, accepted, skeleton_labels, params, px):
+def _assign_tertiary(
+    graph: _VeinGraph, geometry: _PrimaryGeometry, primary: np.ndarray,
+    accepted: list[np.ndarray], skeleton_labels: np.ndarray,
+    params: AutoOrderParams, mm_to_px: Callable[[float], float],
+) -> tuple[float, float] | None:
     """Label remaining segments of 3° gauge as 3 on the skeleton; return the range."""
     taken = np.zeros(graph.n, bool)
     taken[primary] = True
     taken[np.concatenate(accepted)] = True
-    secondary_gauge = float(np.median(graph.diameter[np.concatenate(accepted)]))
+    secondary_gauge = float(np.median(graph.diameter_px[np.concatenate(accepted)]))
     # 1° の両端（葉柄や先端）にいちばん近い所の脈は判定しない
-    end_zone = (geometry.node_position <= 0) | (geometry.node_position >= len(primary) - 1)
+    end_zone = (geometry.node_primary_index <= 0) | (geometry.node_primary_index >= len(primary) - 1)
 
     gauges, lengths, segments = [], [], []
     for seg in graph.segments:
         if taken[seg].mean() > 0.5 or end_zone[seg].mean() > 0.5:
             continue
         rr, cc = graph.rows[seg], graph.cols[seg]
-        d = graph.diameter[seg]
+        diameters_px = graph.diameter_px[seg]
         # 分岐点の太りを避け、両端から「端の半径 + 2 px」より内側で測る
-        middle = (np.hypot(rr - rr[0], cc - cc[0]) > d[0] / 2 + 2) & (
-            np.hypot(rr - rr[-1], cc - cc[-1]) > d[-1] / 2 + 2
+        middle = (np.hypot(rr - rr[0], cc - cc[0]) > diameters_px[0] / 2 + 2) & (
+            np.hypot(rr - rr[-1], cc - cc[-1]) > diameters_px[-1] / 2 + 2
         )
-        gauges.append(float(np.median(d[middle] if middle.sum() >= 3 else d)))
+        gauges.append(float(np.median(diameters_px[middle] if middle.sum() >= 3 else diameters_px)))
         lengths.append(graph.length(seg))
         segments.append(seg)
     if not segments:
@@ -471,12 +502,12 @@ def _assign_tertiary(graph, geometry, primary, accepted, skeleton_labels, params
     gauges, lengths = np.asarray(gauges), np.asarray(lengths)
 
     if params.tertiary_min_gauge_mm is not None:
-        low = px(params.tertiary_min_gauge_mm)
+        low = mm_to_px(params.tertiary_min_gauge_mm)
     else:
         low = _weighted_log_otsu(gauges, lengths)
     high = secondary_gauge
-    for seg, gauge in zip(segments, gauges):
-        if low <= gauge < high:
+    for seg, diameter_px in zip(segments, gauges):
+        if low <= diameter_px < high:
             keep = ~taken[seg]
             skeleton_labels[graph.rows[seg[keep]], graph.cols[seg[keep]]] = TERTIARY
     return float(low), float(high)
@@ -522,12 +553,12 @@ def _drop_tertiaries(graph, traced, params):
     return accepted, rejected
 
 
-def _vein_body(graph, nodes: np.ndarray, vein: np.ndarray) -> np.ndarray:
+def _vein_body(graph, node_ids: np.ndarray, vein: np.ndarray) -> np.ndarray:
     """Vein pixels within the local radius (+1 px) of a traced path."""
     path_img = np.zeros(vein.shape, bool)
-    path_img[graph.rows[nodes], graph.cols[nodes]] = True
+    path_img[graph.rows[node_ids], graph.cols[node_ids]] = True
     radius = np.zeros(vein.shape, np.float32)
-    radius[graph.rows[nodes], graph.cols[nodes]] = graph.diameter[nodes] / 2
+    radius[graph.rows[node_ids], graph.cols[node_ids]] = graph.diameter_px[node_ids] / 2
     indices = np.zeros((2, *vein.shape), dtype=np.int32)
     dist = ndimage.distance_transform_edt(~path_img, return_indices=True, indices=indices)
     return vein & (dist <= radius[indices[0], indices[1]] + 1)

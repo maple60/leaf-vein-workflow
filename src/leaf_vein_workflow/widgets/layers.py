@@ -22,6 +22,7 @@ ROLE_SMOOTHED_IMAGE = "smoothed_image"
 ROLE_VEIN_MASK = "vein_mask"
 ROLE_LEAF_MASK = "leaf_mask"
 ROLE_ORDER_LABELS = "order_labels"
+ROLE_ORDER_SEEDS = "order_seeds"
 ROLE_SCALE_BAR = "scale_bar"
 ROLE_SCALE_INDICATOR = "scale_indicator"
 ROLE_VEIN_PATHS = "vein_paths"
@@ -35,6 +36,8 @@ PROCESSING_KEY = "leaf_vein_workflow_processing"
 SMOOTHED_LAYER_NAME = "smoothed_image"
 VEIN_MASK_LAYER_NAME = "vein_mask"
 LEAF_MASK_LAYER_NAME = "leaf_mask"
+LEAF_MASK_COLORS = {0: "transparent", 1: "#00e5ff", None: "#00e5ff"}
+LEAF_MASK_OPACITY = 0.35
 ORDER_LABELS_LAYER_NAME = "order_labels"
 ORDER_UNCERTAIN_LABEL = 4
 # vein_mask は 1 = 葉脈（着色）、0 = 背景（透明）。label 1 で塗ると葉脈を足せる。
@@ -56,7 +59,15 @@ ORDER_LABEL_COLORS = {
 
 
 class WorkflowLayers:
-    """Own layer relationships and common layer-list operations."""
+    """Own layer relationships and common layer-list operations.
+
+    対応表のキーはレイヤー名ではなく ``id(layer)``。napari では利用者が名前を
+    変更できるため、名前を内部の識別子として使わない。crop は解析範囲の単位で、
+    leaf / smoothed / vein / order の各層をたどる起点になる。
+
+    登録時は register_* を使い、正引きと逆引きを一緒に更新する。削除時は
+    clear_* / reset_source を使い、描画イベントの接続記録も同時に片付ける。
+    """
 
     def __init__(self, viewer: Any):
         self.viewer = viewer
@@ -90,6 +101,35 @@ class WorkflowLayers:
 
         # Otsuを明示的に実行したcropだけ、閾値UIからmask更新を許可する。
         self.mask_updates_enabled: set[int] = set()
+
+    def register_leaf(self, crop: Image, leaf: Labels) -> None:
+        """Link an editable leaf mask to its ROI; this does not confirm it."""
+        self.crop_to_leaf[id(crop)] = leaf
+        self.leaf_to_crop[id(leaf)] = crop
+
+    def confirm_leaf_region(self, crop: Image, leaf: np.ndarray) -> None:
+        """Freeze a copy used to detect subsequent, unconfirmed leaf edits.
+
+        編集用レイヤーと同じ配列を共有すると、手描きで確定済み領域まで変わって
+        しまう。独立した bool 配列を保存し、測定前に confirmed_leaf_mask で照合する。
+        """
+        self.leaf_masks[id(crop)] = np.array(leaf, dtype=bool, copy=True)
+        self.pending_leaf_masks.discard(id(crop))
+
+    def register_smoothed(self, crop: Image, smoothed: Image) -> None:
+        """Keep both directions of the ROI/smoothed-image relationship."""
+        self.crop_to_smoothed[id(crop)] = smoothed
+        self.smoothed_to_crop[id(smoothed)] = crop
+
+    def register_vein_mask(self, crop: Image, mask: Labels) -> None:
+        """Keep both directions of the ROI/vein-mask relationship."""
+        self.crop_to_mask[id(crop)] = mask
+        self.mask_to_crop[id(mask)] = crop
+
+    def register_order_labels(self, mask: Labels, order: Labels) -> None:
+        """Link existing order annotations without changing their pixels."""
+        self.mask_to_order_labels[id(mask)] = order
+        self.order_labels_to_mask[id(order)] = mask
 
     def active_source_image(self) -> Image | None:
         """Resolve the selected workflow layer back to its source image."""
@@ -409,7 +449,11 @@ class WorkflowLayers:
                 self.viewer.layers.remove(layer)
 
     def confirmed_leaf_mask(self, crop_layer: Image) -> np.ndarray:
-        """Return the frozen mask only while the editable leaf is still confirmed."""
+        """Return the frozen mask only while the editable leaf is still confirmed.
+
+        確定フラグだけでなく、現在の編集用配列との一致も調べる。利用者がレイヤーを
+        直接塗り替えた場合も、古い面積を分母にしたVLAを出さないための検査である。
+        """
         leaf_layer = self.crop_to_leaf.get(id(crop_layer))
         leaf = self.leaf_masks.get(id(crop_layer))
         if (

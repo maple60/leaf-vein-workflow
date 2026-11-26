@@ -229,6 +229,42 @@ saved as `*_vein_mask.npy` so hand edits are preserved. The confirmed leaf
 region is saved as `*_leaf_mask.npy` with the label results. Whole-image path
 exports require an explicit external area rather than an ROI mask denominator.
 
+### Reading and maintaining the code
+
+Start with `widgets/crop_widget.py` and its `_connect_signals()` method to trace
+a button press. The widget constructs the workflows and connects actions;
+image calculations live in the package's top-level modules.
+
+| Responsibility | Main files |
+|---|---|
+| Controls and layout | `widgets/controls.py` |
+| ROI, masks, and painting | `widgets/roi.py`, `widgets/mask.py`, `widgets/order_labels.py` |
+| Layer ownership and confirmation state | `widgets/layers.py` |
+| Mathematical operations, without Qt | `calibration.py`, `threshold.py`, `skeleton.py`, `order.py`, `auto_order.py` |
+| Export snapshot and background writing | `widgets/measurement.py` |
+| Export validation and viewer restoration | `resume.py`, `widgets/resume.py` |
+
+`WorkflowLayers.register_*()` updates forward and reverse layer mappings
+together. A confirmed leaf mask is a separate copy: later edits invalidate it
+until reconfirmed. Preserve this distinction when changing layer operations.
+
+For export, the GUI captures arrays, diagnostics, and metadata in one
+`LabelsSnapshot`. Background writing uses that snapshot rather than live
+layers or the previous measurement. On resume, `SavedAnalysis` is validated
+before `ResumeWorkflow` restores layers, controls, and the standard painting
+view. This keeps editing, measuring, and restoring responsibilities visible.
+
+Coordinates use `(row, column)`; distances ending in `_px` are in pixels,
+parameters ending in `_mm` are in millimetres, and `node_ids` are graph indices.
+The `primary_position_index` used by the existing algorithm is a path-array
+index, not cumulative physical distance. Names and comments must preserve that
+distinction when the algorithm is edited.
+
+GUI tests are grouped by feature in `tests/test_widget_*.py`. The shared viewer
+fixture lives in `tests/conftest.py`, and explicit setup steps live in
+`tests/widget_helpers.py`. Pure calculation and export-reader tests remain
+separate from GUI tests.
+
 ### Settings
 
 Default values (calibration method and DPI, display bar length, Gaussian sigma,

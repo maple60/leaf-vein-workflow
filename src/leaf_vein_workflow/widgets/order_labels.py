@@ -193,8 +193,7 @@ class OrderLabelsWorkflow:
                 metadata=metadata,
             )
 
-        self.layers.mask_to_order_labels[id(mask_layer)] = order_layer
-        self.layers.order_labels_to_mask[id(order_layer)] = mask_layer
+        self.layers.register_order_labels(mask_layer, order_layer)
         self.install_masked_paint(order_layer)
         self.connect_mask_clip(mask_layer, order_layer)
         self.clip_to_mask(order_layer)

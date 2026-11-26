@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from test_widget_import import (
-    widget_flow,
+from widget_helpers import (
     _advance_to_smoothed_image,
     _wait_for_delayed_mask_update,
 )

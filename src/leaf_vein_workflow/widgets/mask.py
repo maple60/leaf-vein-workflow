@@ -1,7 +1,8 @@
-"""Gaussian, threshold, and cleanup stages for the dock workflow.
+"""Leaf confirmation and vein extraction orchestration for the dock workflow.
 
 Otsu creates a leaf candidate. Vein extraction starts only after leaf
 confirmation; threshold signals must not cross that stage boundary.
+Explicit vein-mask cleanup is implemented in mask_cleanup.py.
 """
 
 from typing import Any
@@ -29,6 +30,8 @@ from .layers import (
     ROLE_KEY,
     ROLE_LEAF_MASK,
     LEAF_MASK_LAYER_NAME,
+    LEAF_MASK_COLORS,
+    LEAF_MASK_OPACITY,
     ROLE_SMOOTHED_IMAGE,
     ROLE_VEIN_MASK,
     SMOOTHED_LAYER_NAME,
@@ -155,8 +158,8 @@ class MaskWorkflow:
                 candidate.astype(np.uint8),
                 name=self.layers.unique_name(LEAF_MASK_LAYER_NAME),
                 translate=tuple(crop.translate),
-                opacity=0.35,
-                colormap=direct_colormap({0: "transparent", 1: "#00e5ff", None: "#00e5ff"}),
+                opacity=LEAF_MASK_OPACITY,
+                colormap=direct_colormap(LEAF_MASK_COLORS),
                 metadata={
                     ROLE_KEY: ROLE_LEAF_MASK,
                     SOURCE_IMAGE_KEY: crop.metadata.get(SOURCE_IMAGE_KEY),
@@ -164,8 +167,7 @@ class MaskWorkflow:
                     **self.layers.inherited_calibration(crop),
                 },
             )
-            self.layers.crop_to_leaf[id(crop)] = leaf_layer
-            self.layers.leaf_to_crop[id(leaf_layer)] = crop
+            self.layers.register_leaf(crop, leaf_layer)
         record = self.layers.processing(intensity)
         record["leaf_background_threshold"] = float(threshold)
         self.layers.record_processing(leaf_layer, record)
@@ -217,8 +219,7 @@ class MaskWorkflow:
         self.update_timer.stop()
         self.layers.clear_mask_layer(crop)
         leaf_layer.data = leaf.astype(np.uint8)
-        self.layers.leaf_masks[id(crop)] = leaf.copy()
-        self.layers.pending_leaf_masks.discard(id(crop))
+        self.layers.confirm_leaf_region(crop, leaf)
         record = self.layers.processing(leaf_layer)
         record["leaf_mask"] = {
             "confirmed": True,
@@ -281,8 +282,7 @@ class MaskWorkflow:
                 **self.layers.inherited_calibration(crop_layer),
             },
         )
-        self.layers.crop_to_smoothed[id(crop_layer)] = smoothed_layer
-        self.layers.smoothed_to_crop[id(smoothed_layer)] = crop_layer
+        self.layers.register_smoothed(crop_layer, smoothed_layer)
         return smoothed_layer
 
     def update_mask_from_controls(self, *, force: bool = False) -> None:
@@ -389,8 +389,7 @@ class MaskWorkflow:
             )
         mask_layer.selected_label = VEIN_MASK_LABEL
 
-        self.layers.crop_to_mask[id(crop_layer)] = mask_layer
-        self.layers.mask_to_crop[id(mask_layer)] = crop_layer
+        self.layers.register_vein_mask(crop_layer, mask_layer)
         return mask_layer
 
     def schedule_mask_update(self, *args) -> None:

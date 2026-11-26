@@ -22,11 +22,11 @@ from .layers import (
     ORDER_LABELS_LAYER_NAME,
     ORDER_UNCERTAIN_LABEL,
     ROLE_KEY,
+    ROLE_ORDER_SEEDS,
     SOURCE_IMAGE_KEY,
     WorkflowLayers,
 )
 
-ROLE_ORDER_SEEDS = "order_seeds"
 ORDER_SEEDS_LAYER_NAME = "base & apex"
 SEED_NAMES = ("base", "apex")
 

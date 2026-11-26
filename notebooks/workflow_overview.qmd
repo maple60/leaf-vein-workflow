@@ -39,8 +39,8 @@ dock は次の7つの手順に番号付きで並び、各手順の先頭に1行�
 |---|---|---|
 | 1 | `1. Image & scale` | 画像を読み込み、スキャン解像度で校正する |
 | 2 | `2. ROI` | 解析する範囲を長方形で選ぶ |
-| 3 | `3. Leaf mask` | 葉のマスクを確定し、葉脈を抽出する |
-| 4 | `4. Vein mask` | 葉脈マスクを調整・整形する |
+| 3 | `3. Leaf mask` | 葉のマスクを修正・確定し、葉脈を抽出する |
+| 4 | `4. Vein mask` | 葉脈の閾値調整・整形・手修正を行う |
 | 5 | `5. Paint vein orders` | 葉脈を次数ごとに塗り分ける |
 | 6 | `6. Leaf area & VLA` | 確定したROIの葉身面積を使う。外部面積は明示的に切り替えて入力（VLA は Export 時に計算） |
 | 7 | `7. Export` | 出力先を選んで書き出す |
@@ -58,7 +58,7 @@ dock は次の7つの手順に番号付きで並び、各手順の先頭に1行�
 7. `Gaussian sigma` を確認して `Apply Gaussian` を押す。
 8. 平滑化した `smoothed_image` Image レイヤーだけが作られる。
 9. `Apply Otsu` で `leaf_mask` の候補を作る。葉柄・異物・輪郭を手修正し、`Confirm Leaf & Extract Veins` を押すと葉身面積を計算し、その領域内で2段階目のOtsuを実行して `vein_mask` を作る。
-10. 色の付いた画素（黄色）が葉脈。Otsu は少ない側を葉脈として選び、`Invert (dark pixels are vein)` を自動で合わせる。必要なら `Invert` と `Mask threshold` を調整する。変更後、少し待つと同じ mask レイヤーが更新される。
+10. 確定・抽出の成功後に `4. Vein mask` が開く。色の付いた画素（黄色）が葉脈。Otsu は少ない側を葉脈として選び、`Invert (dark pixels are vein)` を自動で合わせる。必要なら `Invert` と `Mask threshold` を調整する。変更後、少し待つと同じ mask レイヤーが更新される。
 11. 形態学的処理の値を確認して `Clean Vein Mask` を押す。成功すると手順4を閉じ、手順5を開く。
 12. paint mode の `vein_mask` を手作業で修正する。
 13. mask を確認した後に `Create Order Labels` を押す。
@@ -95,6 +95,9 @@ napari 上では 1 つの dock widget ですが、実装は人間が担当範囲
 | `src/leaf_vein_workflow/widgets/roi.py` | 画像の検出、ROI Shapes レイヤー、crop の作成を担当する |
 | `src/leaf_vein_workflow/widgets/mask.py` | Gaussian、Otsu、閾値更新、`Clean Vein Mask` を担当する |
 | `src/leaf_vein_workflow/widgets/order_labels.py` | order labels の作成と mask 外への描画防止を担当する |
+| `src/leaf_vein_workflow/widgets/measurement.py` | 配列・診断値・メタデータのsnapshotを作り、測定と出力へ渡す |
+| `src/leaf_vein_workflow/resume.py` | 保存済みNPY・ROI・元画像を検証し、GUIに依存しないデータとして返す |
+| `src/leaf_vein_workflow/widgets/resume.py` | 検証済みデータからレイヤー・操作欄・表示を復元する |
 | `src/leaf_vein_workflow/crop.py` | 画像配列をどこで切るかを計算する |
 | `src/leaf_vein_workflow/calibration.py` | DPI・直接値・スケールバーを mm/px に変換する |
 | `src/leaf_vein_workflow/threshold.py` | grayscale 化、Gaussian、閾値、mask cleanup を NumPy 配列に対して計算する |
@@ -134,6 +137,14 @@ flowchart TD
 napari は `src/leaf_vein_workflow/napari.yaml` を読んで、このパッケージの widget を見つけます。
 
 このファイルでは、`leaf_vein_workflow._widget:CropWidget` が widget として登録されています。つまり napari のメニューからプラグインを開くと、`CropWidget` クラスが作られます。
+
+## 状態とデータの受け渡しを読むときの注意
+
+- **対応表の登録**：`WorkflowLayers.register_leaf()`、`register_smoothed()`、`register_vein_mask()`、`register_order_labels()` で正引きと逆引きを一緒に登録します。名前は利用者が変更できるため、対応表にはレイヤーの `id` を使います。
+- **葉身の確定**：`confirm_leaf_region()` は編集用レイヤーと別のbool配列を保存します。`confirmed_leaf_mask()` は確定フラグに加えて配列の一致も確認します。手描きで葉身が変わったら再確定が必要です。
+- **出力**：`_labels_snapshot()` は配列・診断件数・メタデータを同時に返します。後続処理はそのsnapshotを受け取り、直前の別の測定結果を読みません。`last_label_record` などは互換性用の読み取り口です。
+- **再開**：まずQtを使わない `read_saved_analysis()` で配列・ROI・元画像を検証します。その後 `ResumeWorkflow.restore()` が画像・マスク・次数・操作欄を順に戻します。新規解析と同じ `show_for_painting()` を使って表示をそろえます。
+- **単位**：`*_px` は画素単位、設定の `*_mm` はmm、`rc` は行・列座標、`node_ids` はグラフのノード番号です。`primary_position_index` は主脈の配列添字で、累積距離ではありません。既存の判定式を読む際に区別します。
 
 ## `CropWidget` の初期化
 
@@ -306,9 +317,8 @@ order labels の値は、次の用途を想定しています。
 | 0 | 背景または分類対象外 |
 | 1 | primary |
 | 2 | secondary |
-| 3 | `3. Leaf mask` | 葉のマスクを確定し、葉脈を抽出する |
-| 4 | `4. Vein mask` | 葉脈マスクを調整・整形する |
-| 5 | uncertain / 未分類 |
+| 3 | tertiary |
+| 4 | uncertain / 未分類 |
 
 同じ shape の order labels レイヤーがすでにある場合は、ユーザーが手で塗った内容を上書きせず、そのレイヤーを再利用します。
 
@@ -432,14 +442,14 @@ Export のたびに `<時刻>_<画像名>_metadata.yaml` を書き出し、同�
 - small object removal、hole filling、closing、opening で mask を整えられること。
 - 未対応の画像 shape がエラーになること。
 
-現在の widget フローからは骨格化を呼びませんが、独立した計算 helper の回帰確認として `tests/test_skeleton.py` は残っています。
+手動分類の開始時には骨格レイヤーを追加しませんが、自動次数判定とExportの内部では骨格化を行います。独立した計算helperは `tests/test_skeleton.py` で確認しています。
 
 - 2D mask から骨格画像を作れること。
 - Labels 形式の整数 mask でも、0 より大きい画素を前景として扱うこと。
 - 空 mask や 2D 以外の入力がエラーになること。
 - 校正値を渡すと既存px列を変えずに長さ・直径・局所座標のmm列が追加されること。
 
-`tests/test_widget_import.py` では、Qt backend がある環境で `_widget.py` から widget を import できることと、画像追加から order labels までの工程を確認しています。
+`tests/test_widget_import.py` は公開importの互換性を確認します。操作のテストは `test_widget_controls.py`、`test_widget_calibration.py`、`test_widget_masks.py`、`test_widget_order_labels.py`、`test_widget_export.py`、`test_widget_resume.py` に分けています。共通のviewer fixtureは `tests/conftest.py`、工程を進める補助関数は `tests/widget_helpers.py` にあります。
 
 - `Add ROI` 後に crop が active になり、元画像が非表示になること。
 - `Apply Gaussian` では `smoothed_image` だけが作られ、`vein_mask` はまだ存在しないこと。
@@ -463,11 +473,13 @@ Export のたびに `<時刻>_<画像名>_metadata.yaml` を書き出し、同�
 8. `widgets/roi.py` と `crop.py` で画像追加、ROI 編集、切り抜き処理を見る。
 9. `widgets/mask.py` と `threshold.py` で Gaussian、Otsu、timer、cleanup の流れを見る。
 10. `widgets/order_labels.py` で order labels の作成と描画制限を見て、必要なら `order.py` で検証、集計、export 処理を見る。
-11. `tests/test_widget_import.py` で、これらが 1 つの明示的な操作フローとして接続されていることを確認する。
+11. `widgets/measurement.py` で、GUI上の配列・診断値・メタデータを `LabelsSnapshot` にコピーし、バックグラウンドで出力する流れを見る。
+12. `resume.py` で保存ファイルの検証、`widgets/resume.py` の `ResumeWorkflow` でレイヤー・操作欄・表示の復元を見る。
+13. 機能別の `tests/test_widget_*.py` で、それぞれの操作と保存・再開が接続されていることを確認する。
 
 ## まとめ
 
-現在の実装は、葉脈解析そのものではなく、葉脈解析の前段階として「人が ROI を指定し、Gaussian と Otsu を明示的に適用し、mask を cleanup と手作業で確認してから、葉脈次数を塗り分ける」ための機能です。
+現在の実装は、ROI指定、校正、葉身の確定、葉脈maskの編集、次数の塗り分け、長さ・VLAの計算、保存した解析の再開までを扱います。人がマスクと次数を確認する工程を含むため、自動判定の結果も確認してから測定に使います。
 
 設計上は、napari 依存の処理も UI、レイヤー管理、ROI、mask、order labels に分かれ、NumPy ベースの計算処理とも分離されています。manifest 互換性は `_widget.py`、widget 全体の接続は `crop_widget.py`、個々の工程は対応する担当モジュールから読み始めればよく、1 ファイルの内部を端から探す必要はありません。
 

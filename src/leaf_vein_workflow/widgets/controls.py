@@ -117,7 +117,12 @@ class CollapsibleSection(QWidget):
 
 @dataclass(slots=True)
 class WorkflowControls:
-    """Named references to every control shown by :class:`CropWidget`."""
+    """Named references to every control shown by :class:`CropWidget`.
+
+    create は部品と既定値、create_layout は画面上の並び順を担当する。
+    ここでは画像配列を変更しない。入力を処理に結び付ける場所は CropWidget、
+    処理後にどの部品を有効にするかは各 Workflow にある。
+    """
 
     status_label: QLabel
     progress_bar: QProgressBar
