@@ -154,10 +154,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    
   <ul>
   <li><a href="#このノートの目的" id="toc-このノートの目的" class="nav-link active" data-scroll-target="#このノートの目的">このノートの目的</a></li>
+  <li><a href="#実データの編集と出力" id="toc-実データの編集と出力" class="nav-link" data-scroll-target="#実データの編集と出力">実データの編集と出力</a></li>
   <li><a href="#ユーザーから見た流れ" id="toc-ユーザーから見た流れ" class="nav-link" data-scroll-target="#ユーザーから見た流れ">ユーザーから見た流れ</a></li>
   <li><a href="#スケール校正" id="toc-スケール校正" class="nav-link" data-scroll-target="#スケール校正">スケール校正</a></li>
   <li><a href="#全体像" id="toc-全体像" class="nav-link" data-scroll-target="#全体像">全体像</a></li>
   <li><a href="#napari-への登録" id="toc-napari-への登録" class="nav-link" data-scroll-target="#napari-への登録">napari への登録</a></li>
+  <li><a href="#状態とデータの受け渡しを読むときの注意" id="toc-状態とデータの受け渡しを読むときの注意" class="nav-link" data-scroll-target="#状態とデータの受け渡しを読むときの注意">状態とデータの受け渡しを読むときの注意</a></li>
   <li><a href="#cropwidget-の初期化" id="toc-cropwidget-の初期化" class="nav-link" data-scroll-target="#cropwidget-の初期化"><code>CropWidget</code> の初期化</a></li>
   <li><a href="#画像が追加されたとき" id="toc-画像が追加されたとき" class="nav-link" data-scroll-target="#画像が追加されたとき">画像が追加されたとき</a></li>
   <li><a href="#roi-が編集されたとき" id="toc-roi-が編集されたとき" class="nav-link" data-scroll-target="#roi-が編集されたとき">ROI が編集されたとき</a></li>
@@ -208,7 +210,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="このノートの目的" class="level2">
 <h2 class="anchored" data-anchor-id="このノートの目的">このノートの目的</h2>
 <p>このノートは、<code>leaf-vein-workflow</code> の現在の MVP 実装について、人間が読んで流れを理解するための説明です。</p>
-<p>このプラグインが今やることは、次の 4 段階に絞られています。</p>
+<p>このプラグインが今やることは、次の段階に絞られています。</p>
 <ul>
 <li>DPI、µm/px、mm/px、または手動で引いたスケールバー線から、元画像ごとの mm/px を校正する。</li>
 <li>napari で画像を開き、長方形 ROI を 1 つ描き、<code>Add ROI</code> ボタンを押したときだけ、その範囲の切り抜き画像レイヤーを作る。</li>
@@ -216,11 +218,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>確認済みの mask Labels レイヤーから、手動分類用の order labels レイヤーを作る。</li>
 <li>次数ごとの骨格長と、確定した標本の葉身面積（または明示した外部入力面積）に対する VLA を計算し、export する。</li>
 </ul>
-<p>まだ扱わないことは、スケールバーの OCR・自動検出、複数 ROI、ポリゴン ROI、画像の保存、nD stack、次数の自動分類、minor（4次以上）のラベルです。</p>
+<p>まだ扱わないことは、スケールバーの OCR・自動検出、複数 ROI、ポリゴン ROI、画像の保存、nD stack、minor（4次以上）のラベルです。</p>
+</section>
+<section id="実データの編集と出力" class="level2">
+<h2 class="anchored" data-anchor-id="実データの編集と出力">実データの編集と出力</h2>
+<ul>
+<li>葉身マスクは明るいシアンで表示します。<code>Keep largest leaf component</code> は既定で有効で、最初の候補と確定時に面積最大の連結成分だけを残します。離れた粒子を除きますが、つながった葉柄や異物は手で消してください。分離した葉片も含めたい場合は無効にできます。穴は自動で埋めません。</li>
+<li>次数の塗り分け中に葉脈マスクへ戻るには、手順4の <code>Edit Vein Mask</code> を押します。消した領域の次数ラベルは消え、追加した葉脈は未確定になります。他の塗り分けは保持します。<code>Create Order Labels</code> で塗り分けに戻れます。</li>
+<li>紫色の値4は「未確定」であり、4次脈という判定ではありません。3次脈の自動割り当ても太さに基づく推定なので、元画像と比較して確認します。</li>
+<li>葉縁の偽の線は、元画像と比較して <code>vein_mask</code> で消します。葉縁を一律に削ると2次脈の先端も消す可能性があるため、自動除去はしていません。</li>
+<li>出力は <code>output/日時_画像名/</code> に1回分をまとめます。同じ秒の再出力には連番を付けます。枝テーブルには区間ごとの <code>mean-diameter-mm</code>、<code>median-diameter-mm</code>、<code>max-diameter-mm</code>（未校正ならpx）があります。</li>
+<li>保存した作業を再開するには、手順1の <code>Load Export / Resume</code> で出力フォルダを選びます。旧形式のフォルダに複数回分がある場合は、対応する <code>*_metadata.yaml</code> を選びます。3種類のNPY（葉身マスク・葉脈マスク・次数ラベル）とYAMLを一緒に保管し、元のTIFFも残してください。元画像を移動した場合は選び直せます。保存時のマスク・塗り分け・ROI・スケール・葉面積の選択・基部と先端を戻し、手順4から続きを編集できます。Otsuや次数判定は再実行しません。再出力は新しいフォルダに保存します。NPY単体やpath計測だけの出力からは復元できません。</li>
+<li>手順6の <code>Next Leaf / Reset Analysis</code> は、確認後に現在の画像と派生レイヤーを画面から外します。必要な結果は先にExportしてください。元ファイルと出力済みファイルは残ります。次の画像を開くと新しいROIを作れます。</li>
+<li>1次脈は太さ優先の1本の経路で測ります。2次・3次脈は現在も全ての骨格枝を合算するため、ヒゲが残れば長さに含まれます。</li>
+</ul>
 </section>
 <section id="ユーザーから見た流れ" class="level2">
 <h2 class="anchored" data-anchor-id="ユーザーから見た流れ">ユーザーから見た流れ</h2>
-<p>dock は次の6つの手順に番号付きで並び、各手順の先頭に1行の操作説明があります。</p>
+<p>dock は次の7つの手順に番号付きで並び、各手順の先頭に1行の操作説明があります。</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%">
@@ -247,22 +262,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td>3</td>
-<td><code>3. Vein mask</code></td>
-<td>mask を作って葉脈の領域を確定する（後片付けの処理も同じ手順内）</td>
+<td><code>3. Leaf mask</code></td>
+<td>葉のマスクを修正・確定し、葉脈を抽出する</td>
 </tr>
 <tr class="even">
 <td>4</td>
-<td><code>4. Paint vein orders</code></td>
-<td>葉脈を次数ごとに塗り分ける</td>
+<td><code>4. Vein mask</code></td>
+<td>葉脈の閾値調整・整形・手修正を行う</td>
 </tr>
 <tr class="odd">
 <td>5</td>
-<td><code>5. Leaf area &amp; VLA</code></td>
-<td>確定したROIの葉身面積を使う。外部面積は明示的に切り替えて入力（VLA は Export 時に計算）</td>
+<td><code>5. Paint vein orders</code></td>
+<td>葉脈を次数ごとに塗り分ける</td>
 </tr>
 <tr class="even">
 <td>6</td>
-<td><code>6. Export</code></td>
+<td><code>6. Leaf area &amp; VLA</code></td>
+<td>確定したROIの葉身面積を使う。外部面積は明示的に切り替えて入力（VLA は Export 時に計算）</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td><code>7. Export</code></td>
 <td>出力先を選んで書き出す</td>
 </tr>
 </tbody>
@@ -279,16 +299,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>Gaussian sigma</code> を確認して <code>Apply Gaussian</code> を押す。</li>
 <li>平滑化した <code>smoothed_image</code> Image レイヤーだけが作られる。</li>
 <li><code>Apply Otsu</code> で <code>leaf_mask</code> の候補を作る。葉柄・異物・輪郭を手修正し、<code>Confirm Leaf &amp; Extract Veins</code> を押すと葉身面積を計算し、その領域内で2段階目のOtsuを実行して <code>vein_mask</code> を作る。</li>
-<li>色の付いた画素（黄色）が葉脈。Otsu は少ない側を葉脈として選び、<code>Invert (dark pixels are vein)</code> を自動で合わせる。必要なら <code>Invert</code> と <code>Mask threshold</code> を調整する。変更後、少し待つと同じ mask レイヤーが更新される。</li>
-<li>形態学的処理の値を確認して <code>Clean Mask</code> を押す。</li>
+<li>確定・抽出の成功後に <code>4. Vein mask</code> が開く。色の付いた画素（黄色）が葉脈。Otsu は少ない側を葉脈として選び、<code>Invert (dark pixels are vein)</code> を自動で合わせる。必要なら <code>Invert</code> と <code>Mask threshold</code> を調整する。変更後、少し待つと同じ mask レイヤーが更新される。</li>
+<li>形態学的処理の値を確認して <code>Clean Vein Mask</code> を押す。成功すると手順4を閉じ、手順5を開く。</li>
 <li>paint mode の <code>vein_mask</code> を手作業で修正する。</li>
 <li>mask を確認した後に <code>Create Order Labels</code> を押す。</li>
-<li>（任意）<code>Mark Base &amp; Apex</code> で葉の基部と1次脈の先端をクリックする（2点目で <code>order_labels</code> の塗る状態に戻る）。<code>Auto-assign 1°/2°</code> で1次・2次脈を自動で塗り、残りの脈は太さで3次脈（太い側）と不確定（細い側）に分ける。進み具合は dock 下部のバーに出る。不確定（4）の画素だけを書き換えるので、手で塗った所は残る。</li>
+<li>（任意）<code>Mark Base &amp; Apex</code> で葉の基部と1次脈の先端をクリックする（2点目で <code>order_labels</code> の塗る状態に戻る）。<code>Auto-assign 1°/2° + 3° guess</code> で1次・2次脈を自動で塗り、残りの脈は太さで3次脈（太い側）と不確定（細い側）に分ける。進み具合は実行ボタンのすぐ下のバーに出る。不確定（4）の画素だけを書き換えるので、手で塗った所は残る。</li>
 <li>葉脈の画素はすべて 4（不確定、紫）から始まる。<code>Paint as</code> で 1°・2°・3°・Uncertain を選び（色見本はラベルの色と同じ）、画像上の葉脈をドラッグして塗る。mask の外は塗られない。ブラシの太さは napari の layer controls（左上）で変える。napari 側でラベル番号を変えても <code>Paint as</code> が追従する。</li>
-<li><code>5. Leaf area &amp; VLA</code> では確定時に選ばれる <code>Confirmed leaf mask (current ROI)</code> を使う。別途測定した面積を使う場合だけ <code>External area (manual input)</code> を選んで入力し、単位（mm² / cm²）を指定する。</li>
-<li><code>6. Export</code> の <code>Export Measurements</code> を押すと、現在のラベルを計測して出力フォルダに CSV・ラベル（.npy）・QC 画像・branch table を書き出す。出力先の既定は napari を起動したフォルダ直下の <code>output/</code> で、<code>Change...</code> で変えられる。結果は dock には表示せず、書き出し完了と未分類ピクセルの警告を通知で出す。</li>
+<li><code>6. Leaf area &amp; VLA</code> では確定時に選ばれる <code>Confirmed leaf mask (current ROI)</code> を使う。別途測定した面積を使う場合だけ <code>External area (manual input)</code> を選んで入力し、単位（mm² / cm²）を指定する。</li>
+<li><code>7. Export</code> の <code>Export Measurements</code> を押すと、現在のラベルを計測して出力フォルダに CSV・ラベル（.npy）・QC 画像・branch table を書き出す。出力先の既定は napari を起動したフォルダ直下の <code>output/</code> で、<code>Change...</code> で変えられる。結果は dock には表示せず、書き出し完了と未分類ピクセルの警告を通知で出す。</li>
 </ol>
-<p>dock の各工程は同時に1つだけ開き、<code>Apply Scale</code>・<code>Add ROI</code> が成功すると次の工程が自動で開く。<code>Create Order Labels</code> の後は塗り分けが続くので、手順4は開いたままにする。</p>
+<p>dock の各工程は同時に1つだけ開き、<code>Apply Scale</code>・<code>Add ROI</code>・<code>Confirm Leaf &amp; Extract Veins</code> が成功すると次の工程が自動で開く。<code>Create Order Labels</code> の後は塗り分けが続くので、手順5は開いたままにする。</p>
 <p>重要なのは、各工程がユーザーの操作で明示的に区切られている点です。長方形を描いただけでは crop は作られず、<code>Apply Gaussian</code> を押しても <code>vein_mask</code> は作られません。<code>Apply Otsu</code> は葉身候補だけを作り、葉脈maskは葉身の確定後に作られます。</p>
 </section>
 <section id="スケール校正" class="level2">
@@ -339,25 +359,37 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td><code>src/leaf_vein_workflow/widgets/mask.py</code></td>
-<td>Gaussian、Otsu、閾値更新、<code>Clean Mask</code> を担当する</td>
+<td>Gaussian、Otsu、閾値更新、<code>Clean Vein Mask</code> を担当する</td>
 </tr>
 <tr class="even">
 <td><code>src/leaf_vein_workflow/widgets/order_labels.py</code></td>
 <td>order labels の作成と mask 外への描画防止を担当する</td>
 </tr>
 <tr class="odd">
+<td><code>src/leaf_vein_workflow/widgets/measurement.py</code></td>
+<td>配列・診断値・メタデータのsnapshotを作り、測定と出力へ渡す</td>
+</tr>
+<tr class="even">
+<td><code>src/leaf_vein_workflow/resume.py</code></td>
+<td>保存済みNPY・ROI・元画像を検証し、GUIに依存しないデータとして返す</td>
+</tr>
+<tr class="odd">
+<td><code>src/leaf_vein_workflow/widgets/resume.py</code></td>
+<td>検証済みデータからレイヤー・操作欄・表示を復元する</td>
+</tr>
+<tr class="even">
 <td><code>src/leaf_vein_workflow/crop.py</code></td>
 <td>画像配列をどこで切るかを計算する</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>src/leaf_vein_workflow/calibration.py</code></td>
 <td>DPI・直接値・スケールバーを mm/px に変換する</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>src/leaf_vein_workflow/threshold.py</code></td>
 <td>grayscale 化、Gaussian、閾値、mask cleanup を NumPy 配列に対して計算する</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>src/leaf_vein_workflow/order.py</code></td>
 <td>order labels の検証、集計、export に使う napari 非依存の処理を置く</td>
 </tr>
@@ -380,6 +412,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="napari-への登録">napari への登録</h2>
 <p>napari は <code>src/leaf_vein_workflow/napari.yaml</code> を読んで、このパッケージの widget を見つけます。</p>
 <p>このファイルでは、<code>leaf_vein_workflow._widget:CropWidget</code> が widget として登録されています。つまり napari のメニューからプラグインを開くと、<code>CropWidget</code> クラスが作られます。</p>
+</section>
+<section id="状態とデータの受け渡しを読むときの注意" class="level2">
+<h2 class="anchored" data-anchor-id="状態とデータの受け渡しを読むときの注意">状態とデータの受け渡しを読むときの注意</h2>
+<ul>
+<li><strong>対応表の登録</strong>：<code>WorkflowLayers.register_leaf()</code>、<code>register_smoothed()</code>、<code>register_vein_mask()</code>、<code>register_order_labels()</code> で正引きと逆引きを一緒に登録します。名前は利用者が変更できるため、対応表にはレイヤーの <code>id</code> を使います。</li>
+<li><strong>葉身の確定</strong>：<code>confirm_leaf_region()</code> は編集用レイヤーと別のbool配列を保存します。<code>confirmed_leaf_mask()</code> は確定フラグに加えて配列の一致も確認します。手描きで葉身が変わったら再確定が必要です。</li>
+<li><strong>出力</strong>：<code>_labels_snapshot()</code> は配列・診断件数・メタデータを同時に返します。後続処理はそのsnapshotを受け取り、直前の別の測定結果を読みません。<code>last_label_record</code> などは互換性用の読み取り口です。</li>
+<li><strong>再開</strong>：まずQtを使わない <code>read_saved_analysis()</code> で配列・ROI・元画像を検証します。その後 <code>ResumeWorkflow.restore()</code> が画像・マスク・次数・操作欄を順に戻します。新規解析と同じ <code>show_for_painting()</code> を使って表示をそろえます。</li>
+<li><strong>単位</strong>：<code>*_px</code> は画素単位、設定の <code>*_mm</code> はmm、<code>rc</code> は行・列座標、<code>node_ids</code> はグラフのノード番号です。<code>primary_position_index</code> は主脈の配列添字で、累積距離ではありません。既存の判定式を読む際に区別します。</li>
+</ul>
 </section>
 <section id="cropwidget-の初期化" class="level2">
 <h2 class="anchored" data-anchor-id="cropwidget-の初期化"><code>CropWidget</code> の初期化</h2>
@@ -537,7 +579,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="mask-レイヤーの作成と更新" class="level2">
 <h2 class="anchored" data-anchor-id="mask-レイヤーの作成と更新">mask レイヤーの作成と更新</h2>
-<p>mask 処理は <code>widgets/mask.py</code> が担当し、<code>Apply Gaussian</code>、<code>Apply Otsu</code>、<code>Clean Mask</code> という明示的な工程に分かれています。</p>
+<p>mask 処理は <code>widgets/mask.py</code> が担当し、<code>Apply Gaussian</code>、<code>Apply Otsu</code>、<code>Clean Vein Mask</code> という明示的な工程に分かれています。</p>
 <p><code>Apply Gaussian</code> は、現在の crop Image レイヤーに <code>threshold.py</code> の <code>smooth_image()</code> を適用し、<code>smoothed_image</code> Image レイヤーだけを作成または更新します。この時点では <code>vein_mask</code> を作りません。Gaussian sigma の初期値は 1 で、必要に応じて実行前に変更できます。</p>
 <p><code>Apply Otsu</code> は、平滑化済み画像に <code>estimate_leaf_mask()</code> を適用し、1段階目の葉身候補を編集可能な <code>leaf_mask</code> Labelsとして表示します。</p>
 <ul>
@@ -551,14 +593,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>Invert threshold</code> が有効な場合は、閾値以下の画素を 1 として扱います。これは、葉脈が背景より暗い画像で使う想定です。</p>
 <p>一度 <code>Confirm Leaf &amp; Extract Veins</code> を実行した後は、閾値入力欄、slider、<code>Invert threshold</code> の変更に応じて同じ mask を更新します。連続した UI signal ごとに重い処理を繰り返さないよう、短い待ち時間を置く single-shot timer で更新をまとめます。この timer にも「葉身確定済み」の確認があり、control の初期化や <code>Apply Gaussian</code> だけで mask が作られることを防ぎます。</p>
 <p>mask は napari の Labels レイヤーとして作られます。レイヤー名は <code>vein_mask</code> です。同じ crop レイヤーからすでに mask が作られている場合は、新しいレイヤーを増やさず、既存 mask レイヤーの <code>data</code> と <code>translate</code> を更新します。</p>
-<p><code>Clean Mask</code> は、small object removal、hole filling、closing、opening の設定を <code>postprocess_mask()</code> に渡し、現在の mask を明示的に整えます。入力欄は従来どおり整数pxですが、校正済み画像では small object と hole の面積をmm²、closing と opening の半径をµmまたはmmでラベルに併記します。値の変更、再校正、別画像への切り替えに応じて換算表示も更新されます。未校正画像ではpxだけを表示します。cleanup 後は自動の閾値更新を止め、<code>vein_mask</code> を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。</p>
+<p><code>Clean Vein Mask</code> は、small object removal、hole filling、closing、opening の設定を <code>postprocess_mask()</code> に渡し、現在の mask を明示的に整えます。入力欄は従来どおり整数pxですが、校正済み画像では small object と hole の面積をmm²、closing と opening の半径をµmまたはmmでラベルに併記します。値の変更、再校正、別画像への切り替えに応じて換算表示も更新されます。未校正画像ではpxだけを表示します。cleanup 後は自動の閾値更新を止め、<code>vein_mask</code> を active な paint mode に保ちます。これにより、その後の手作業による修正が遅延 timer で上書きされません。</p>
 </section>
 <section id="order-labels-レイヤーの作成" class="level2">
 <h2 class="anchored" data-anchor-id="order-labels-レイヤーの作成">order labels レイヤーの作成</h2>
 <p>手作業を含む mask の確認が終わった後に <code>Create Order Labels</code> を押すと、<code>widgets/order_labels.py</code> が現在の <code>vein_mask</code> と同じ shape の <code>order_labels</code> Labels レイヤーを作ります。現在の widget フローでは、この操作時に skeleton レイヤーは作りません。</p>
 <p>作成後は <code>vein_mask</code> を非表示にし、<code>order_labels</code> を active な paint mode にします。order labels への描画は確認済み mask の対象領域内だけに制限され、mask が後から変わった場合も領域外のラベルを 0 に戻します。</p>
 <p><code>vein_mask</code> は 1 = 葉脈（黄色、不透明度 0.5）、0 = 背景（透明）です。status 行に葉脈として塗られた割合を出し、45% を超えると葉身や背景を選んでいる疑いがあると知らせます。mask を手で直すときは label 1 で塗ると葉脈を足し、消しゴム（label 0）で葉脈を消せます。order labels は <code>vein_mask &gt; 0</code> の領域を分類対象とし、作成時にはその領域を label 4（uncertain）で初期化します。order labels を作った後に mask を直すと、mask から消えた部分のラベルは 0 に戻り、mask に足した部分は label 4（uncertain）になります。Export では order labels を <code>vein_mask</code> と照合し、mask にあるのに次数が 0 の画素があれば警告します。描画制限と後からの clipping も同じ条件を使うため、mask の値の向きを変更するときは <code>order_labels.py</code> 側も一緒に確認する必要があります。</p>
-<p>葉脈が前景なので、<code>Clean Mask</code> の「Small object area」は小さな葉脈の断片を、「Maximum hole area」は葉脈の内側の小さな穴を対象にします。穴埋めを大きくすると小さな網目（areole）まで潰れるため、既定値は 50 px にしています。</p>
+<p>葉脈が前景なので、<code>Clean Vein Mask</code> の「Small object area」は小さな葉脈の断片を、「Maximum hole area」は葉脈の内側の小さな穴を対象にします。穴埋めを大きくすると小さな網目（areole）まで潰れるため、既定値は 50 px にしています。</p>
 <p>order labels の値は、次の用途を想定しています。</p>
 <table class="caption-top table">
 <thead>
@@ -582,7 +624,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td>3</td>
-<td>tertiary（3次脈）</td>
+<td>tertiary</td>
 </tr>
 <tr class="odd">
 <td>4</td>
@@ -673,7 +715,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td><code>order_labels.processing</code></td>
-<td>ROI 範囲、Gaussian sigma、Otsu 値、最終閾値と invert、Clean Mask の全実行（各回の値と、その前に手修正があったか）</td>
+<td>ROI 範囲、Gaussian sigma、Otsu 値、最終閾値と invert、Clean Vein Mask の全実行（各回の値と、その前に手修正があったか）</td>
 </tr>
 <tr class="odd">
 <td><code>mask_edited_by_hand_after_last_step</code></td>
@@ -826,7 +868,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>Apply Otsu</code> control がまだ無効になっている</td>
 </tr>
 <tr class="odd">
-<td><code>vein_mask</code> 作成前に <code>Clean Mask</code> または <code>Create Order Labels</code> を押す</td>
+<td><code>vein_mask</code> 作成前に <code>Clean Vein Mask</code> または <code>Create Order Labels</code> を押す</td>
 <td>処理対象の mask がない</td>
 </tr>
 <tr class="even">
@@ -857,19 +899,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>small object removal、hole filling、closing、opening で mask を整えられること。</li>
 <li>未対応の画像 shape がエラーになること。</li>
 </ul>
-<p>現在の widget フローからは骨格化を呼びませんが、独立した計算 helper の回帰確認として <code>tests/test_skeleton.py</code> は残っています。</p>
+<p>手動分類の開始時には骨格レイヤーを追加しませんが、自動次数判定とExportの内部では骨格化を行います。独立した計算helperは <code>tests/test_skeleton.py</code> で確認しています。</p>
 <ul>
 <li>2D mask から骨格画像を作れること。</li>
 <li>Labels 形式の整数 mask でも、0 より大きい画素を前景として扱うこと。</li>
 <li>空 mask や 2D 以外の入力がエラーになること。</li>
 <li>校正値を渡すと既存px列を変えずに長さ・直径・局所座標のmm列が追加されること。</li>
 </ul>
-<p><code>tests/test_widget_import.py</code> では、Qt backend がある環境で <code>_widget.py</code> から widget を import できることと、画像追加から order labels までの工程を確認しています。</p>
+<p><code>tests/test_widget_import.py</code> は公開importの互換性を確認します。操作のテストは <code>test_widget_controls.py</code>、<code>test_widget_calibration.py</code>、<code>test_widget_masks.py</code>、<code>test_widget_order_labels.py</code>、<code>test_widget_export.py</code>、<code>test_widget_resume.py</code> に分けています。共通のviewer fixtureは <code>tests/conftest.py</code>、工程を進める補助関数は <code>tests/widget_helpers.py</code> にあります。</p>
 <ul>
 <li><code>Add ROI</code> 後に crop が active になり、元画像が非表示になること。</li>
 <li><code>Apply Gaussian</code> では <code>smoothed_image</code> だけが作られ、<code>vein_mask</code> はまだ存在しないこと。</li>
 <li><code>Apply Otsu</code> では葉身候補だけが作られ、葉身の確定後に葉脈maskが作られて閾値UIで更新できること。</li>
-<li><code>Clean Mask</code> 後も mask が active な paint mode に保たれること。</li>
+<li><code>Clean Vein Mask</code> 後も mask が active な paint mode に保たれること。</li>
 <li>order labels が mask 外に描けず、既存の手動ラベルが再作成時に上書きされないこと。</li>
 <li>ROI を切り直すと古い派生レイヤーが削除されること。</li>
 <li>数値入力と手動スケールバーの校正値が派生レイヤーへ継承され、再校正で置き換わること。</li>
@@ -889,12 +931,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>widgets/roi.py</code> と <code>crop.py</code> で画像追加、ROI 編集、切り抜き処理を見る。</li>
 <li><code>widgets/mask.py</code> と <code>threshold.py</code> で Gaussian、Otsu、timer、cleanup の流れを見る。</li>
 <li><code>widgets/order_labels.py</code> で order labels の作成と描画制限を見て、必要なら <code>order.py</code> で検証、集計、export 処理を見る。</li>
-<li><code>tests/test_widget_import.py</code> で、これらが 1 つの明示的な操作フローとして接続されていることを確認する。</li>
+<li><code>widgets/measurement.py</code> で、GUI上の配列・診断値・メタデータを <code>LabelsSnapshot</code> にコピーし、バックグラウンドで出力する流れを見る。</li>
+<li><code>resume.py</code> で保存ファイルの検証、<code>widgets/resume.py</code> の <code>ResumeWorkflow</code> でレイヤー・操作欄・表示の復元を見る。</li>
+<li>機能別の <code>tests/test_widget_*.py</code> で、それぞれの操作と保存・再開が接続されていることを確認する。</li>
 </ol>
 </section>
 <section id="まとめ" class="level2">
 <h2 class="anchored" data-anchor-id="まとめ">まとめ</h2>
-<p>現在の実装は、葉脈解析そのものではなく、葉脈解析の前段階として「人が ROI を指定し、Gaussian と Otsu を明示的に適用し、mask を cleanup と手作業で確認してから、葉脈次数を塗り分ける」ための機能です。</p>
+<p>現在の実装は、ROI指定、校正、葉身の確定、葉脈maskの編集、次数の塗り分け、長さ・VLAの計算、保存した解析の再開までを扱います。人がマスクと次数を確認する工程を含むため、自動判定の結果も確認してから測定に使います。</p>
 <p>設計上は、napari 依存の処理も UI、レイヤー管理、ROI、mask、order labels に分かれ、NumPy ベースの計算処理とも分離されています。manifest 互換性は <code>_widget.py</code>、widget 全体の接続は <code>crop_widget.py</code>、個々の工程は対応する担当モジュールから読み始めればよく、1 ファイルの内部を端から探す必要はありません。</p>
 <p>確定葉身マスクはExport時に <code>*_leaf_mask.npy</code> として保存します。全葉のpath計測にはROI面積を自動流用せず、外部面積を明示的に指定します。</p>
 
